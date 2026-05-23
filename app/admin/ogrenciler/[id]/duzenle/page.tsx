@@ -7,7 +7,7 @@ import { StudentForm } from "@/blocks/admin/student-form"
 export default async function StudentEditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: student } = await supabase.from("students").select("*").eq("id", id).maybeSingle()
+  const { data: student } = await supabase.from("clients").select("*").eq("id", id).maybeSingle()
   if (!student) notFound()
 
   return (

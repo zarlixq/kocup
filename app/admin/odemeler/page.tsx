@@ -21,7 +21,7 @@ export default async function OdemelerPage({ searchParams }: { searchParams: Pro
 
   let query = supabase
     .from("payments")
-    .select("id, amount, payment_date, period_month, method, notes, student_id, students(full_name), packages(name)")
+    .select("id, amount, payment_date, period_month, method, notes, student_id, clients(full_name), packages(name)")
     .order("payment_date", { ascending: false })
 
   if (month && month !== "tum") query = query.eq("period_month", month)
@@ -30,7 +30,7 @@ export default async function OdemelerPage({ searchParams }: { searchParams: Pro
 
   const [{ data: payments }, { data: students }] = await Promise.all([
     query,
-    supabase.from("students").select("id, full_name").order("full_name"),
+    supabase.from("clients").select("id, full_name").order("full_name"),
   ])
 
   const total = (payments ?? []).reduce((s, p) => s + Number(p.amount), 0)
@@ -83,7 +83,7 @@ export default async function OdemelerPage({ searchParams }: { searchParams: Pro
                   <TableCell className="whitespace-nowrap">{formatDate(p.payment_date)}</TableCell>
                   <TableCell>
                     <Link href={`/admin/ogrenciler/${p.student_id}`} className="font-medium text-zinc-900 hover:text-[#1B6B8A]">
-                      {p.students?.full_name}
+                      {p.clients?.full_name}
                     </Link>
                   </TableCell>
                   <TableCell className="text-zinc-600">{p.packages?.name ?? "-"}</TableCell>

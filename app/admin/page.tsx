@@ -17,14 +17,14 @@ export default async function DashboardPage() {
 
   const [{ data: students }, { data: paymentsThisMonth }, { data: recentPayments }] = await Promise.all([
     supabase
-      .from("students")
+      .from("clients")
       .select(
         "id, full_name, is_active, packages(id, name, monthly_price, payment_day, status), payments(amount, period_month)"
       ),
     supabase.from("payments").select("amount").eq("period_month", periodIso),
     supabase
       .from("payments")
-      .select("id, amount, payment_date, method, student_id, students(full_name)")
+      .select("id, amount, payment_date, method, student_id, clients(full_name)")
       .order("payment_date", { ascending: false })
       .limit(10),
   ])
@@ -192,7 +192,7 @@ export default async function DashboardPage() {
                     <TableCell className="whitespace-nowrap">{formatDate(p.payment_date)}</TableCell>
                     <TableCell>
                       <Link href={`/admin/ogrenciler/${p.student_id}`} className="font-medium hover:text-[#1B6B8A]">
-                        {p.students?.full_name}
+                        {p.clients?.full_name}
                       </Link>
                     </TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">{formatTRY(p.amount)}</TableCell>

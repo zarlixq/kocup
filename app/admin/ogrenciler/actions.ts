@@ -20,7 +20,7 @@ export async function createStudentAction(formData: FormData) {
   if (!full_name) return { error: "Ad soyad zorunlu." }
 
   const { data, error } = await supabase
-    .from("students")
+    .from("clients")
     .insert({
       coach_id: user.id,
       full_name,
@@ -47,7 +47,7 @@ export async function updateStudentAction(id: string, formData: FormData) {
   if (!full_name) return { error: "Ad soyad zorunlu." }
 
   const { error } = await supabase
-    .from("students")
+    .from("clients")
     .update({
       full_name,
       phone: s(formData.get("phone")),
@@ -68,7 +68,7 @@ export async function updateStudentAction(id: string, formData: FormData) {
 
 export async function toggleStudentActiveAction(id: string, nextValue: boolean) {
   const supabase = await createClient()
-  const { error } = await supabase.from("students").update({ is_active: nextValue }).eq("id", id)
+  const { error } = await supabase.from("clients").update({ is_active: nextValue }).eq("id", id)
   if (error) return { error: error.message }
   revalidatePath("/admin/ogrenciler")
   revalidatePath(`/admin/ogrenciler/${id}`)
@@ -78,7 +78,7 @@ export async function toggleStudentActiveAction(id: string, nextValue: boolean) 
 
 export async function deleteStudentAction(id: string) {
   const supabase = await createClient()
-  const { error } = await supabase.from("students").delete().eq("id", id)
+  const { error } = await supabase.from("clients").delete().eq("id", id)
   if (error) return { error: error.message }
   revalidatePath("/admin/ogrenciler")
   revalidatePath("/admin")

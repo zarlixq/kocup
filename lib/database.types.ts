@@ -7,11 +7,120 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      applications: {
+        Row: {
+          approved_student_id: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          grade: string
+          id: string
+          parent_name: string
+          parent_phone: string
+          phone: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          target_department: string | null
+          target_ranking: number | null
+          target_university: string | null
+        }
+        Insert: {
+          approved_student_id?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          grade: string
+          id?: string
+          parent_name: string
+          parent_phone: string
+          phone: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_department?: string | null
+          target_ranking?: number | null
+          target_university?: string | null
+        }
+        Update: {
+          approved_student_id?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          grade?: string
+          id?: string
+          parent_name?: string
+          parent_phone?: string
+          phone?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_department?: string | null
+          target_ranking?: number | null
+          target_university?: string | null
+        }
+        Relationships: []
+      }
+      clients: {
+        Row: {
+          coach_id: string
+          created_at: string | null
+          full_name: string
+          grade: string | null
+          id: string
+          is_active: boolean | null
+          notes: string | null
+          parent_name: string | null
+          parent_phone: string | null
+          phone: string | null
+          school: string | null
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string | null
+          full_name: string
+          grade?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
+          phone?: string | null
+          school?: string | null
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string | null
+          full_name?: string
+          grade?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
+          phone?: string | null
+          school?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coaches: {
         Row: {
           created_at: string | null
@@ -75,7 +184,7 @@ export type Database = {
             foreignKeyName: "packages_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
-            referencedRelation: "students"
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
@@ -126,57 +235,147 @@ export type Database = {
             foreignKeyName: "payments_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
-            referencedRelation: "students"
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
       }
-      students: {
+      profiles: {
         Row: {
-          coach_id: string
+          avatar_url: string | null
           created_at: string | null
+          email: string
           full_name: string
-          grade: string | null
           id: string
-          is_active: boolean | null
-          notes: string | null
-          parent_name: string | null
-          parent_phone: string | null
           phone: string | null
-          school: string | null
+          role: string
         }
         Insert: {
-          coach_id: string
+          avatar_url?: string | null
           created_at?: string | null
+          email: string
           full_name: string
-          grade?: string | null
-          id?: string
-          is_active?: boolean | null
-          notes?: string | null
-          parent_name?: string | null
-          parent_phone?: string | null
+          id: string
           phone?: string | null
-          school?: string | null
+          role: string
         }
         Update: {
-          coach_id?: string
+          avatar_url?: string | null
           created_at?: string | null
+          email?: string
           full_name?: string
-          grade?: string | null
           id?: string
-          is_active?: boolean | null
-          notes?: string | null
+          phone?: string | null
+          role?: string
+        }
+        Relationships: []
+      }
+      students: {
+        Row: {
+          coach_id: string | null
+          created_at: string | null
+          grade: string | null
+          id: string
+          parent_name: string | null
+          parent_phone: string | null
+          target_department: string | null
+          target_ranking: number | null
+          target_university: string | null
+        }
+        Insert: {
+          coach_id?: string | null
+          created_at?: string | null
+          grade?: string | null
+          id: string
           parent_name?: string | null
           parent_phone?: string | null
-          phone?: string | null
-          school?: string | null
+          target_department?: string | null
+          target_ranking?: number | null
+          target_university?: string | null
+        }
+        Update: {
+          coach_id?: string | null
+          created_at?: string | null
+          grade?: string | null
+          id?: string
+          parent_name?: string | null
+          parent_phone?: string | null
+          target_department?: string | null
+          target_ranking?: number | null
+          target_university?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "students_coach_id_fkey"
+            foreignKeyName: "students_coach_id_fkey1"
             columns: ["coach_id"]
             isOneToOne: false
-            referencedRelation: "coaches"
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subjects: {
+        Row: {
+          color: string
+          created_at: string | null
+          exam_type: string
+          id: string
+          name: string
+          order: number
+        }
+        Insert: {
+          color: string
+          created_at?: string | null
+          exam_type: string
+          id?: string
+          name: string
+          order: number
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          exam_type?: string
+          id?: string
+          name?: string
+          order?: number
+        }
+        Relationships: []
+      }
+      topics: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          order: number
+          subject_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          order: number
+          subject_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          order?: number
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topics_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
         ]
@@ -186,7 +385,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_user_role: { Args: never; Returns: string }
+      is_coach_of: { Args: { student_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
@@ -196,3 +396,126 @@ export type Database = {
     }
   }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

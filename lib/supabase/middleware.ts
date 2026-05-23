@@ -29,20 +29,85 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
-  const isAuthPage = path === "/admin/giris" || path === "/admin/kayit"
-  const isAdminPath = path.startsWith("/admin")
 
-  if (isAdminPath && !user && !isAuthPage) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/admin/giris"
-    return NextResponse.redirect(url)
+  // Muhasebe panel (legacy)
+  const isAdminPath = path.startsWith("/admin")
+  const isAdminAuthPage = path === "/admin/giris" || path === "/admin/kayit"
+
+  // Portal panel paths
+  const isOgrenciPath = path.startsWith("/ogrenci")
+  const isKocPath = path.startsWith("/koc")
+  const isMudurPath = path.startsWith("/mudur")
+  const isPortalPath = isOgrenciPath || isKocPath || isMudurPath
+
+  // ── Unauthenticated ────────────────────────────────────────────────────
+  if (!user) {
+    if (isAdminPath && !isAdminAuthPage) {
+      return redirect(request, "/admin/giris")
+    }
+    if (isOgrenciPath) return redirect(request, "/giris/ogrenci")
+    if (isKocPath) return redirect(request, "/giris/koc")
+    if (isMudurPath) return redirect(request, "/giris/mudur")
+    return supabaseResponse
   }
 
-  if (isAuthPage && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/admin"
-    return NextResponse.redirect(url)
+  // ── Authenticated ──────────────────────────────────────────────────────
+
+  // Redirect away from legacy auth pages
+  if (isAdminAuthPage) {
+    return redirect(request, "/admin")
+  }
+
+  // Role-based protection for portal paths
+  if (isPortalPath) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    const role = profile?.role
+
+    // No portal profile → this is a legacy muhasebe user, go to /admin
+    if (!role) {
+      return redirect(request, "/admin")
+    }
+
+    const roleToPath: Record<string, string> = {
+      student: "/ogrenci",
+      coach: "/koc",
+      admin: "/mudur",
+    }
+
+    const expectedPrefix = roleToPath[role]
+
+    if (expectedPrefix && !path.startsWith(expectedPrefix)) {
+      return redirect(request, expectedPrefix)
+    }
+  }
+
+  // Redirect portal login pages if already authenticated with a portal role
+  if (path.startsWith("/giris/") && path !== "/giris") {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    if (profile?.role) {
+      const dest =
+        profile.role === "student" ? "/ogrenci" :
+        profile.role === "coach" ? "/koc" :
+        "/mudur"
+      return redirect(request, dest)
+    }
   }
 
   return supabaseResponse
+}
+
+function redirect(request: NextRequest, pathname: string) {
+  const url = request.nextUrl.clone()
+  url.pathname = pathname
+  return NextResponse.redirect(url)
 }

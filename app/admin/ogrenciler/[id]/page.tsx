@@ -18,7 +18,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: student } = await supabase.from("students").select("*").eq("id", id).maybeSingle()
+  const { data: student } = await supabase.from("clients").select("*").eq("id", id).maybeSingle()
   if (!student) notFound()
 
   const { data: packages } = await supabase

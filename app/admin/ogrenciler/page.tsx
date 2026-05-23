@@ -19,7 +19,7 @@ export default async function OgrencilerPage({ searchParams }: { searchParams: P
   const supabase = await createClient()
 
   let query = supabase
-    .from("students")
+    .from("clients")
     .select(
       `id, full_name, school, grade, is_active,
        packages(id, monthly_price, status, name),
