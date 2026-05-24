@@ -12,6 +12,7 @@ import {
   Hash,
   Menu,
   LogOut,
+  UserCog,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -32,6 +33,7 @@ const NAV: NavItem[] = [
   { href: "/ogrenci/program", label: "Program", icon: Calendar },
   { href: "/ogrenci/denemelerim", label: "Denemelerim", icon: FileText },
   { href: "/ogrenci/soru-cozum", label: "Soru Çözüm", icon: Hash },
+  { href: "/ogrenci/kocum", label: "Koçum", icon: UserCog },
 ]
 
 type SidebarProps = {

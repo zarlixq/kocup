@@ -9,10 +9,16 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { isoDate } from "@/lib/format"
-import { createExamAction } from "@/app/ogrenci/denemelerim/actions"
 
-type Subject = { id: string; name: string; exam_type: string }
-type ExamType = "tyt" | "ayt" | "tyt_ayt"
+export type ExamFormSubject = { id: string; name: string; exam_type: string }
+export type ExamFormResult = { subject_id: string; correct: number; wrong: number; empty: number }
+export type ExamFormInput = {
+  name: string
+  exam_type: "tyt" | "ayt" | "tyt_ayt"
+  date: string
+  results: ExamFormResult[]
+}
+export type ExamFormSubmitResult = { error?: string }
 
 type Row = { subject_id: string; correct: string; wrong: string; empty: string }
 
@@ -20,11 +26,17 @@ function net(correct: number, wrong: number) {
   return correct - wrong / 4
 }
 
-export function ExamForm({ subjects }: { subjects: Subject[] }) {
+export function ExamForm({
+  subjects,
+  onSubmit,
+}: {
+  subjects: ExamFormSubject[]
+  onSubmit: (input: ExamFormInput) => Promise<ExamFormSubmitResult | void>
+}) {
   const router = useRouter()
   const today = isoDate(new Date())
   const [name, setName] = useState("")
-  const [examType, setExamType] = useState<ExamType>("tyt")
+  const [examType, setExamType] = useState<ExamFormInput["exam_type"]>("tyt")
   const [date, setDate] = useState(today)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -59,7 +71,7 @@ export function ExamForm({ subjects }: { subjects: Subject[] }) {
     [rows]
   )
 
-  function onSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
 
@@ -68,7 +80,7 @@ export function ExamForm({ subjects }: { subjects: Subject[] }) {
       return
     }
 
-    const results = Object.values(rows)
+    const results: ExamFormResult[] = Object.values(rows)
       .filter((r) => r.correct !== "" || r.wrong !== "" || r.empty !== "")
       .map((r) => ({
         subject_id: r.subject_id,
@@ -76,14 +88,15 @@ export function ExamForm({ subjects }: { subjects: Subject[] }) {
         wrong: Math.max(0, Number(r.wrong) || 0),
         empty: Math.max(0, Number(r.empty) || 0),
       }))
+      .filter((r) => r.correct + r.wrong + r.empty > 0)
 
     if (results.length === 0) {
-      setError("En az bir ders sonucu gir.")
+      setError("En az bir ders için sonuç gir.")
       return
     }
 
     start(async () => {
-      const res = await createExamAction({
+      const res = await onSubmit({
         name: name.trim(),
         exam_type: examType,
         date,
@@ -97,7 +110,7 @@ export function ExamForm({ subjects }: { subjects: Subject[] }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -130,7 +143,7 @@ export function ExamForm({ subjects }: { subjects: Subject[] }) {
 
       <div className="space-y-1.5">
         <Label>Tip *</Label>
-        <Select value={examType} onValueChange={(v) => setExamType(v as ExamType)}>
+        <Select value={examType} onValueChange={(v) => setExamType(v as ExamFormInput["exam_type"])}>
           <SelectTrigger className="w-full md:w-60">
             <SelectValue />
           </SelectTrigger>
@@ -154,52 +167,60 @@ export function ExamForm({ subjects }: { subjects: Subject[] }) {
             </tr>
           </thead>
           <tbody>
-            {visibleSubjects.map((s) => {
-              const row = rows[s.id]
-              const c = Number(row?.correct) || 0
-              const w = Number(row?.wrong) || 0
-              const n = net(c, w)
-              return (
-                <tr key={s.id} className="border-t border-zinc-100">
-                  <td className="px-4 py-2 font-medium">
-                    {s.name}
-                    {s.exam_type === "ayt" && examType === "tyt_ayt" && (
-                      <span className="text-xs text-zinc-400 ml-1">(AYT)</span>
-                    )}
-                  </td>
-                  <td className="px-2 py-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      value={row?.correct ?? ""}
-                      onChange={(e) => setCell(s.id, "correct", e.target.value)}
-                      className="h-8 text-center"
-                    />
-                  </td>
-                  <td className="px-2 py-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      value={row?.wrong ?? ""}
-                      onChange={(e) => setCell(s.id, "wrong", e.target.value)}
-                      className="h-8 text-center"
-                    />
-                  </td>
-                  <td className="px-2 py-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      value={row?.empty ?? ""}
-                      onChange={(e) => setCell(s.id, "empty", e.target.value)}
-                      className="h-8 text-center"
-                    />
-                  </td>
-                  <td className="px-4 py-2 text-right font-semibold tabular-nums">
-                    {c + w > 0 ? n.toFixed(2) : "—"}
-                  </td>
-                </tr>
-              )
-            })}
+            {visibleSubjects.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-zinc-500">
+                  Bu tip için ders bulunamadı.
+                </td>
+              </tr>
+            ) : (
+              visibleSubjects.map((s) => {
+                const row = rows[s.id]
+                const c = Number(row?.correct) || 0
+                const w = Number(row?.wrong) || 0
+                const n = net(c, w)
+                return (
+                  <tr key={s.id} className="border-t border-zinc-100">
+                    <td className="px-4 py-2 font-medium">
+                      {s.name}
+                      {s.exam_type === "ayt" && examType === "tyt_ayt" && (
+                        <span className="text-xs text-zinc-400 ml-1">(AYT)</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        value={row?.correct ?? ""}
+                        onChange={(e) => setCell(s.id, "correct", e.target.value)}
+                        className="h-8 text-center"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        value={row?.wrong ?? ""}
+                        onChange={(e) => setCell(s.id, "wrong", e.target.value)}
+                        className="h-8 text-center"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        value={row?.empty ?? ""}
+                        onChange={(e) => setCell(s.id, "empty", e.target.value)}
+                        className="h-8 text-center"
+                      />
+                    </td>
+                    <td className="px-4 py-2 text-right font-semibold tabular-nums">
+                      {c + w > 0 ? n.toFixed(2) : "—"}
+                    </td>
+                  </tr>
+                )
+              })
+            )}
           </tbody>
           <tfoot>
             <tr className="bg-zinc-50 border-t border-zinc-200">

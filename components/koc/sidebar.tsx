@@ -12,6 +12,7 @@ import {
   Settings,
   Menu,
   LogOut,
+  User,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,7 @@ const NAV: NavItem[] = [
   { href: "/koc/ogrenciler", label: "Öğrencilerim", icon: GraduationCap },
   { href: "/koc/payments", label: "Ödemeler", icon: Wallet },
   { href: "/koc/packages", label: "Paketler", icon: Package },
+  { href: "/koc/profilim", label: "Profilim", icon: User },
   { href: "/koc/ayarlar", label: "Ayarlar", icon: Settings },
 ]
 

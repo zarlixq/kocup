@@ -92,6 +92,8 @@ export default function BasvuruPage() {
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <option value="">Sınıf seçin</option>
+                  <option value="7">7. Sınıf</option>
+                  <option value="8">8. Sınıf (LGS)</option>
                   <option value="9">9. Sınıf</option>
                   <option value="10">10. Sınıf</option>
                   <option value="11">11. Sınıf</option>

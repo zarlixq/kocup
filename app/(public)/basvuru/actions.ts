@@ -7,7 +7,7 @@ const BasvuruSchema = z.object({
   full_name: z.string().min(2, "Ad Soyad en az 2 karakter olmalı"),
   email: z.string().email("Geçerli bir e-posta girin"),
   phone: z.string().min(10, "Geçerli bir telefon girin"),
-  grade: z.enum(["9", "10", "11", "12", "Mezun"], { message: "Sınıf seçin" }),
+  grade: z.enum(["7", "8", "9", "10", "11", "12", "Mezun"], { message: "Sınıf seçin" }),
   target_university: z.string().optional(),
   target_department: z.string().optional(),
   target_ranking: z.coerce.number().int().positive().optional().or(z.literal("")),

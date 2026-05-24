@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -24,9 +25,11 @@ export default async function StudentDenemelerPage({ params }: { params: Promise
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-zinc-900">Deneme Sonuçları</h2>
-        <Button variant="accent" size="sm" disabled>
-          <Plus className="h-4 w-4" /> Yeni Deneme
-        </Button>
+        <Link href={`/koc/ogrenciler/${id}/denemeler/yeni`}>
+          <Button variant="accent" size="sm">
+            <Plus className="h-4 w-4" /> Yeni Deneme
+          </Button>
+        </Link>
       </div>
 
       {!exams || exams.length === 0 ? (
@@ -35,7 +38,11 @@ export default async function StudentDenemelerPage({ params }: { params: Promise
             <FileText className="h-6 w-6 text-zinc-500" />
           </div>
           <h3 className="text-base font-semibold text-zinc-900 mb-1">Henüz deneme kaydı yok</h3>
-          <p className="text-sm text-zinc-500">Deneme ekleme özelliği yakında.</p>
+          <p className="text-sm text-zinc-500">
+            <Link href={`/koc/ogrenciler/${id}/denemeler/yeni`} className="text-[#1B6B8A] hover:underline">
+              Yeni deneme ekle →
+            </Link>
+          </p>
         </div>
       ) : (
         <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">

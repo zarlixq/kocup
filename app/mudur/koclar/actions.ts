@@ -54,8 +54,43 @@ export async function inviteCoach(input: unknown): Promise<ActionResult> {
 }
 
 const updateSchema = z.object({
-  full_name: z.string().trim().min(3),
-  phone: z.string().trim().optional().nullable(),
+  full_name: z.string().trim().min(3, "Ad soyad en az 3 karakter."),
+  phone: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  bio: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  certificate_info: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  years_experience: z
+    .union([z.string(), z.number(), z.null(), z.undefined()])
+    .optional()
+    .transform((v) => {
+      if (v === null || v === undefined || v === "") return null
+      const n = Number(v)
+      return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null
+    }),
+  specialties: z
+    .union([z.string(), z.array(z.string()), z.null(), z.undefined()])
+    .optional()
+    .transform((v) => {
+      if (!v) return null
+      const arr = Array.isArray(v)
+        ? v
+        : v.split(",").map((s) => s.trim()).filter((s) => s.length > 0)
+      return arr.length > 0 ? arr : null
+    }),
 })
 
 export async function updateCoach(id: string, input: unknown): Promise<ActionResult> {
@@ -72,7 +107,11 @@ export async function updateCoach(id: string, input: unknown): Promise<ActionRes
     .from("profiles")
     .update({
       full_name: parsed.data.full_name,
-      phone: parsed.data.phone ?? null,
+      phone: parsed.data.phone,
+      bio: parsed.data.bio,
+      certificate_info: parsed.data.certificate_info,
+      years_experience: parsed.data.years_experience,
+      specialties: parsed.data.specialties,
     })
     .eq("id", id)
     .eq("role", "coach")
@@ -83,6 +122,8 @@ export async function updateCoach(id: string, input: unknown): Promise<ActionRes
   }
 
   revalidatePath("/mudur/koclar")
+  revalidatePath(`/mudur/koclar/${id}`)
+  revalidatePath("/")
   return { success: true }
 }
 

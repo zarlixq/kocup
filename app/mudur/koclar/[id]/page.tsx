@@ -1,12 +1,14 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, UserCog, GraduationCap, Wallet, Package, TrendingUp, Mail, Phone } from "lucide-react"
+import { ArrowLeft, UserCog, GraduationCap, Wallet, Package, TrendingUp, Mail, Phone, Award } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatTRY } from "@/lib/format"
 import { currentPeriodMonthISO } from "@/lib/payments"
+import { EditCoachDialog } from "@/components/mudur/edit-coach-dialog"
+import { DeleteCoachButton } from "@/components/mudur/delete-coach-button"
 
 function initials(name: string) {
   return name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase()
@@ -25,7 +27,7 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, full_name, email, phone, created_at, role")
+    .select("id, full_name, email, phone, bio, certificate_info, years_experience, specialties, created_at, role")
     .eq("id", id)
     .maybeSingle()
 
@@ -63,6 +65,8 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
     0
   )
 
+  const studentCount = (students ?? []).length
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <Link
@@ -74,15 +78,15 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
       </Link>
 
       <div className="bg-white border border-zinc-200 rounded-2xl p-6">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col md:flex-row md:items-start gap-4">
           <Avatar className="h-16 w-16">
             <AvatarFallback className="bg-[#1B6B8A] text-white text-lg">
               {initials(profile.full_name)}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1">
+          <div className="flex-1 space-y-2">
             <h1 className="text-2xl font-bold text-zinc-900">{profile.full_name}</h1>
-            <div className="flex items-center gap-3 text-sm text-zinc-500 mt-1 flex-wrap">
+            <div className="flex items-center gap-3 text-sm text-zinc-500 flex-wrap">
               <span className="inline-flex items-center gap-1">
                 <Mail className="w-3.5 h-3.5" /> {profile.email}
               </span>
@@ -93,15 +97,58 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
               )}
               <span className="text-zinc-400">Kayıt: {formatDate(profile.created_at)}</span>
             </div>
+            {profile.certificate_info && (
+              <Badge variant="paid">
+                <Award className="w-3 h-3 mr-1" />
+                {profile.certificate_info}
+              </Badge>
+            )}
+            {profile.specialties && profile.specialties.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {profile.specialties.map((s) => (
+                  <Badge key={s} variant="outline" className="text-xs">
+                    {s}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {profile.years_experience != null && profile.years_experience > 0 && (
+              <p className="text-sm text-zinc-500">{profile.years_experience} yıl deneyim</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <EditCoachDialog
+              coachId={profile.id}
+              initial={{
+                full_name: profile.full_name,
+                phone: profile.phone ?? "",
+                bio: profile.bio ?? "",
+                certificate_info: profile.certificate_info ?? "",
+                years_experience: profile.years_experience?.toString() ?? "",
+                specialties: (profile.specialties ?? []).join(", "),
+              }}
+            />
+            <DeleteCoachButton
+              coachId={profile.id}
+              coachName={profile.full_name}
+              studentCount={studentCount}
+            />
           </div>
         </div>
+
+        {profile.bio && (
+          <div className="mt-5 pt-5 border-t border-zinc-100">
+            <h3 className="text-sm font-semibold text-zinc-900 mb-2">Hakkında</h3>
+            <p className="text-sm text-zinc-600 whitespace-pre-line leading-relaxed">{profile.bio}</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           icon={<GraduationCap className="h-4 w-4" />}
           label="Öğrenci"
-          value={String((students ?? []).length)}
+          value={String(studentCount)}
           color="bg-blue-50 text-blue-700"
         />
         <StatCard
@@ -126,7 +173,7 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
 
       <section>
         <h2 className="text-base font-semibold text-zinc-900 mb-3">Atanmış Öğrenciler</h2>
-        {(students ?? []).length === 0 ? (
+        {studentCount === 0 ? (
           <div className="bg-white border border-zinc-200 rounded-2xl p-12 text-center">
             <UserCog className="h-6 w-6 text-zinc-400 mx-auto mb-3" />
             <p className="text-sm text-zinc-500">Bu koça henüz öğrenci atanmamış.</p>

@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const plans = [
   {
@@ -52,6 +53,8 @@ const plans = [
 
 export default function Pricing() {
   const refs = useRef([]);
+  const router = useRouter();
+  const [selectedPlan, setSelectedPlan] = useState(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -159,16 +162,17 @@ export default function Pricing() {
                 </ul>
 
                 {/* CTA */}
-                <a
-                  href="#basvuru"
-                  className={`block text-center font-semibold py-3.5 rounded-full text-sm transition-all hover:scale-[1.02] ${
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlan(plan)}
+                  className={`block w-full text-center font-semibold py-3.5 rounded-full text-sm transition-all hover:scale-[1.02] ${
                     plan.featured
                       ? "bg-[#F97316] text-white hover:bg-[#ea6c10]"
                       : "border border-[#1B6B8A] text-[#1B6B8A] hover:bg-[#1B6B8A] hover:text-white"
                   }`}
                 >
                   {plan.cta}
-                </a>
+                </button>
               </div>
             </div>
           ))}
@@ -184,6 +188,66 @@ export default function Pricing() {
         </p>
 
       </div>
+
+      {selectedPlan && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+          onClick={() => setSelectedPlan(null)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-md w-full p-6 sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div>
+                <div className="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full bg-orange-50 text-[#F97316] mb-2">
+                  {selectedPlan.badge}
+                </div>
+                <h3 className="text-xl font-bold text-zinc-900">
+                  {selectedPlan.name} Paket
+                </h3>
+                <p className="text-sm text-zinc-500 mt-1">
+                  ₺{selectedPlan.price} / ay
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPlan(null)}
+                className="text-zinc-400 hover:text-zinc-700 text-2xl leading-none"
+                aria-label="Kapat"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-zinc-600 leading-relaxed mb-6">
+              Paket satın almak için önce başvurunu tamamla. Seninle iletişime
+              geçip uygun koç eşleştirmesi yapacağız.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPlan(null);
+                  router.push(
+                    "/basvuru?paket=" +
+                      encodeURIComponent(selectedPlan.name)
+                  );
+                }}
+                className="flex-1 bg-[#1B6B8A] hover:bg-[#155a75] text-white font-semibold py-3 rounded-full text-sm transition-colors"
+              >
+                Başvuru Yap
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPlan(null)}
+                className="flex-1 border border-zinc-300 text-zinc-600 hover:bg-zinc-50 font-semibold py-3 rounded-full text-sm transition-colors"
+              >
+                Vazgeç
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

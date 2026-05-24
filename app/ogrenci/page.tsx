@@ -1,11 +1,21 @@
 import Link from "next/link"
-import { BookOpen, FileText, Hash, CheckCircle2, Plus } from "lucide-react"
+import { BookOpen, FileText, Hash, CheckCircle2, Plus, UserCog } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDate } from "@/lib/format"
 import { WeeklyQuestionsChart } from "@/components/ogrenci/weekly-questions-chart"
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase()
+}
 
 export const metadata = { title: "Dashboard — KoçUp" }
 
@@ -23,6 +33,20 @@ export default async function OgrenciDashboard() {
     .select("full_name")
     .eq("id", studentId)
     .maybeSingle()
+
+  const { data: studentRow } = await supabase
+    .from("students")
+    .select("coach_id")
+    .eq("id", studentId)
+    .maybeSingle()
+
+  const { data: coachProfile } = studentRow?.coach_id
+    ? await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", studentRow.coach_id)
+        .maybeSingle()
+    : { data: null }
 
   const now = new Date()
   const fourteenAgo = new Date(now)
@@ -97,9 +121,37 @@ export default async function OgrenciDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-900">Merhaba, {profile?.full_name} 👋</h1>
-        <p className="text-sm text-zinc-500 mt-1">Gelişimini buradan takip edebilirsin.</p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900">Merhaba, {profile?.full_name} 👋</h1>
+          <p className="text-sm text-zinc-500 mt-1">Gelişimini buradan takip edebilirsin.</p>
+        </div>
+        {coachProfile ? (
+          <Link
+            href="/ogrenci/kocum"
+            className="bg-white border border-zinc-200 rounded-xl px-3 py-2 flex items-center gap-3 hover:border-zinc-300 transition-colors"
+          >
+            <Avatar className="h-9 w-9">
+              <AvatarFallback className="bg-[#1B6B8A] text-white text-xs">
+                {initials(coachProfile.full_name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs text-zinc-500">Koçun</span>
+              <span className="text-sm font-medium text-zinc-900 truncate">
+                {coachProfile.full_name}
+              </span>
+            </div>
+          </Link>
+        ) : (
+          <Link
+            href="/ogrenci/kocum"
+            className="bg-white border border-zinc-200 rounded-xl px-3 py-2 flex items-center gap-2 text-sm text-zinc-500 hover:border-zinc-300"
+          >
+            <UserCog className="h-4 w-4" />
+            Koç atanmamış
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

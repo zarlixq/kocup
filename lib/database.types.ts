@@ -262,30 +262,42 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
+          certificate_info: string | null
           created_at: string | null
           email: string
           full_name: string
           id: string
           phone: string | null
           role: string
+          specialties: string[] | null
+          years_experience: number | null
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
+          certificate_info?: string | null
           created_at?: string | null
           email: string
           full_name: string
           id: string
           phone?: string | null
           role: string
+          specialties?: string[] | null
+          years_experience?: number | null
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
+          certificate_info?: string | null
           created_at?: string | null
           email?: string
           full_name?: string
           id?: string
           phone?: string | null
           role?: string
+          specialties?: string[] | null
+          years_experience?: number | null
         }
         Relationships: []
       }

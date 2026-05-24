@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
-import { ExamForm } from "@/components/ogrenci/exam-form"
+import { ExamForm } from "@/components/shared/exam-form"
+import { createExamAction } from "@/app/ogrenci/denemelerim/actions"
 
 export const metadata = { title: "Yeni Deneme — KoçUp" }
 
@@ -30,7 +31,7 @@ export default async function YeniDenemePage() {
       </div>
 
       <div className="bg-white border border-zinc-200 rounded-2xl p-6">
-        <ExamForm subjects={subjects ?? []} />
+        <ExamForm subjects={subjects ?? []} onSubmit={createExamAction} />
       </div>
     </div>
   )
