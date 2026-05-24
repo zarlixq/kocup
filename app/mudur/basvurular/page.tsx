@@ -5,21 +5,26 @@ export const metadata = { title: "Başvurular — KoçUp" }
 
 export default async function BasvurularPage() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const [{ data: applications }, { data: coaches }, { data: students }] = await Promise.all([
-    supabase
-      .from("applications")
-      .select("*")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("profiles")
-      .select("id, full_name")
-      .eq("role", "coach")
-      .order("full_name"),
-    supabase.from("students").select("id, coach_id"),
-  ])
+  const [{ data: applications }, { data: coaches }, { data: students }, { data: meProfile }] =
+    await Promise.all([
+      supabase
+        .from("applications")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("role", "coach")
+        .order("full_name"),
+      supabase.from("students").select("id, coach_id"),
+      supabase.from("profiles").select("full_name").eq("id", user!.id).maybeSingle(),
+    ])
 
-  // Build lookups: student_id → coach name, reviewer_id → reviewer name
+  // Build lookups
   const coachById: Record<string, string> = {}
   for (const c of coaches ?? []) coachById[c.id] = c.full_name
 
@@ -30,7 +35,6 @@ export default async function BasvurularPage() {
     }
   }
 
-  // Reviewer ids → fetch their profiles
   const reviewerIds = Array.from(
     new Set((applications ?? []).map((a) => a.reviewed_by).filter(Boolean) as string[])
   )
@@ -41,12 +45,36 @@ export default async function BasvurularPage() {
   const reviewerLookup: Record<string, string> = {}
   for (const r of reviewers ?? []) reviewerLookup[r.id] = r.full_name
 
+  // Tanıtım randevu bilgilerini çek
+  const tanitimIds = (applications ?? [])
+    .map((a) => a.tanitim_appointment_id)
+    .filter(Boolean) as string[]
+  const { data: tanitimAppts } = tanitimIds.length
+    ? await supabase
+        .from("appointments")
+        .select("id, start_time, end_time, coach_id, status")
+        .in("id", tanitimIds)
+    : { data: [] as { id: string; start_time: string; end_time: string; coach_id: string; status: string }[] }
+
+  const tanitimLookup: Record<
+    string,
+    { start_time: string; end_time: string; coachName: string; status: string }
+  > = {}
+  for (const ta of tanitimAppts ?? []) {
+    tanitimLookup[ta.id] = {
+      start_time: ta.start_time,
+      end_time: ta.end_time,
+      coachName: coachById[ta.coach_id] ?? "—",
+      status: ta.status,
+    }
+  }
+
   return (
     <div className="max-w-6xl mx-auto">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-zinc-900">Başvurular</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Öğrenci başvurularını incele, onayla veya reddet.
+          Öğrenci başvurularını incele, tanıtım dersi planla, onayla veya reddet.
         </p>
       </header>
 
@@ -55,6 +83,8 @@ export default async function BasvurularPage() {
         coaches={coaches ?? []}
         studentCoachLookup={studentCoachLookup}
         reviewerLookup={reviewerLookup}
+        tanitimLookup={tanitimLookup}
+        currentUser={{ id: user!.id, full_name: meProfile?.full_name ?? "Müdür" }}
       />
     </div>
   )
