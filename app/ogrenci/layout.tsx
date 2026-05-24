@@ -21,7 +21,9 @@ export default async function OgrenciLayout({ children }: { children: React.Reac
     <div className="min-h-screen bg-zinc-50">
       <Sidebar user={{ full_name: profile.full_name, email: profile.email }} />
       <main className="md:pl-64">
-        <div className="p-6 md:p-8 max-w-6xl mx-auto">{children}</div>
+        <div className="p-6 md:p-8 max-w-6xl mx-auto animate-in fade-in duration-300 motion-reduce:animate-none">
+          {children}
+        </div>
       </main>
       <Toaster />
     </div>

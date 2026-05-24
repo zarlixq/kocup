@@ -5,6 +5,9 @@ import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { expandRecurrence, type RecurrenceRule } from "@/lib/appointments/recurrence"
 import type { AppointmentType } from "@/lib/appointments/constants"
+import type { TablesUpdate } from "@/lib/database.types"
+
+type ApptUpdate = TablesUpdate<"appointments">
 
 type ActionResult<T = undefined> = {
   success: boolean
@@ -209,7 +212,7 @@ export async function updateAppointment(input: UpdateAppointmentInput): Promise<
   if (!target) return { success: false, error: "Randevu bulunamadı" }
   if (target.coach_id !== userId) return { success: false, error: "Yetkiniz yok" }
 
-  const changes: Record<string, unknown> = {}
+  const changes: ApptUpdate = {}
   if (data.title !== undefined) changes.title = data.title
   if (data.type !== undefined) changes.type = data.type
   if (data.notes !== undefined) changes.notes = data.notes.trim() || null
@@ -252,7 +255,7 @@ export async function updateAppointment(input: UpdateAppointmentInput): Promise<
     // Seri güncellenirken zaman değiştirme tehlikeli (her child'a aynı saatte set etmek anlamsız).
     // Bu yüzden series scope ise start/end değişikliğini her satıra aynı şekilde uygulamıyoruz;
     // diğer alanlar (title, type, notes, link, status, summary) tüm seriye uygulanır.
-    const seriesChanges = { ...changes }
+    const seriesChanges: ApptUpdate = { ...changes }
     delete seriesChanges.start_time
     delete seriesChanges.end_time
 

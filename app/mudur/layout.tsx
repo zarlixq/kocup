@@ -29,7 +29,9 @@ export default async function MudurLayout({ children }: { children: React.ReactN
         pendingCount={pendingCount ?? 0}
       />
       <main className="md:pl-64">
-        <div className="p-6 md:p-8">{children}</div>
+        <div className="p-6 md:p-8 animate-in fade-in duration-300 motion-reduce:animate-none">
+          {children}
+        </div>
       </main>
       <Toaster />
     </div>

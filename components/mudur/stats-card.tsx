@@ -43,14 +43,30 @@ export function StatsCard({
     </>
   )
 
-  const baseClasses = "bg-white border border-zinc-200 rounded-2xl p-5"
+  const baseClasses =
+    "bg-white border border-zinc-200 rounded-2xl p-5 transition-all motion-reduce:transition-none"
 
   if (href) {
     return (
-      <Link href={href} className={cn(baseClasses, "hover:border-[#1B6B8A] transition-colors block")}>
+      <Link
+        href={href}
+        className={cn(
+          baseClasses,
+          "block hover:border-[#1B6B8A] hover:shadow-md hover:-translate-y-0.5 motion-reduce:transform-none",
+        )}
+      >
         {inner}
       </Link>
     )
   }
-  return <div className={baseClasses}>{inner}</div>
+  return (
+    <div
+      className={cn(
+        baseClasses,
+        "hover:shadow-md hover:-translate-y-0.5 motion-reduce:transform-none",
+      )}
+    >
+      {inner}
+    </div>
+  )
 }

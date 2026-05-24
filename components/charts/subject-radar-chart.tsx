@@ -50,7 +50,7 @@ export function SubjectRadarChart({
             fillOpacity={0.35}
           />
           <Tooltip
-            formatter={(value: number) => [`%${value.toFixed(1)}`, "Başarı"]}
+            formatter={(value) => [`%${Number(value).toFixed(1)}`, "Başarı"]}
             contentStyle={{ borderRadius: 8, fontSize: 12 }}
           />
         </RadarChart>

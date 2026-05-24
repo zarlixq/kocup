@@ -21,7 +21,7 @@ export function StatCard({
     red: "bg-red-50 text-red-700",
   }
   return (
-    <div className="bg-white border border-zinc-200 rounded-2xl p-5">
+    <div className="bg-white border border-zinc-200 rounded-2xl p-5 transition-all hover:shadow-md hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:transform-none">
       <div className="flex items-start justify-between mb-3">
         <div className="text-sm text-zinc-500">{label}</div>
         <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", accentMap[accent])}>{icon}</div>

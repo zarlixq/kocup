@@ -61,8 +61,8 @@ export function SubjectComparisonBar({
           />
           <Tooltip
             contentStyle={{ borderRadius: 8, fontSize: 12 }}
-            formatter={(value: number, name) => [
-              value.toLocaleString("tr-TR"),
+            formatter={(value, name) => [
+              Number(value).toLocaleString("tr-TR"),
               name === "total" ? "Toplam Soru" : "Doğru",
             ]}
           />

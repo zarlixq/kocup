@@ -58,8 +58,8 @@ export function SystemQuestionsTrend({
           <YAxis tick={{ fontSize: 11, fill: "#52525b" }} />
           <Tooltip
             contentStyle={{ borderRadius: 8, fontSize: 12 }}
-            formatter={(value: number) => [
-              value.toLocaleString("tr-TR"),
+            formatter={(value) => [
+              Number(value).toLocaleString("tr-TR"),
               "Toplam Soru",
             ]}
           />

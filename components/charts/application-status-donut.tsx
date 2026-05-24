@@ -57,10 +57,10 @@ export function ApplicationStatusDonut({
           </Pie>
           <Tooltip
             contentStyle={{ borderRadius: 8, fontSize: 12 }}
-            formatter={(value: number, name) => [
-              `${value} (${((value / total) * 100).toFixed(0)}%)`,
-              name,
-            ]}
+            formatter={(value, name) => {
+              const num = typeof value === "number" ? value : Number(value)
+              return [`${num} (${((num / total) * 100).toFixed(0)}%)`, name]
+            }}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
         </PieChart>

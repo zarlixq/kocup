@@ -53,7 +53,7 @@ export function ActiveStudentsArea({
           <YAxis tick={{ fontSize: 11, fill: "#52525b" }} allowDecimals={false} />
           <Tooltip
             contentStyle={{ borderRadius: 8, fontSize: 12 }}
-            formatter={(value: number) => [value, "Öğrenci"]}
+            formatter={(value) => [String(value), "Öğrenci"]}
           />
           <Area
             type="monotone"

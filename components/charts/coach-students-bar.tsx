@@ -56,7 +56,7 @@ export function CoachStudentsBar({
           />
           <Tooltip
             contentStyle={{ borderRadius: 8, fontSize: 12 }}
-            formatter={(value: number) => [value, "Öğrenci"]}
+            formatter={(value) => [String(value), "Öğrenci"]}
           />
           <Bar dataKey="count" fill="#F97316" radius={[0, 4, 4, 0]} />
         </BarChart>

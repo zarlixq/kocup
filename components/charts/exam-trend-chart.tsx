@@ -61,9 +61,11 @@ export function ExamTrendChart({
               const p = payload?.[0]?.payload as ExamTrendDatum | undefined
               return p ? `${p.name} — ${p.date}` : label
             }}
-            formatter={(value: number | null, name) => {
-              if (value === null) return ["—", name]
-              return [value.toFixed(2), name === "tytNet" ? "TYT Net" : "AYT Net"]
+            formatter={(value, name) => {
+              if (value === null || value === undefined) return ["—", name]
+              const num = typeof value === "number" ? value : Number(value)
+              const label = name === "tytNet" ? "TYT Net" : "AYT Net"
+              return [num.toFixed(2), label]
             }}
           />
           <Legend
