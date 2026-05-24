@@ -142,6 +142,96 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_results: {
+        Row: {
+          correct: number
+          empty: number
+          exam_id: string
+          id: string
+          net: number | null
+          subject_id: string
+          wrong: number
+        }
+        Insert: {
+          correct: number
+          empty: number
+          exam_id: string
+          id?: string
+          net?: number | null
+          subject_id: string
+          wrong: number
+        }
+        Update: {
+          correct?: number
+          empty?: number
+          exam_id?: string
+          id?: string
+          net?: number | null
+          subject_id?: string
+          wrong?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_results_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_results_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exams: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          date: string
+          exam_type: string
+          id: string
+          name: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          date: string
+          exam_type: string
+          id?: string
+          name: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          date?: string
+          exam_type?: string
+          id?: string
+          name?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exams_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exams_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       packages: {
         Row: {
           created_at: string | null
@@ -270,6 +360,118 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule: {
+        Row: {
+          created_at: string | null
+          custom_title: string | null
+          day_of_week: number
+          end_time: string
+          id: string
+          notes: string | null
+          start_time: string
+          student_id: string
+          subject_id: string | null
+          term: number
+        }
+        Insert: {
+          created_at?: string | null
+          custom_title?: string | null
+          day_of_week: number
+          end_time: string
+          id?: string
+          notes?: string | null
+          start_time: string
+          student_id: string
+          subject_id?: string | null
+          term: number
+        }
+        Update: {
+          created_at?: string | null
+          custom_title?: string | null
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          notes?: string | null
+          start_time?: string
+          student_id?: string
+          subject_id?: string | null
+          term?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_topics: {
+        Row: {
+          created_at: string | null
+          custom_name: string | null
+          custom_subject_id: string | null
+          id: string
+          notes: string | null
+          status: string
+          student_id: string
+          topic_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custom_name?: string | null
+          custom_subject_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          student_id: string
+          topic_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custom_name?: string | null
+          custom_subject_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          student_id?: string
+          topic_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_topics_custom_subject_id_fkey"
+            columns: ["custom_subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_topics_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_topics_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           coach_id: string | null
@@ -317,6 +519,70 @@ export type Database = {
             columns: ["id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_sessions: {
+        Row: {
+          correct: number
+          created_at: string | null
+          created_by: string
+          date: string
+          duration_minutes: number | null
+          empty: number
+          id: string
+          student_id: string
+          subject_id: string
+          total_questions: number
+          wrong: number
+        }
+        Insert: {
+          correct: number
+          created_at?: string | null
+          created_by: string
+          date: string
+          duration_minutes?: number | null
+          empty: number
+          id?: string
+          student_id: string
+          subject_id: string
+          total_questions: number
+          wrong: number
+        }
+        Update: {
+          correct?: number
+          created_at?: string | null
+          created_by?: string
+          date?: string
+          duration_minutes?: number | null
+          empty?: number
+          id?: string
+          student_id?: string
+          subject_id?: string
+          total_questions?: number
+          wrong?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_sessions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_sessions_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
         ]
@@ -386,6 +652,10 @@ export type Database = {
     }
     Functions: {
       current_user_role: { Args: never; Returns: string }
+      exam_belongs_to_visible_student: {
+        Args: { p_exam_id: string }
+        Returns: boolean
+      }
       is_coach_of: { Args: { student_id: string }; Returns: boolean }
     }
     Enums: {
