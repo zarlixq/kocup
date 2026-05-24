@@ -7,7 +7,10 @@ import { inviteStudent } from "@/lib/auth/invite"
 
 type ActionResult = { success: boolean; error?: string }
 
-export async function approveApplication(applicationId: string): Promise<ActionResult> {
+export async function approveApplication(
+  applicationId: string,
+  coachId?: string | null
+): Promise<ActionResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "Yetkisiz işlem." }
@@ -38,9 +41,9 @@ export async function approveApplication(applicationId: string): Promise<ActionR
 
     const admin = supabaseAdmin()
 
-    // Create students row (profiles row created by trigger)
     await admin.from("students").insert({
       id: invitedUser.id,
+      coach_id: coachId ?? null,
       grade: app.grade,
       target_university: app.target_university,
       target_department: app.target_department,
@@ -49,14 +52,15 @@ export async function approveApplication(applicationId: string): Promise<ActionR
       parent_phone: app.parent_phone,
     })
 
-    // Mark application approved
-    await admin.from("applications").update({
-      status: "approved",
-      approved_student_id: invitedUser.id,
-      reviewed_by: user.id,
-      reviewed_at: new Date().toISOString(),
-    }).eq("id", applicationId)
-
+    await admin
+      .from("applications")
+      .update({
+        status: "approved",
+        approved_student_id: invitedUser.id,
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", applicationId)
   } catch (err) {
     console.error("Başvuru onaylama hatası:", err)
     const message = err instanceof Error ? err.message : "Bir hata oluştu."
@@ -64,6 +68,8 @@ export async function approveApplication(applicationId: string): Promise<ActionR
   }
 
   revalidatePath("/mudur/basvurular")
+  revalidatePath("/mudur")
+  revalidatePath("/mudur/ogrenciler")
   return { success: true }
 }
 
@@ -71,6 +77,10 @@ export async function rejectApplication(
   applicationId: string,
   reason: string
 ): Promise<ActionResult> {
+  if (!reason || reason.trim().length < 10) {
+    return { success: false, error: "Red gerekçesi en az 10 karakter olmalı." }
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "Yetkisiz işlem." }
@@ -79,7 +89,7 @@ export async function rejectApplication(
     .from("applications")
     .update({
       status: "rejected",
-      rejection_reason: reason || null,
+      rejection_reason: reason.trim(),
       reviewed_by: user.id,
       reviewed_at: new Date().toISOString(),
     })
@@ -92,5 +102,6 @@ export async function rejectApplication(
   }
 
   revalidatePath("/mudur/basvurular")
+  revalidatePath("/mudur")
   return { success: true }
 }
