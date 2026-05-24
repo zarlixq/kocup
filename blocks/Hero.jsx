@@ -27,13 +27,19 @@ export default function Hero() {
         </div>
         <div className="flex items-center gap-2 md:gap-3">
           <a
-            href="/admin/giris"
+            href="/giris/ogrenci"
+            className="hidden sm:inline-flex text-sm font-semibold text-[#1B6B8A] px-3 py-2 rounded-full hover:bg-[#1B6B8A]/5 transition-colors duration-200"
+          >
+            Öğrenci Girişi
+          </a>
+          <a
+            href="/giris/koc"
             className="text-sm font-semibold text-[#F97316] border border-[#F97316] px-4 py-2 rounded-full hover:bg-[#F97316] hover:text-white transition-colors duration-200"
           >
             Koç Girişi
           </a>
           <a
-            href="#basvuru"
+            href="/basvuru"
             className="bg-[#1B6B8A] text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-[#155873] transition-colors duration-200"
           >
             Hemen Başvur
@@ -66,9 +72,9 @@ export default function Hero() {
         </p>
 
         {/* CTA butonları */}
-        <div className="flex items-center gap-4 flex-wrap mb-14 animate-fade-up [animation-delay:180ms]">
+        <div className="flex items-center gap-4 flex-wrap mb-4 animate-fade-up [animation-delay:180ms]">
           <a
-            href="#basvuru"
+            href="/basvuru"
             className="inline-flex items-center gap-2 bg-[#F97316] text-white font-semibold px-7 py-3.5 rounded-full hover:bg-[#ea6c10] transition-all hover:scale-[1.03] text-sm md:text-base"
           >
             Ücretsiz tanışma seansı al
@@ -77,12 +83,24 @@ export default function Hero() {
             </svg>
           </a>
           <a
-            href="#koclarimiz"
+            href="/giris/ogrenci"
             className="inline-flex items-center gap-2 border border-[#DDDDD8] text-[#1A1A1A] font-medium px-7 py-3.5 rounded-full hover:border-[#1B6B8A] hover:text-[#1B6B8A] transition-colors text-sm md:text-base"
           >
-            Koçları incele
+            Öğrenci Girişi
+          </a>
+          <a
+            href="/giris/koc"
+            className="inline-flex items-center gap-2 border border-[#DDDDD8] text-[#1A1A1A] font-medium px-7 py-3.5 rounded-full hover:border-[#F97316] hover:text-[#F97316] transition-colors text-sm md:text-base"
+          >
+            Koç Girişi
           </a>
         </div>
+        <p className="text-sm text-gray-500 mb-14 animate-fade-up [animation-delay:200ms]">
+          Henüz hesabın yok mu?{" "}
+          <a href="/basvuru" className="text-[#F97316] font-semibold hover:underline">
+            Başvuru yap
+          </a>
+        </p>
 
         {/* İstatistikler */}
         <div className="flex divide-x divide-[#EBEBEB] border border-[#EBEBEB] rounded-2xl w-fit bg-white mb-14 animate-fade-up [animation-delay:240ms]">

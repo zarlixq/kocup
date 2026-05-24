@@ -31,7 +31,16 @@ export default function KocGirisPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password">Şifre</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Şifre</Label>
+                <span
+                  className="text-xs text-zinc-400 cursor-not-allowed"
+                  title="Yakında"
+                  aria-disabled="true"
+                >
+                  Şifremi unuttum
+                </span>
+              </div>
               <Input id="password" name="password" type="password" placeholder="••••••••" required autoComplete="current-password" />
             </div>
 

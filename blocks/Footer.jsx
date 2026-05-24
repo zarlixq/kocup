@@ -27,7 +27,7 @@ export default function Footer() {
               { label: "Koçlarımız", href: "#koclarimiz" },
               { label: "Fiyatlar", href: "#fiyatlar" },
               { label: "SSS", href: "#sss" },
-              { label: "Başvuru", href: "#basvuru" },
+              { label: "Başvuru", href: "/basvuru" },
             ].map((link) => (
               <a
                 key={link.href}
@@ -38,7 +38,13 @@ export default function Footer() {
               </a>
             ))}
             <a
-              href="/admin/giris"
+              href="/giris/ogrenci"
+              className="text-sm text-gray-300 hover:text-white transition-colors font-semibold"
+            >
+              Öğrenci Girişi
+            </a>
+            <a
+              href="/giris/koc"
               className="text-sm text-[#F97316] hover:text-orange-300 transition-colors font-semibold"
             >
               Koç Girişi
@@ -50,9 +56,15 @@ export default function Footer() {
           <p className="text-xs text-gray-500">
             © {new Date().getFullYear()} KoçUp. Tüm hakları saklıdır.
           </p>
-          <p className="text-xs text-gray-500">
-            Hedefine birlikte ulaşalım.
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="text-xs text-gray-500">Hedefine birlikte ulaşalım.</p>
+            <a
+              href="/giris/mudur"
+              className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+            >
+              Yönetici Girişi
+            </a>
+          </div>
         </div>
       </div>
     </footer>
