@@ -7,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -29,6 +27,7 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
+          tanitim_appointment_id: string | null
           target_department: string | null
           target_ranking: number | null
           target_university: string | null
@@ -47,6 +46,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          tanitim_appointment_id?: string | null
           target_department?: string | null
           target_ranking?: number | null
           target_university?: string | null
@@ -65,11 +65,125 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          tanitim_appointment_id?: string | null
           target_department?: string | null
           target_ranking?: number | null
           target_university?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "applications_tanitim_appointment_id_fkey"
+            columns: ["tanitim_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointments: {
+        Row: {
+          application_id: string | null
+          coach_id: string
+          created_at: string | null
+          created_by: string
+          end_time: string
+          id: string
+          is_recurring: boolean
+          meeting_link: string | null
+          meeting_notes: string | null
+          notes: string | null
+          parent_appointment_id: string | null
+          recurrence_end_date: string | null
+          recurrence_rule: string | null
+          start_time: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          student_id: string | null
+          summary: string | null
+          title: string
+          type: Database["public"]["Enums"]["appointment_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          application_id?: string | null
+          coach_id: string
+          created_at?: string | null
+          created_by: string
+          end_time: string
+          id?: string
+          is_recurring?: boolean
+          meeting_link?: string | null
+          meeting_notes?: string | null
+          notes?: string | null
+          parent_appointment_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_rule?: string | null
+          start_time: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          student_id?: string | null
+          summary?: string | null
+          title: string
+          type?: Database["public"]["Enums"]["appointment_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          application_id?: string | null
+          coach_id?: string
+          created_at?: string | null
+          created_by?: string
+          end_time?: string
+          id?: string
+          is_recurring?: boolean
+          meeting_link?: string | null
+          meeting_notes?: string | null
+          notes?: string | null
+          parent_appointment_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_rule?: string | null
+          start_time?: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          student_id?: string | null
+          summary?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["appointment_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_parent_appointment_id_fkey"
+            columns: ["parent_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       blog_categories: {
         Row: {
@@ -709,6 +823,8 @@ export type Database = {
       is_coach_of: { Args: { student_id: string }; Returns: boolean }
     }
     Enums: {
+      appointment_status: "planlandi" | "tamamlandi" | "iptal" | "gelmedi"
+      appointment_type: "tanitim" | "koc_gorusme" | "veli_gorusme" | "ozel"
       blog_post_status: "draft" | "published" | "archived"
     }
     CompositeTypes: {
@@ -837,6 +953,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      appointment_status: ["planlandi", "tamamlandi", "iptal", "gelmedi"],
+      appointment_type: ["tanitim", "koc_gorusme", "veli_gorusme", "ozel"],
       blog_post_status: ["draft", "published", "archived"],
     },
   },
