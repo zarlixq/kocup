@@ -16,16 +16,25 @@ const NAV_LINKS = [
   { href: "/#sss", label: "SSS" },
 ]
 
-export function Navbar() {
+type NavbarProps = {
+  /** "transparent" (Hero üstünde, scroll'da beyaza döner) | "solid" (her zaman beyaz) */
+  variant?: "transparent" | "solid"
+}
+
+export function Navbar({ variant = "transparent" }: NavbarProps) {
   const [open, setOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
+  const [scrolled, setScrolled] = useState(variant === "solid")
 
   useEffect(() => {
+    if (variant === "solid") {
+      setScrolled(true)
+      return
+    }
     const onScroll = () => setScrolled(window.scrollY > 8)
     onScroll()
     window.addEventListener("scroll", onScroll, { passive: true })
     return () => window.removeEventListener("scroll", onScroll)
-  }, [])
+  }, [variant])
 
   return (
     <header
@@ -42,7 +51,9 @@ export function Navbar() {
             alt="KoçUp Akademi"
             width={110}
             height={40}
-            className="object-contain h-9 w-auto md:h-10"
+            className={`object-contain h-9 w-auto md:h-10 transition-[filter] duration-300 ${
+              scrolled ? "" : "brightness-0 invert"
+            }`}
             priority
           />
         </Link>
