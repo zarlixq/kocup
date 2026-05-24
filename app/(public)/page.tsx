@@ -1,10 +1,13 @@
 import type { Metadata } from "next"
+import { Navbar } from "@/blocks/Navbar"
 import Hero from "@/blocks/Hero"
+import { StatsBar } from "@/blocks/StatsBar"
 import HowItWorks from "@/blocks/HowItWorks"
+import Features from "@/blocks/Features"
 import Coaches from "@/blocks/Coaches"
 import Pricing from "@/blocks/Pricing"
-import ContactForm from "@/blocks/ContactForm"
 import FAQ from "@/blocks/FAQ"
+import Contact from "@/blocks/Contact"
 import Footer from "@/blocks/Footer"
 import { JsonLd } from "@/components/seo/json-ld"
 import { organizationSchema, websiteSchema, personSchema } from "@/lib/seo/schemas"
@@ -41,13 +44,16 @@ export default async function Home() {
   return (
     <>
       <JsonLd data={schemas} id="landing-jsonld" />
+      <Navbar />
       <main>
         <Hero />
+        <StatsBar />
         <HowItWorks />
+        <Features />
         <Coaches />
         <Pricing />
-        <ContactForm />
         <FAQ />
+        <Contact />
         <Footer />
       </main>
     </>
