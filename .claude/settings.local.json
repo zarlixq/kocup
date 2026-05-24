@@ -23,8 +23,8 @@
       "Bash(git push *)",
       "Bash(git reset --hard *)",
       "Bash(supabase db reset *)",
-      "Edit(.env*)",
-      "Edit(app/muhasebe/**)"
+      "Edit(.env.local)",
+      "Edit(app/admin/**)"
     ]
   }
 }

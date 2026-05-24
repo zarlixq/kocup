@@ -97,7 +97,9 @@ npm run lint             # eslint
 - `coach` → `/koc/*` erişebilir
 - `admin` → `/mudur/*` erişebilir + her şey
 
-Middleware (`middleware.ts`) bunları zorlar. Yanlış role kendi paneline redirect.
+Middleware (`proxy.ts`) bunları zorlar. Yanlış role kendi paneline redirect.
+
+> Next.js 16'da `middleware.ts` yerine `proxy.ts` kullanılır. Auth/role enforcement burada (root'taki `proxy.ts` → `lib/supabase/middleware.ts`).
 
 ## Hata Yönetimi
 
