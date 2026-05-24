@@ -10,6 +10,7 @@ import {
   UserCog,
   GraduationCap,
   BookOpen,
+  Wallet,
   Menu,
   LogOut,
 } from "lucide-react"
@@ -32,6 +33,7 @@ const NAV: NavItem[] = [
   { href: "/mudur/basvurular", label: "Başvurular", icon: FileText, badgeKey: "pending" },
   { href: "/mudur/koclar", label: "Koçlar", icon: UserCog },
   { href: "/mudur/ogrenciler", label: "Öğrenciler", icon: GraduationCap },
+  { href: "/mudur/finans", label: "Finans", icon: Wallet },
   { href: "/mudur/mufredat", label: "Müfredat", icon: BookOpen },
 ]
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import Link from "next/link"
 import { MoreHorizontal, Plus, UserCog } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -30,12 +31,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { InviteCoachDialog } from "@/components/mudur/invite-coach-dialog"
 import { EmptyState } from "@/components/shared/empty-state"
 import { deleteCoach } from "@/app/mudur/koclar/actions"
@@ -64,7 +59,6 @@ function formatDate(s: string | null) {
 export function CoachesView({ coaches }: { coaches: CoachRow[] }) {
   const [isPending, startTransition] = useTransition()
   const [showInvite, setShowInvite] = useState(false)
-  const [detailCoach, setDetailCoach] = useState<CoachRow | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CoachRow | null>(null)
 
   function handleDelete() {
@@ -117,14 +111,17 @@ export function CoachesView({ coaches }: { coaches: CoachRow[] }) {
               {coaches.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
-                    <div className="flex items-center gap-3">
+                    <Link
+                      href={`/mudur/koclar/${c.id}`}
+                      className="flex items-center gap-3 hover:opacity-80"
+                    >
                       <Avatar className="h-9 w-9">
                         <AvatarFallback className="bg-[#1B6B8A] text-white text-xs">
                           {initials(c.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <span className="font-medium text-zinc-900">{c.full_name}</span>
-                    </div>
+                    </Link>
                   </TableCell>
                   <TableCell className="text-zinc-600">{c.email}</TableCell>
                   <TableCell className="text-zinc-600">{c.phone ?? "—"}</TableCell>
@@ -143,8 +140,8 @@ export function CoachesView({ coaches }: { coaches: CoachRow[] }) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setDetailCoach(c)}>
-                          Detay
+                        <DropdownMenuItem asChild>
+                          <Link href={`/mudur/koclar/${c.id}`}>Detay</Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setDeleteTarget(c)}
@@ -163,46 +160,6 @@ export function CoachesView({ coaches }: { coaches: CoachRow[] }) {
       )}
 
       <InviteCoachDialog open={showInvite} onOpenChange={setShowInvite} />
-
-      <Dialog open={!!detailCoach} onOpenChange={(o) => !o && setDetailCoach(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{detailCoach?.full_name}</DialogTitle>
-          </DialogHeader>
-          {detailCoach && (
-            <div className="space-y-4">
-              <div className="space-y-1 text-sm">
-                <div className="text-zinc-500">{detailCoach.email}</div>
-                {detailCoach.phone && <div className="text-zinc-500">{detailCoach.phone}</div>}
-                <div className="text-zinc-400 text-xs">
-                  Kayıt: {formatDate(detailCoach.created_at)}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-900 mb-2">
-                  Atanmış Öğrenciler ({detailCoach.student_count})
-                </h3>
-                {detailCoach.students.length === 0 ? (
-                  <p className="text-sm text-zinc-500">Bu koça henüz öğrenci atanmamış.</p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {detailCoach.students.map((s) => (
-                      <li
-                        key={s.id}
-                        className="flex items-center justify-between text-sm bg-zinc-50 px-3 py-2 rounded-lg"
-                      >
-                        <span className="text-zinc-900">{s.full_name}</span>
-                        <span className="text-zinc-500">{s.grade ?? "—"}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
