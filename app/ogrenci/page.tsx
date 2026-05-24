@@ -1,23 +1,260 @@
+import Link from "next/link"
+import { BookOpen, FileText, Hash, CheckCircle2, Plus } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { formatDate } from "@/lib/format"
+import { WeeklyQuestionsChart } from "@/components/ogrenci/weekly-questions-chart"
 
 export const metadata = { title: "Dashboard — KoçUp" }
+
+function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10)
+}
 
 export default async function OgrenciDashboard() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const studentId = user!.id
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("full_name")
-    .eq("id", user!.id)
+    .eq("id", studentId)
     .maybeSingle()
 
+  const now = new Date()
+  const fourteenAgo = new Date(now)
+  fourteenAgo.setDate(now.getDate() - 13)
+  const fromIso = isoDate(fourteenAgo)
+
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthStartIso = isoDate(monthStart)
+
+  const [
+    { data: sessions14 },
+    { data: monthSessions },
+    { data: topics },
+    { count: examCount },
+    { data: recentSessions },
+    { data: recentExams },
+  ] = await Promise.all([
+    supabase
+      .from("study_sessions")
+      .select("date, total_questions, correct, wrong")
+      .eq("student_id", studentId)
+      .gte("date", fromIso),
+    supabase
+      .from("study_sessions")
+      .select("total_questions, correct")
+      .eq("student_id", studentId)
+      .gte("date", monthStartIso),
+    supabase
+      .from("student_topics")
+      .select("status")
+      .eq("student_id", studentId),
+    supabase
+      .from("exams")
+      .select("*", { count: "exact", head: true })
+      .eq("student_id", studentId),
+    supabase
+      .from("study_sessions")
+      .select("id, date, total_questions, correct, wrong, subjects(name)")
+      .eq("student_id", studentId)
+      .order("date", { ascending: false })
+      .limit(5),
+    supabase
+      .from("exams")
+      .select("id, name, exam_type, date, exam_results(net)")
+      .eq("student_id", studentId)
+      .order("date", { ascending: false })
+      .limit(3),
+  ])
+
+  const monthTotal = (monthSessions ?? []).reduce((s, r) => s + r.total_questions, 0)
+  const monthCorrect = (monthSessions ?? []).reduce((s, r) => s + r.correct, 0)
+  const completedTopics = (topics ?? []).filter((t) => t.status === "tamam").length
+  const totalTopics = (topics ?? []).length
+
+  const byDay: Record<string, { total: number; correct: number; wrong: number }> = {}
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(fourteenAgo)
+    d.setDate(fourteenAgo.getDate() + i)
+    byDay[isoDate(d)] = { total: 0, correct: 0, wrong: 0 }
+  }
+  for (const s of sessions14 ?? []) {
+    const k = s.date
+    if (!byDay[k]) continue
+    byDay[k].total += s.total_questions
+    byDay[k].correct += s.correct
+    byDay[k].wrong += s.wrong
+  }
+  const chartData = Object.entries(byDay).map(([k, v]) => ({
+    day: k.slice(5).replace("-", "/"),
+    ...v,
+  }))
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-zinc-900">
-        Merhaba, {profile?.full_name} 👋
-      </h1>
-      <p className="text-zinc-500 mt-1">Öğrenci paneline hoş geldin.</p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-zinc-900">Merhaba, {profile?.full_name} 👋</h1>
+        <p className="text-sm text-zinc-500 mt-1">Gelişimini buradan takip edebilirsin.</p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard
+          icon={<Hash className="h-4 w-4" />}
+          label="Bu Ay Soru"
+          value={monthTotal.toLocaleString("tr-TR")}
+          color="bg-blue-50 text-blue-700"
+        />
+        <StatCard
+          icon={<CheckCircle2 className="h-4 w-4" />}
+          label="Bu Ay Doğru"
+          value={monthCorrect.toLocaleString("tr-TR")}
+          color="bg-green-50 text-green-700"
+        />
+        <StatCard
+          icon={<BookOpen className="h-4 w-4" />}
+          label="Tamamlanan Konu"
+          value={`${completedTopics}/${totalTopics}`}
+          color="bg-purple-50 text-purple-700"
+        />
+        <StatCard
+          icon={<FileText className="h-4 w-4" />}
+          label="Toplam Deneme"
+          value={String(examCount ?? 0)}
+          color="bg-orange-50 text-[#F97316]"
+        />
+      </div>
+
+      <WeeklyQuestionsChart data={chartData} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-zinc-900">Son Soru Çözüm</h2>
+            <Link href="/ogrenci/soru-cozum/yeni">
+              <Button variant="accent" size="sm">
+                <Plus className="h-4 w-4" /> Yeni
+              </Button>
+            </Link>
+          </div>
+          {(recentSessions ?? []).length === 0 ? (
+            <EmptyCard text="Henüz soru çözüm kaydın yok." />
+          ) : (
+            <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tarih</TableHead>
+                    <TableHead>Ders</TableHead>
+                    <TableHead className="text-right">D</TableHead>
+                    <TableHead className="text-right">Y</TableHead>
+                    <TableHead className="text-right">B</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(recentSessions ?? []).map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="whitespace-nowrap text-xs">{formatDate(s.date, "d MMM")}</TableCell>
+                      <TableCell className="text-zinc-600">{s.subjects?.name ?? "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums text-green-600">{s.correct}</TableCell>
+                      <TableCell className="text-right tabular-nums text-red-600">{s.wrong}</TableCell>
+                      <TableCell className="text-right tabular-nums text-zinc-500">
+                        {s.total_questions - s.correct - s.wrong}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </section>
+
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-zinc-900">Son Denemeler</h2>
+            <Link href="/ogrenci/denemelerim/yeni">
+              <Button variant="accent" size="sm">
+                <Plus className="h-4 w-4" /> Yeni
+              </Button>
+            </Link>
+          </div>
+          {(recentExams ?? []).length === 0 ? (
+            <EmptyCard text="Henüz deneme kaydın yok." />
+          ) : (
+            <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tarih</TableHead>
+                    <TableHead>Deneme</TableHead>
+                    <TableHead>Tip</TableHead>
+                    <TableHead className="text-right">Net</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(recentExams ?? []).map((e) => {
+                    const total = (e.exam_results ?? []).reduce((s, r) => s + Number(r.net ?? 0), 0)
+                    return (
+                      <TableRow key={e.id}>
+                        <TableCell className="whitespace-nowrap text-xs">{formatDate(e.date, "d MMM")}</TableCell>
+                        <TableCell className="font-medium text-zinc-900">{e.name}</TableCell>
+                        <TableCell className="uppercase text-xs text-zinc-500">{e.exam_type.replace("_", "+")}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{total.toFixed(2)}</TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex items-center gap-3">
+        <Badge variant="outline" className="shrink-0">
+          {completedTopics}/{totalTopics}
+        </Badge>
+        <div className="flex-1 text-sm">
+          <span className="text-zinc-700">Konu ilerlemen.</span>{" "}
+          <Link href="/ogrenci/konularim" className="text-[#1B6B8A] font-medium hover:underline">
+            Konularımı gör →
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  color,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  color: string
+}) {
+  return (
+    <div className="bg-white border border-zinc-200 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-sm text-zinc-500">{label}</div>
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>{icon}</div>
+      </div>
+      <div className="text-2xl font-bold text-zinc-900 tabular-nums">{value}</div>
+    </div>
+  )
+}
+
+function EmptyCard({ text }: { text: string }) {
+  return (
+    <div className="bg-white border border-zinc-200 rounded-2xl p-8 text-center text-sm text-zinc-500">
+      {text}
     </div>
   )
 }
