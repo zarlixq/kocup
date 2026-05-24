@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(npx supabase *)",
+      "Bash(npx shadcn *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git log *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(mkdir *)",
+      "Read(*)",
+      "Edit(*)",
+      "Write(*)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(npm publish *)",
+      "Bash(git push *)",
+      "Bash(git reset --hard *)",
+      "Bash(supabase db reset *)",
+      "Edit(.env*)",
+      "Edit(app/muhasebe/**)"
+    ]
+  }
+}

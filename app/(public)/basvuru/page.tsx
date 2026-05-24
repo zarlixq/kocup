@@ -2,15 +2,30 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useActionState } from "react"
+import { useActionState, useEffect } from "react"
 import { submitBasvuru } from "./actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void
+  }
+}
 
 export default function BasvuruPage() {
   const [state, action, pending] = useActionState(submitBasvuru, undefined)
+
+  useEffect(() => {
+    if (state?.success && typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", "conversion", {
+        send_to: "AW-18185085898/89APCKGYsrIcEMrHqd9D",
+        value: 1.0,
+        currency: "TRY",
+      })
+    }
+  }, [state?.success])
 
   if (state?.success) {
     return (
