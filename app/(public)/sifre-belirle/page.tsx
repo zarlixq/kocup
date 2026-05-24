@@ -4,7 +4,12 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { SifreBelirleForm } from "./form"
 
-export const metadata = { title: "Şifre Belirle — KoçUp" }
+import type { Metadata } from "next"
+export const metadata: Metadata = {
+  title: "Şifre Belirle",
+  description: "Davet linkinizle KoçUp Akademi hesabınız için şifre belirleyin.",
+  robots: { index: false, follow: false },
+}
 
 export default async function SifreBelirle() {
   const supabase = await createClient()
