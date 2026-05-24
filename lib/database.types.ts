@@ -71,77 +71,6 @@ export type Database = {
         }
         Relationships: []
       }
-      clients: {
-        Row: {
-          coach_id: string
-          created_at: string | null
-          full_name: string
-          grade: string | null
-          id: string
-          is_active: boolean | null
-          notes: string | null
-          parent_name: string | null
-          parent_phone: string | null
-          phone: string | null
-          school: string | null
-        }
-        Insert: {
-          coach_id: string
-          created_at?: string | null
-          full_name: string
-          grade?: string | null
-          id?: string
-          is_active?: boolean | null
-          notes?: string | null
-          parent_name?: string | null
-          parent_phone?: string | null
-          phone?: string | null
-          school?: string | null
-        }
-        Update: {
-          coach_id?: string
-          created_at?: string | null
-          full_name?: string
-          grade?: string | null
-          id?: string
-          is_active?: boolean | null
-          notes?: string | null
-          parent_name?: string | null
-          parent_phone?: string | null
-          phone?: string | null
-          school?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "students_coach_id_fkey"
-            columns: ["coach_id"]
-            isOneToOne: false
-            referencedRelation: "coaches"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      coaches: {
-        Row: {
-          created_at: string | null
-          full_name: string
-          id: string
-          phone: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          full_name: string
-          id: string
-          phone?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          full_name?: string
-          id?: string
-          phone?: string | null
-        }
-        Relationships: []
-      }
       exam_results: {
         Row: {
           correct: number
@@ -234,39 +163,39 @@ export type Database = {
       }
       packages: {
         Row: {
-          created_at: string | null
+          created_at: string
           end_date: string | null
           id: string
           monthly_price: number
           name: string
           notes: string | null
-          payment_day: number | null
+          payment_day: number
           start_date: string
-          status: string | null
+          status: string
           student_id: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           end_date?: string | null
           id?: string
           monthly_price: number
           name: string
           notes?: string | null
-          payment_day?: number | null
+          payment_day?: number
           start_date: string
-          status?: string | null
+          status?: string
           student_id: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           end_date?: string | null
           id?: string
           monthly_price?: number
           name?: string
           notes?: string | null
-          payment_day?: number | null
+          payment_day?: number
           start_date?: string
-          status?: string | null
+          status?: string
           student_id?: string
         }
         Relationships: [
@@ -274,7 +203,7 @@ export type Database = {
             foreignKeyName: "packages_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
-            referencedRelation: "clients"
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -282,7 +211,7 @@ export type Database = {
       payments: {
         Row: {
           amount: number
-          created_at: string | null
+          created_at: string
           id: string
           method: string | null
           notes: string | null
@@ -293,7 +222,7 @@ export type Database = {
         }
         Insert: {
           amount: number
-          created_at?: string | null
+          created_at?: string
           id?: string
           method?: string | null
           notes?: string | null
@@ -304,7 +233,7 @@ export type Database = {
         }
         Update: {
           amount?: number
-          created_at?: string | null
+          created_at?: string
           id?: string
           method?: string | null
           notes?: string | null
@@ -325,7 +254,7 @@ export type Database = {
             foreignKeyName: "payments_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
-            referencedRelation: "clients"
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -478,8 +407,12 @@ export type Database = {
           created_at: string | null
           grade: string | null
           id: string
+          is_active: boolean
+          kayit_kaynagi: string
+          notes: string | null
           parent_name: string | null
           parent_phone: string | null
+          school: string | null
           target_department: string | null
           target_ranking: number | null
           target_university: string | null
@@ -489,8 +422,12 @@ export type Database = {
           created_at?: string | null
           grade?: string | null
           id: string
+          is_active?: boolean
+          kayit_kaynagi?: string
+          notes?: string | null
           parent_name?: string | null
           parent_phone?: string | null
+          school?: string | null
           target_department?: string | null
           target_ranking?: number | null
           target_university?: string | null
@@ -500,8 +437,12 @@ export type Database = {
           created_at?: string | null
           grade?: string | null
           id?: string
+          is_active?: boolean
+          kayit_kaynagi?: string
+          notes?: string | null
           parent_name?: string | null
           parent_phone?: string | null
+          school?: string | null
           target_department?: string | null
           target_ranking?: number | null
           target_university?: string | null
