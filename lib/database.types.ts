@@ -71,6 +71,102 @@ export type Database = {
         }
         Relationships: []
       }
+      blog_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      blog_posts: {
+        Row: {
+          author_id: string
+          category_id: string | null
+          content: string
+          cover_image_url: string | null
+          created_at: string
+          excerpt: string
+          id: string
+          meta_description: string | null
+          meta_keywords: string[] | null
+          meta_title: string | null
+          published_at: string | null
+          slug: string
+          status: Database["public"]["Enums"]["blog_post_status"]
+          title: string
+          updated_at: string
+          view_count: number
+        }
+        Insert: {
+          author_id: string
+          category_id?: string | null
+          content: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt: string
+          id?: string
+          meta_description?: string | null
+          meta_keywords?: string[] | null
+          meta_title?: string | null
+          published_at?: string | null
+          slug: string
+          status?: Database["public"]["Enums"]["blog_post_status"]
+          title: string
+          updated_at?: string
+          view_count?: number
+        }
+        Update: {
+          author_id?: string
+          category_id?: string | null
+          content?: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string
+          id?: string
+          meta_description?: string | null
+          meta_keywords?: string[] | null
+          meta_title?: string | null
+          published_at?: string | null
+          slug?: string
+          status?: Database["public"]["Enums"]["blog_post_status"]
+          title?: string
+          updated_at?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_posts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "blog_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_results: {
         Row: {
           correct: number
@@ -609,10 +705,11 @@ export type Database = {
         Args: { p_exam_id: string }
         Returns: boolean
       }
+      increment_blog_post_view: { Args: { p_slug: string }; Returns: undefined }
       is_coach_of: { Args: { student_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      blog_post_status: "draft" | "published" | "archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -739,6 +836,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      blog_post_status: ["draft", "published", "archived"],
+    },
   },
 } as const
