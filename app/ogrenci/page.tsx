@@ -7,6 +7,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDate } from "@/lib/format"
 import { WeeklyQuestionsChart } from "@/components/ogrenci/weekly-questions-chart"
+import { SubjectRadarChart } from "@/components/charts/subject-radar-chart"
+import { ExamTrendChart } from "@/components/charts/exam-trend-chart"
+import { UpcomingAppointmentCard } from "@/components/randevu/upcoming-appointment-card"
+import { buildSubjectRadarData, buildExamTrendData } from "@/lib/charts/builders"
 
 function initials(name: string) {
   return name
@@ -56,6 +60,8 @@ export default async function OgrenciDashboard() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
   const monthStartIso = isoDate(monthStart)
 
+  const nowIso = now.toISOString()
+
   const [
     { data: sessions14 },
     { data: monthSessions },
@@ -63,6 +69,9 @@ export default async function OgrenciDashboard() {
     { count: examCount },
     { data: recentSessions },
     { data: recentExams },
+    { data: upcomingAppt },
+    radarData,
+    examTrendData,
   ] = await Promise.all([
     supabase
       .from("study_sessions")
@@ -94,7 +103,29 @@ export default async function OgrenciDashboard() {
       .eq("student_id", studentId)
       .order("date", { ascending: false })
       .limit(3),
+    supabase
+      .from("appointments")
+      .select("id, title, type, start_time, end_time, meeting_link, coach_id")
+      .eq("student_id", studentId)
+      .eq("status", "planlandi")
+      .gte("start_time", nowIso)
+      .order("start_time", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    buildSubjectRadarData(supabase, studentId),
+    buildExamTrendData(supabase, studentId),
   ])
+
+  // Yaklaşan randevuda koç ismini çek
+  let upcomingCoachName: string | null = null
+  if (upcomingAppt?.coach_id) {
+    const { data: c } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", upcomingAppt.coach_id)
+      .maybeSingle()
+    upcomingCoachName = c?.full_name ?? null
+  }
 
   const monthTotal = (monthSessions ?? []).reduce((s, r) => s + r.total_questions, 0)
   const monthCorrect = (monthSessions ?? []).reduce((s, r) => s + r.correct, 0)
@@ -181,7 +212,27 @@ export default async function OgrenciDashboard() {
         />
       </div>
 
+      {upcomingAppt && (
+        <UpcomingAppointmentCard
+          appointment={{
+            id: upcomingAppt.id,
+            title: upcomingAppt.title,
+            type: upcomingAppt.type,
+            start_time: upcomingAppt.start_time,
+            end_time: upcomingAppt.end_time,
+            meeting_link: upcomingAppt.meeting_link,
+            otherPersonName: upcomingCoachName,
+          }}
+          href="/ogrenci/randevularim"
+        />
+      )}
+
       <WeeklyQuestionsChart data={chartData} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SubjectRadarChart data={radarData} />
+        <ExamTrendChart data={examTrendData} />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section>

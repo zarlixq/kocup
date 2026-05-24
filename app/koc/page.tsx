@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatTRY, formatDate, formatMonth } from "@/lib/format"
 import { currentPeriodMonthISO, getPaymentStatus, statusLabel } from "@/lib/payments"
 import { PaymentFormDialog } from "@/components/koc/payment-form-dialog"
+import { TodaysAppointmentsCard } from "@/components/randevu/todays-appointments-card"
 
 export const metadata = { title: "Dashboard — KoçUp" }
 
@@ -16,7 +17,18 @@ export default async function KocDashboard() {
   const { data: { user } } = await supabase.auth.getUser()
   const periodIso = currentPeriodMonthISO()
 
-  const [{ data: students }, { data: paymentsThisMonth }, { data: recentPayments }] = await Promise.all([
+  // Bugünkü aralık (yerel)
+  const today = new Date()
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const todayEnd = new Date(todayStart)
+  todayEnd.setDate(todayEnd.getDate() + 1)
+
+  const [
+    { data: students },
+    { data: paymentsThisMonth },
+    { data: recentPayments },
+    { data: todaysAppts },
+  ] = await Promise.all([
     supabase
       .from("students")
       .select(
@@ -29,7 +41,55 @@ export default async function KocDashboard() {
       .select("id, amount, payment_date, method, student_id")
       .order("payment_date", { ascending: false })
       .limit(10),
+    supabase
+      .from("appointments")
+      .select("id, title, type, start_time, end_time, meeting_link, student_id, application_id")
+      .eq("coach_id", user!.id)
+      .neq("status", "iptal")
+      .gte("start_time", todayStart.toISOString())
+      .lt("start_time", todayEnd.toISOString())
+      .order("start_time", { ascending: true }),
   ])
+
+  // Bugünkü randevulardaki kişi adlarını çek (öğrenci profil VEYA tanıtım başvuru adı)
+  const todayStudentIds = Array.from(
+    new Set((todaysAppts ?? []).map((a) => a.student_id).filter(Boolean) as string[])
+  )
+  const todayAppIds = Array.from(
+    new Set((todaysAppts ?? []).map((a) => a.application_id).filter(Boolean) as string[])
+  )
+
+  const [{ data: todayStudents }, { data: todayApps }] = await Promise.all([
+    todayStudentIds.length
+      ? supabase.from("profiles").select("id, full_name").in("id", todayStudentIds)
+      : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+    todayAppIds.length
+      ? supabase.from("applications").select("id, full_name").in("id", todayAppIds)
+      : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+  ])
+
+  const todayPersonName = (a: { student_id: string | null; application_id: string | null }) => {
+    if (a.student_id) {
+      return todayStudents?.find((p) => p.id === a.student_id)?.full_name ?? null
+    }
+    if (a.application_id) {
+      return (
+        (todayApps?.find((p) => p.id === a.application_id)?.full_name ?? null) &&
+        `${todayApps!.find((p) => p.id === a.application_id)!.full_name} (Tanıtım)`
+      )
+    }
+    return null
+  }
+
+  const todaysFormatted = (todaysAppts ?? []).map((a) => ({
+    id: a.id,
+    title: a.title,
+    type: a.type,
+    start_time: a.start_time,
+    end_time: a.end_time,
+    meeting_link: a.meeting_link,
+    otherPersonName: todayPersonName(a),
+  }))
 
   const studentIds = (students ?? []).map((s) => s.id)
   const { data: studentProfiles } = studentIds.length
@@ -108,6 +168,11 @@ export default async function KocDashboard() {
           accent={pendingCount > 0 ? "red" : "default"}
         />
       </div>
+
+      <TodaysAppointmentsCard
+        appointments={todaysFormatted}
+        detailHref="/koc/randevular"
+      />
 
       <div>
         <h2 className="text-base font-semibold text-zinc-900 mb-3 capitalize">Bu Ay — {formatMonth(new Date())}</h2>
