@@ -5,13 +5,13 @@ import { supabaseAdmin } from "@/lib/supabase/admin"
 type InviteStudentParams = {
   email: string
   full_name: string
-  phone: string
-  grade: string
+  phone?: string | null
+  grade?: string | null
   target_university?: string | null
   target_department?: string | null
   target_ranking?: number | null
-  parent_name: string
-  parent_phone: string
+  parent_name?: string | null
+  parent_phone?: string | null
 }
 
 export async function inviteStudent(params: InviteStudentParams) {
@@ -23,7 +23,7 @@ export async function inviteStudent(params: InviteStudentParams) {
     data: {
       role: "student",
       full_name: params.full_name,
-      phone: params.phone,
+      phone: params.phone ?? undefined,
     },
   })
 

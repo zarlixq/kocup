@@ -30,9 +30,10 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
-  // Muhasebe panel (legacy)
-  const isAdminPath = path.startsWith("/admin")
-  const isAdminAuthPage = path === "/admin/giris" || path === "/admin/kayit"
+  // Legacy /admin path — tamamen kaldırıldı, koç paneline yönlendir
+  if (path.startsWith("/admin")) {
+    return redirect(request, "/giris/koc")
+  }
 
   // Portal panel paths
   const isOgrenciPath = path.startsWith("/ogrenci")
@@ -42,9 +43,6 @@ export async function updateSession(request: NextRequest) {
 
   // ── Unauthenticated ────────────────────────────────────────────────────
   if (!user) {
-    if (isAdminPath && !isAdminAuthPage) {
-      return redirect(request, "/admin/giris")
-    }
     if (isOgrenciPath) return redirect(request, "/giris/ogrenci")
     if (isKocPath) return redirect(request, "/giris/koc")
     if (isMudurPath) return redirect(request, "/giris/mudur")
@@ -52,11 +50,6 @@ export async function updateSession(request: NextRequest) {
   }
 
   // ── Authenticated ──────────────────────────────────────────────────────
-
-  // Redirect away from legacy auth pages
-  if (isAdminAuthPage) {
-    return redirect(request, "/admin")
-  }
 
   // Role-based protection for portal paths
   if (isPortalPath) {
@@ -68,9 +61,9 @@ export async function updateSession(request: NextRequest) {
 
     const role = profile?.role
 
-    // No portal profile → this is a legacy muhasebe user, go to /admin
+    // Profile yoksa giriş sayfasına gönder
     if (!role) {
-      return redirect(request, "/admin")
+      return redirect(request, "/giris/koc")
     }
 
     const roleToPath: Record<string, string> = {
