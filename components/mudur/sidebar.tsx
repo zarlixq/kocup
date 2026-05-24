@@ -12,6 +12,7 @@ import {
   BookOpen,
   BookText,
   Wallet,
+  Calendar,
   Menu,
   LogOut,
 } from "lucide-react"
@@ -34,6 +35,7 @@ const NAV: NavItem[] = [
   { href: "/mudur/basvurular", label: "Başvurular", icon: FileText, badgeKey: "pending" },
   { href: "/mudur/koclar", label: "Koçlar", icon: UserCog },
   { href: "/mudur/ogrenciler", label: "Öğrenciler", icon: GraduationCap },
+  { href: "/mudur/randevular", label: "Randevular", icon: Calendar },
   { href: "/mudur/finans", label: "Finans", icon: Wallet },
   { href: "/mudur/mufredat", label: "Müfredat", icon: BookOpen },
   { href: "/mudur/blog", label: "Blog", icon: BookText },

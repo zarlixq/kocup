@@ -13,6 +13,7 @@ import {
   Menu,
   LogOut,
   User,
+  Calendar,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -30,6 +31,7 @@ type NavItem = {
 const NAV: NavItem[] = [
   { href: "/koc", label: "Dashboard", icon: LayoutDashboard },
   { href: "/koc/ogrenciler", label: "Öğrencilerim", icon: GraduationCap },
+  { href: "/koc/randevular", label: "Randevular", icon: Calendar },
   { href: "/koc/payments", label: "Ödemeler", icon: Wallet },
   { href: "/koc/packages", label: "Paketler", icon: Package },
   { href: "/koc/profilim", label: "Profilim", icon: User },
