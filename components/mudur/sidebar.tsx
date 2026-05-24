@@ -10,6 +10,7 @@ import {
   UserCog,
   GraduationCap,
   BookOpen,
+  BookText,
   Wallet,
   Menu,
   LogOut,
@@ -35,6 +36,7 @@ const NAV: NavItem[] = [
   { href: "/mudur/ogrenciler", label: "Öğrenciler", icon: GraduationCap },
   { href: "/mudur/finans", label: "Finans", icon: Wallet },
   { href: "/mudur/mufredat", label: "Müfredat", icon: BookOpen },
+  { href: "/mudur/blog", label: "Blog", icon: BookText },
 ]
 
 type SidebarProps = {
