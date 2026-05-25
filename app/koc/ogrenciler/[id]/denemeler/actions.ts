@@ -14,8 +14,10 @@ const resultSchema = z.object({
 
 const examSchema = z.object({
   name: z.string().trim().min(2, "Deneme adı zorunlu."),
-  exam_type: z.enum(["tyt", "ayt", "tyt_ayt"]),
+  exam_type: z.enum(["tyt", "ayt", "tyt_ayt", "lgs", "okul"]),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Geçerli bir tarih girin."),
+  siralama: z.number().int().positive().nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
   results: z.array(resultSchema).min(1, "En az bir ders sonucu girmelisin."),
 })
 
@@ -43,7 +45,7 @@ export async function createExamForStudentAction(studentId: string, input: unkno
     return { error: parsed.error.issues[0]?.message ?? "Form hatalı." }
   }
 
-  const { name, exam_type, date, results } = parsed.data
+  const { name, exam_type, date, siralama, notes, results } = parsed.data
   const nonZero = results.filter((r) => r.correct + r.wrong + r.empty > 0)
   if (nonZero.length === 0) {
     return { error: "En az bir ders için sonuç girmelisin." }
@@ -57,6 +59,8 @@ export async function createExamForStudentAction(studentId: string, input: unkno
       name,
       exam_type,
       date,
+      siralama: siralama ?? null,
+      notes: notes ?? null,
     })
     .select("id")
     .single()

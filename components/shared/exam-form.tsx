@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { isoDate } from "@/lib/format"
@@ -14,8 +15,10 @@ export type ExamFormSubject = { id: string; name: string; exam_type: string }
 export type ExamFormResult = { subject_id: string; correct: number; wrong: number; empty: number }
 export type ExamFormInput = {
   name: string
-  exam_type: "tyt" | "ayt" | "tyt_ayt"
+  exam_type: "tyt" | "ayt" | "tyt_ayt" | "lgs" | "okul"
   date: string
+  siralama?: number | null
+  notes?: string | null
   results: ExamFormResult[]
 }
 export type ExamFormSubmitResult = { error?: string }
@@ -44,10 +47,13 @@ export function ExamForm({
   const visibleSubjects = useMemo(() => {
     if (examType === "tyt") return subjects.filter((s) => s.exam_type === "tyt")
     if (examType === "ayt") return subjects.filter((s) => s.exam_type === "ayt")
+    // tyt_ayt, lgs, okul → tümü
     return subjects
   }, [subjects, examType])
 
   const [rows, setRows] = useState<Record<string, Row>>({})
+  const [siralama, setSiralama] = useState<string>("")
+  const [notes, setNotes] = useState<string>("")
 
   function setCell(subjectId: string, key: "correct" | "wrong" | "empty", value: string) {
     setRows((prev) => ({
@@ -96,10 +102,13 @@ export function ExamForm({
     }
 
     start(async () => {
+      const siralamaNum = siralama.trim() ? Math.max(1, Number(siralama)) : null
       const res = await onSubmit({
         name: name.trim(),
         exam_type: examType,
         date,
+        siralama: siralamaNum,
+        notes: notes.trim() || null,
         results,
       })
       if (res?.error) {
@@ -141,18 +150,36 @@ export function ExamForm({
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label>Tip *</Label>
-        <Select value={examType} onValueChange={(v) => setExamType(v as ExamFormInput["exam_type"])}>
-          <SelectTrigger className="w-full md:w-60">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="tyt">TYT</SelectItem>
-            <SelectItem value="ayt">AYT</SelectItem>
-            <SelectItem value="tyt_ayt">TYT + AYT</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="space-y-1.5">
+          <Label>Tip *</Label>
+          <Select value={examType} onValueChange={(v) => setExamType(v as ExamFormInput["exam_type"])}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tyt">TYT</SelectItem>
+              <SelectItem value="ayt">AYT</SelectItem>
+              <SelectItem value="tyt_ayt">TYT + AYT</SelectItem>
+              <SelectItem value="lgs">LGS</SelectItem>
+              <SelectItem value="okul">Okul Denemesi</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="siralama">Türkiye Sıralaması (opsiyonel)</Label>
+          <Input
+            id="siralama"
+            type="number"
+            min="1"
+            value={siralama}
+            onChange={(e) => setSiralama(e.target.value)}
+            placeholder="ör. 12500"
+          />
+        </div>
+        <div className="space-y-1.5 md:col-span-1">
+          {/* placeholder for layout */}
+        </div>
       </div>
 
       <div className="border border-zinc-200 rounded-2xl overflow-hidden">
@@ -233,6 +260,17 @@ export function ExamForm({
             </tr>
           </tfoot>
         </table>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="exam-notes">Not (opsiyonel)</Label>
+        <Textarea
+          id="exam-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          placeholder="Genel değerlendirme, hatalar, eksik konular..."
+        />
       </div>
 
       <div className="flex items-center gap-3 pt-2">

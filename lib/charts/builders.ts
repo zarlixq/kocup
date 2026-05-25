@@ -6,6 +6,74 @@ import type { SubjectComparisonDatum } from "@/components/charts/subject-compari
 type Client = SupabaseClient<Database>
 
 // ─────────────────────────────────────────────────────────────────────────
+// Haftalık trend — soru sayısı + başarı % + süre dakika (son N hafta)
+// ─────────────────────────────────────────────────────────────────────────
+export type WeeklyTrendDatum = {
+  weekStart: string  // YYYY-MM-DD (Pazartesi)
+  label: string      // "12/05"
+  total: number
+  correct: number
+  successRate: number
+  durationMin: number
+}
+
+function pad(n: number) {
+  return String(n).padStart(2, "0")
+}
+
+function isoLocal(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+function startOfWeekMon(d: Date) {
+  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const day = r.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  r.setDate(r.getDate() + diff)
+  return r
+}
+
+export function buildWeeklyTrend(
+  sessions: Array<{
+    date: string
+    total_questions: number | null
+    correct: number | null
+    duration_minutes: number | null
+  }>,
+  weeks = 8,
+  today = new Date(),
+): WeeklyTrendDatum[] {
+  const currentMon = startOfWeekMon(today)
+  const result: WeeklyTrendDatum[] = []
+  for (let i = weeks - 1; i >= 0; i--) {
+    const wkStart = new Date(currentMon)
+    wkStart.setDate(currentMon.getDate() - i * 7)
+    const wkEnd = new Date(wkStart)
+    wkEnd.setDate(wkStart.getDate() + 7)
+    let total = 0
+    let correct = 0
+    let durationMin = 0
+    for (const s of sessions) {
+      const sd = new Date(s.date)
+      if (sd >= wkStart && sd < wkEnd) {
+        total += s.total_questions ?? 0
+        correct += s.correct ?? 0
+        durationMin += s.duration_minutes ?? 0
+      }
+    }
+    result.push({
+      weekStart: isoLocal(wkStart),
+      label: `${pad(wkStart.getDate())}/${pad(wkStart.getMonth() + 1)}`,
+      total,
+      correct,
+      successRate: total > 0 ? Math.round((correct / total) * 1000) / 10 : 0,
+      durationMin,
+    })
+  }
+  return result
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // Ders bazlı başarı (radar) — %doğru oranı
 // ─────────────────────────────────────────────────────────────────────────
 export async function buildSubjectRadarData(
