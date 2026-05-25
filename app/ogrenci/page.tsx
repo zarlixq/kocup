@@ -10,6 +10,8 @@ import { WeeklyQuestionsChart } from "@/components/ogrenci/weekly-questions-char
 import { SubjectRadarChart } from "@/components/charts/subject-radar-chart"
 import { ExamTrendChart } from "@/components/charts/exam-trend-chart"
 import { UpcomingAppointmentCard } from "@/components/randevu/upcoming-appointment-card"
+import { CoachCard } from "@/components/ogrenci/coach-card"
+import { WeeklyTasksCard } from "@/components/ogrenci/weekly-tasks-card"
 import { buildSubjectRadarData, buildExamTrendData } from "@/lib/charts/builders"
 
 function initials(name: string) {
@@ -116,6 +118,38 @@ export default async function OgrenciDashboard() {
     buildExamTrendData(supabase, studentId),
   ])
 
+  // Hedefli atamalar + ilerlemeleri (WeeklyTasksCard için)
+  const [{ data: assignments }, { data: asgProgress }] = await Promise.all([
+    supabase
+      .from("topic_assignments")
+      .select("id, hedef_soru, son_tarih, status, topics(name, subjects(name))")
+      .eq("student_id", studentId),
+    supabase
+      .from("study_sessions")
+      .select("assignment_id, total_questions")
+      .eq("student_id", studentId)
+      .not("assignment_id", "is", null),
+  ])
+
+  const cozulenByAsg = new Map<string, number>()
+  for (const p of asgProgress ?? []) {
+    if (!p.assignment_id) continue
+    cozulenByAsg.set(
+      p.assignment_id,
+      (cozulenByAsg.get(p.assignment_id) ?? 0) + (p.total_questions ?? 0),
+    )
+  }
+
+  const weeklyTasks = (assignments ?? []).map((a) => ({
+    id: a.id,
+    topic_name: a.topics?.name ?? "—",
+    subject_name: a.topics?.subjects?.name ?? "—",
+    hedef_soru: a.hedef_soru,
+    son_tarih: a.son_tarih,
+    status: a.status,
+    cozulen_soru: cozulenByAsg.get(a.id) ?? 0,
+  }))
+
   // Yaklaşan randevuda koç ismini çek
   let upcomingCoachName: string | null = null
   if (upcomingAppt?.coach_id) {
@@ -210,6 +244,17 @@ export default async function OgrenciDashboard() {
           value={String(examCount ?? 0)}
           color="bg-orange-50 text-[#F97316]"
         />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CoachCard
+          coach={
+            coachProfile
+              ? { full_name: coachProfile.full_name, email: coachProfile.email }
+              : null
+          }
+        />
+        <WeeklyTasksCard tasks={weeklyTasks} />
       </div>
 
       {upcomingAppt && (
