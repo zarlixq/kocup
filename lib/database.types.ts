@@ -334,6 +334,8 @@ export type Database = {
           exam_type: string
           id: string
           name: string
+          notes: string | null
+          siralama: number | null
           student_id: string
         }
         Insert: {
@@ -343,6 +345,8 @@ export type Database = {
           exam_type: string
           id?: string
           name: string
+          notes?: string | null
+          siralama?: number | null
           student_id: string
         }
         Update: {
@@ -352,6 +356,8 @@ export type Database = {
           exam_type?: string
           id?: string
           name?: string
+          notes?: string | null
+          siralama?: number | null
           student_id?: string
         }
         Relationships: [
@@ -688,6 +694,7 @@ export type Database = {
       }
       study_sessions: {
         Row: {
+          assignment_id: string | null
           correct: number
           created_at: string | null
           created_by: string
@@ -701,6 +708,7 @@ export type Database = {
           wrong: number
         }
         Insert: {
+          assignment_id?: string | null
           correct: number
           created_at?: string | null
           created_by: string
@@ -714,6 +722,7 @@ export type Database = {
           wrong: number
         }
         Update: {
+          assignment_id?: string | null
           correct?: number
           created_at?: string | null
           created_by?: string
@@ -727,6 +736,13 @@ export type Database = {
           wrong?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "study_sessions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "topic_assignments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "study_sessions_created_by_fkey"
             columns: ["created_by"]
@@ -777,6 +793,83 @@ export type Database = {
         }
         Relationships: []
       }
+      topic_assignments: {
+        Row: {
+          baslangic_tarihi: string
+          coach_id: string
+          created_at: string | null
+          created_by: string
+          hedef_soru: number
+          hedef_sure_dk: number | null
+          id: string
+          notes: string | null
+          son_tarih: string
+          status: Database["public"]["Enums"]["assignment_status"]
+          student_id: string
+          topic_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          baslangic_tarihi?: string
+          coach_id: string
+          created_at?: string | null
+          created_by: string
+          hedef_soru: number
+          hedef_sure_dk?: number | null
+          id?: string
+          notes?: string | null
+          son_tarih: string
+          status?: Database["public"]["Enums"]["assignment_status"]
+          student_id: string
+          topic_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          baslangic_tarihi?: string
+          coach_id?: string
+          created_at?: string | null
+          created_by?: string
+          hedef_soru?: number
+          hedef_sure_dk?: number | null
+          id?: string
+          notes?: string | null
+          son_tarih?: string
+          status?: Database["public"]["Enums"]["assignment_status"]
+          student_id?: string
+          topic_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_assignments_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_assignments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_assignments_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       topics: {
         Row: {
           created_at: string | null
@@ -825,6 +918,7 @@ export type Database = {
     Enums: {
       appointment_status: "planlandi" | "tamamlandi" | "iptal" | "gelmedi"
       appointment_type: "tanitim" | "koc_gorusme" | "veli_gorusme" | "ozel"
+      assignment_status: "aktif" | "tamamlandi" | "iptal"
       blog_post_status: "draft" | "published" | "archived"
     }
     CompositeTypes: {
@@ -955,6 +1049,7 @@ export const Constants = {
     Enums: {
       appointment_status: ["planlandi", "tamamlandi", "iptal", "gelmedi"],
       appointment_type: ["tanitim", "koc_gorusme", "veli_gorusme", "ozel"],
+      assignment_status: ["aktif", "tamamlandi", "iptal"],
       blog_post_status: ["draft", "published", "archived"],
     },
   },
