@@ -79,6 +79,10 @@ type Props = {
   topics: Topic[]
   showStudent?: boolean
   defaultStudentId?: string
+  /** False ise atama/düzenleme butonları gizlenir (müdür mirror için) */
+  canManage?: boolean
+  /** Atama detayları için href base path (örn. /mudur/ogrenciler) */
+  studentHrefBase?: string
 }
 
 export function KocKonuAnaliziView({
@@ -88,6 +92,8 @@ export function KocKonuAnaliziView({
   topics,
   showStudent = true,
   defaultStudentId,
+  canManage = true,
+  studentHrefBase = "/koc/ogrenciler",
 }: Props) {
   const [studentFilter, setStudentFilter] = useState<string>("all")
   const [subjectFilter, setSubjectFilter] = useState<string>("all")
@@ -147,14 +153,16 @@ export function KocKonuAnaliziView({
         <StatTile label="Gecikti" value={counts.gecikti} tone="red" />
       </div>
 
-      <div className="flex items-center justify-end gap-2">
-        <Button variant="outline" onClick={() => setBulkOpen(true)}>
-          <Layers className="h-4 w-4" /> Toplu Ata
-        </Button>
-        <Button variant="accent" onClick={() => setAssignOpen(true)}>
-          <Plus className="h-4 w-4" /> Konu Ata
-        </Button>
-      </div>
+      {canManage && (
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" onClick={() => setBulkOpen(true)}>
+            <Layers className="h-4 w-4" /> Toplu Ata
+          </Button>
+          <Button variant="accent" onClick={() => setAssignOpen(true)}>
+            <Plus className="h-4 w-4" /> Konu Ata
+          </Button>
+        </div>
+      )}
 
       <div className="bg-white border border-zinc-200 rounded-2xl p-4">
         <div className="flex items-center gap-2 text-xs text-zinc-500 mb-3">
@@ -242,7 +250,7 @@ export function KocKonuAnaliziView({
                   {showStudent && (
                     <TableCell>
                       <Link
-                        href={`/koc/ogrenciler/${r.student_id}/konu-analizi`}
+                        href={`${studentHrefBase}/${r.student_id}/konu-analizi`}
                         className="font-medium text-zinc-900 hover:text-[#1B6B8A]"
                       >
                         {r.student_name}
@@ -278,12 +286,14 @@ export function KocKonuAnaliziView({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setEditRow(r)}>
-                          Düzenle / Sil
-                        </DropdownMenuItem>
+                        {canManage && (
+                          <DropdownMenuItem onClick={() => setEditRow(r)}>
+                            Düzenle / Sil
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem asChild>
                           <Link
-                            href={`/koc/ogrenciler/${r.student_id}/konu-analizi`}
+                            href={`${studentHrefBase}/${r.student_id}/konu-analizi`}
                             className="flex items-center gap-2"
                           >
                             <ExternalLink className="h-3.5 w-3.5" /> Öğrenci Analizi
@@ -299,7 +309,7 @@ export function KocKonuAnaliziView({
         </div>
       )}
 
-      {assignOpen && (
+      {canManage && assignOpen && (
         <AssignTopicDialog
           open
           onOpenChange={setAssignOpen}
@@ -309,7 +319,7 @@ export function KocKonuAnaliziView({
           defaultStudentId={defaultStudentId}
         />
       )}
-      {bulkOpen && (
+      {canManage && bulkOpen && (
         <BulkAssignDialog
           open
           onOpenChange={setBulkOpen}
@@ -318,7 +328,7 @@ export function KocKonuAnaliziView({
           topics={topicsWithSubject}
         />
       )}
-      {editRow && (
+      {canManage && editRow && (
         <EditAssignmentDialog
           open
           onOpenChange={(o) => !o && setEditRow(null)}

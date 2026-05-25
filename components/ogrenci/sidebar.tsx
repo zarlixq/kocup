@@ -11,6 +11,7 @@ import {
   CalendarCheck,
   FileText,
   Hash,
+  LineChart,
   Menu,
   LogOut,
   UserCog,
@@ -34,6 +35,7 @@ const NAV: NavItem[] = [
   { href: "/ogrenci/program", label: "Program", icon: Calendar },
   { href: "/ogrenci/randevularim", label: "Randevularım", icon: CalendarCheck },
   { href: "/ogrenci/denemelerim", label: "Denemelerim", icon: FileText },
+  { href: "/ogrenci/analizim", label: "Analizim", icon: LineChart },
   { href: "/ogrenci/soru-cozum", label: "Soru Çözüm", icon: Hash },
   { href: "/ogrenci/kocum", label: "Koçum", icon: UserCog },
 ]

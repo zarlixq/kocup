@@ -14,6 +14,9 @@ import {
   LogOut,
   User,
   Calendar,
+  BookOpen,
+  FileText,
+  TrendingUp,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -31,6 +34,9 @@ type NavItem = {
 const NAV: NavItem[] = [
   { href: "/koc", label: "Dashboard", icon: LayoutDashboard },
   { href: "/koc/ogrenciler", label: "Öğrencilerim", icon: GraduationCap },
+  { href: "/koc/konu-analizi", label: "Konu Analizi", icon: BookOpen },
+  { href: "/koc/denemeler", label: "Denemeler", icon: FileText },
+  { href: "/koc/takip", label: "Takip", icon: TrendingUp },
   { href: "/koc/randevular", label: "Randevular", icon: Calendar },
   { href: "/koc/payments", label: "Ödemeler", icon: Wallet },
   { href: "/koc/packages", label: "Paketler", icon: Package },
