@@ -57,7 +57,10 @@ export function LogProgressDialog({ open, onOpenChange, assignment }: Props) {
         bos: bNum,
         sure_dk: sure.trim() ? Math.max(0, Number(sure)) : null,
       })
-      if (!res.success) return toast.error(res.error ?? "Kaydedilemedi")
+      if (!res.success) {
+        toast.error(res.error ?? "Kaydedilemedi")
+        return
+      }
       toast.success("📊 Çalışma kaydedildi")
       onOpenChange(false)
     })

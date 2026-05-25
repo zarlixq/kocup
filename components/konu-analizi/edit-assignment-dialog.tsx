@@ -66,7 +66,10 @@ export function EditAssignmentDialog({ open, onOpenChange, assignment }: Props) 
         notes: notes.trim() || null,
         status,
       })
-      if (!res.success) return toast.error(res.error ?? "Güncellenemedi")
+      if (!res.success) {
+        toast.error(res.error ?? "Güncellenemedi")
+        return
+      }
       toast.success("✏️ Güncellendi")
       onOpenChange(false)
     })
@@ -76,7 +79,10 @@ export function EditAssignmentDialog({ open, onOpenChange, assignment }: Props) 
     if (!confirm("Bu atama ve ona bağlı çalışma kayıtları silinsin mi?")) return
     startTransition(async () => {
       const res = await deleteAssignment(assignment.id)
-      if (!res.success) return toast.error(res.error ?? "Silinemedi")
+      if (!res.success) {
+        toast.error(res.error ?? "Silinemedi")
+        return
+      }
       toast.success("🗑️ Atama silindi")
       onOpenChange(false)
     })

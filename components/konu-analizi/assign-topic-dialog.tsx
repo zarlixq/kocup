@@ -78,7 +78,10 @@ export function AssignTopicDialog({
         son_tarih: sonTarih,
         notes: notes.trim() || null,
       })
-      if (!res.success) return toast.error(res.error ?? "Atanamadı")
+      if (!res.success) {
+        toast.error(res.error ?? "Atanamadı")
+        return
+      }
       toast.success("✅ Konu atandı")
       onOpenChange(false)
     })

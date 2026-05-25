@@ -101,7 +101,10 @@ export function AssignmentsCardGrid({
   function handleMarkDone(id: string) {
     startTransition(async () => {
       const res = await markAssignmentDone(id)
-      if (!res.success) return toast.error(res.error ?? "İşaretlenemedi")
+      if (!res.success) {
+        toast.error(res.error ?? "İşaretlenemedi")
+        return
+      }
       toast.success("✅ Tamamlandı olarak işaretlendi")
     })
   }
