@@ -85,6 +85,8 @@ export function StudentForm({ student }: { student?: Student }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="7">7. Sınıf (LGS)</SelectItem>
+              <SelectItem value="8">8. Sınıf (LGS)</SelectItem>
               <SelectItem value="9">9. Sınıf</SelectItem>
               <SelectItem value="10">10. Sınıf</SelectItem>
               <SelectItem value="11">11. Sınıf</SelectItem>

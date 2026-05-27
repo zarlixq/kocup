@@ -1,4 +1,6 @@
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.kocupakedemi.com").replace(/\/$/, "")
+import { getSiteUrl } from "@/lib/site-url"
+
+const siteUrl = getSiteUrl()
 
 export const SITE = {
   name: "KoçUp Akademi",

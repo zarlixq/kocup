@@ -131,24 +131,16 @@ export async function deleteCoach(id: string): Promise<ActionResult> {
   const auth = await requireAdmin()
   if (!auth.ok) return { success: false, error: auth.error }
 
-  const admin = supabaseAdmin()
+  // Atomik silme: delete_coach_safely DB function'ı öğrenci kontrolü +
+  // FK cascade + auth.users silmeyi tek transaction'da yapar.
+  // SECURITY DEFINER olduğu için authenticated client ile çağırılır.
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("delete_coach_safely", { coach_uuid: id })
 
-  const { count: studentCount } = await admin
-    .from("students")
-    .select("*", { count: "exact", head: true })
-    .eq("coach_id", id)
-
-  if (studentCount && studentCount > 0) {
-    return {
-      success: false,
-      error: `Bu koça atanmış ${studentCount} öğrenci var. Önce öğrencileri başka koça atayın.`,
-    }
-  }
-
-  const { error } = await admin.auth.admin.deleteUser(id)
   if (error) {
     console.error("Koç silme hatası:", error)
-    return { success: false, error: "Silinemedi, tekrar deneyin." }
+    // Postgres exception mesajı zaten Türkçe (function içinde RAISE ile)
+    return { success: false, error: error.message || "Silinemedi, tekrar deneyin." }
   }
 
   revalidatePath("/mudur/koclar")

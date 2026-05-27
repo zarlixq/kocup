@@ -57,7 +57,7 @@ export type StudentRow = {
 
 type Coach = { id: string; full_name: string }
 
-const GRADES = ["9", "10", "11", "12", "Mezun"] as const
+const GRADES = ["7", "8", "9", "10", "11", "12", "Mezun"] as const
 const ALL = "__all__"
 const UNASSIGNED = "__unassigned__"
 

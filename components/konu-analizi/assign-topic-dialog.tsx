@@ -23,9 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { createAssignment } from "@/app/koc/konu-analizi/actions"
+import { gradeToExamTypes } from "@/lib/exam-target"
 
-type Student = { id: string; full_name: string }
-type Subject = { id: string; name: string }
+type Student = { id: string; full_name: string; grade?: string | null }
+type Subject = { id: string; name: string; exam_type?: string | null }
 type Topic = { id: string; subject_id: string; name: string }
 
 function nextWeekIso() {
@@ -57,6 +58,28 @@ export function AssignTopicDialog({
   const [sonTarih, setSonTarih] = useState<string>(nextWeekIso)
   const [notes, setNotes] = useState<string>("")
   const [pending, startTransition] = useTransition()
+
+  // Seçili öğrencinin sınıfına göre uygun ders türleri (LGS / YKS)
+  const selectedStudent = useMemo(
+    () => students.find((s) => s.id === studentId),
+    [students, studentId],
+  )
+
+  const allowedExamTypes = useMemo(
+    () => new Set(gradeToExamTypes(selectedStudent?.grade)),
+    [selectedStudent?.grade],
+  )
+
+  // okul exam_type'lı (genel okul denemesi) ve null exam_type'lı dersler her zaman gösterilir
+  const subjectOptions = useMemo(
+    () =>
+      subjects.filter((s) => {
+        if (!s.exam_type) return true
+        if (s.exam_type === "okul") return true
+        return allowedExamTypes.has(s.exam_type as "tyt" | "ayt" | "lgs")
+      }),
+    [subjects, allowedExamTypes],
+  )
 
   const topicOptions = useMemo(
     () => topics.filter((t) => t.subject_id === subjectId),
@@ -131,7 +154,7 @@ export function AssignTopicDialog({
                   <SelectValue placeholder="Ders seç" />
                 </SelectTrigger>
                 <SelectContent>
-                  {subjects.map((s) => (
+                  {subjectOptions.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>

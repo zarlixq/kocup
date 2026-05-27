@@ -21,6 +21,8 @@ type ApplicationDetailDialogProps = {
 }
 
 const GRADE_LABEL: Record<string, string> = {
+  "7": "7. Sınıf (LGS)",
+  "8": "8. Sınıf (LGS)",
   "9": "9. Sınıf",
   "10": "10. Sınıf",
   "11": "11. Sınıf",

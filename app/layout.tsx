@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Plus_Jakarta_Sans, Instrument_Serif } from "next/font/google"
 import Script from "next/script"
 import "./globals.css"
+import { getSiteUrl } from "@/lib/site-url"
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin", "latin-ext"],
@@ -18,7 +19,7 @@ const instrument = Instrument_Serif({
   style: ["normal", "italic"],
 })
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.kocupakedemi.com"
+const siteUrl = getSiteUrl()
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 
 const description =

@@ -6,9 +6,10 @@ import { PostCard } from "@/components/blog/post-card"
 import { CategoryChips } from "@/components/blog/category-chips"
 import { JsonLd } from "@/components/seo/json-ld"
 import { breadcrumbSchema } from "@/lib/seo/schemas"
+import { getSiteUrl } from "@/lib/site-url"
 
 const POSTS_PER_PAGE = 9
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.kocupakedemi.com").replace(/\/$/, "")
+const siteUrl = getSiteUrl()
 
 export const revalidate = 3600
 

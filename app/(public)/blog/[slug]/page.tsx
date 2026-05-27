@@ -12,10 +12,11 @@ import { ViewCounter } from "@/components/blog/view-counter"
 import { JsonLd } from "@/components/seo/json-ld"
 import { articleSchema, breadcrumbSchema } from "@/lib/seo/schemas"
 import { readingTime } from "@/lib/blog/read-time"
+import { getSiteUrl } from "@/lib/site-url"
 
 export const revalidate = 3600
 
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.kocupakedemi.com").replace(/\/$/, "")
+const siteUrl = getSiteUrl()
 
 const TR_DATE = new Intl.DateTimeFormat("tr-TR", {
   day: "2-digit",

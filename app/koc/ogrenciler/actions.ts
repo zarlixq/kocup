@@ -12,11 +12,39 @@ function s(v: FormDataEntryValue | null) {
   return str === "" ? null : str
 }
 
+// Bu öğrenci çağıran koça mı atanmış? Service role ile DB değişikliği
+// yapmadan önce mutlaka çağırın.
+async function requireCoachOwnership(studentId: string): Promise<
+  { ok: true; coachId: string } | { ok: false; error: string }
+> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: "Oturum bulunamadı." }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle()
+  if (profile?.role !== "coach") return { ok: false, error: "Yetkisiz işlem." }
+
+  const { data: student } = await supabase
+    .from("students")
+    .select("coach_id")
+    .eq("id", studentId)
+    .maybeSingle()
+  if (!student) return { ok: false, error: "Öğrenci bulunamadı." }
+  if (student.coach_id !== user.id) {
+    return { ok: false, error: "Bu öğrenci size atanmamış." }
+  }
+  return { ok: true, coachId: user.id }
+}
+
 const inviteSchema = z.object({
   email: z.string().email("Geçerli bir email girin."),
   full_name: z.string().trim().min(2, "Ad soyad en az 2 karakter olmalı."),
   phone: z.string().trim().optional().nullable(),
-  grade: z.enum(["9", "10", "11", "12", "Mezun"]).optional().nullable(),
+  grade: z.enum(["7", "8", "9", "10", "11", "12", "Mezun"]).optional().nullable(),
   school: z.string().trim().optional().nullable(),
   parent_name: z.string().trim().optional().nullable(),
   parent_phone: z.string().trim().optional().nullable(),
@@ -87,13 +115,13 @@ export async function inviteStudentAction(formData: FormData) {
 }
 
 export async function updateStudentAction(id: string, formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Oturum bulunamadı." }
+  const own = await requireCoachOwnership(id)
+  if (!own.ok) return { error: own.error }
 
   const full_name = s(formData.get("full_name"))
   if (!full_name) return { error: "Ad soyad zorunlu." }
 
+  const supabase = await createClient()
   const admin = supabaseAdmin()
 
   // profiles: full_name, phone
@@ -127,6 +155,9 @@ export async function updateStudentAction(id: string, formData: FormData) {
 }
 
 export async function toggleStudentActiveAction(id: string, nextValue: boolean) {
+  const own = await requireCoachOwnership(id)
+  if (!own.ok) return { error: own.error }
+
   const supabase = await createClient()
   const { error } = await supabase.from("students").update({ is_active: nextValue }).eq("id", id)
   if (error) return { error: error.message }
@@ -137,10 +168,15 @@ export async function toggleStudentActiveAction(id: string, nextValue: boolean) 
 }
 
 export async function deleteStudentAction(id: string) {
-  // Auth user'ı sil → cascade ile profiles + students + bağımlı veriler silinir
-  const admin = supabaseAdmin()
-  const { error } = await admin.auth.admin.deleteUser(id)
+  const own = await requireCoachOwnership(id)
+  if (!own.ok) return { error: own.error }
+
+  // SECURITY DEFINER function ownership'i bir kez daha sunucu tarafında
+  // doğrular ve auth.users + cascade ilişkileri tek transaction'da temizler.
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("delete_student_safely", { student_uuid: id })
   if (error) return { error: error.message }
+
   revalidatePath("/koc/ogrenciler")
   revalidatePath("/koc")
   redirect("/koc/ogrenciler")

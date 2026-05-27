@@ -39,13 +39,15 @@ export async function updateSession(request: NextRequest) {
   const isOgrenciPath = path.startsWith("/ogrenci")
   const isKocPath = path.startsWith("/koc")
   const isMudurPath = path.startsWith("/mudur")
-  const isPortalPath = isOgrenciPath || isKocPath || isMudurPath
+  const isKurumPath = path.startsWith("/kurum")
+  const isPortalPath = isOgrenciPath || isKocPath || isMudurPath || isKurumPath
 
   // ── Unauthenticated ────────────────────────────────────────────────────
   if (!user) {
     if (isOgrenciPath) return redirect(request, "/giris/ogrenci")
     if (isKocPath) return redirect(request, "/giris/koc")
     if (isMudurPath) return redirect(request, "/giris/mudur")
+    if (isKurumPath) return redirect(request, "/giris/koc")
     return supabaseResponse
   }
 
@@ -70,6 +72,7 @@ export async function updateSession(request: NextRequest) {
       student: "/ogrenci",
       coach: "/koc",
       admin: "/mudur",
+      org_admin: "/kurum",
     }
 
     const expectedPrefix = roleToPath[role]
@@ -91,6 +94,7 @@ export async function updateSession(request: NextRequest) {
       const dest =
         profile.role === "student" ? "/ogrenci" :
         profile.role === "coach" ? "/koc" :
+        profile.role === "org_admin" ? "/kurum" :
         "/mudur"
       return redirect(request, dest)
     }

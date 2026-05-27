@@ -58,8 +58,8 @@ export type AssignmentRow = {
   toplam_sure_dk: number
 }
 
-type Student = { id: string; full_name: string }
-type Subject = { id: string; name: string }
+type Student = { id: string; full_name: string; grade?: string | null }
+type Subject = { id: string; name: string; exam_type?: string | null }
 type Topic = { id: string; subject_id: string; name: string }
 type TopicWithSubject = Topic & { subject_name: string }
 

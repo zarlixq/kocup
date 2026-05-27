@@ -26,7 +26,7 @@ export default async function KocKonuAnaliziPage() {
       .eq("coach_id", user!.id),
     supabase
       .from("students")
-      .select("id, is_active")
+      .select("id, is_active, grade")
       .eq("coach_id", user!.id)
       .eq("is_active", true),
     supabase.from("subjects").select("id, name, exam_type, order").order("exam_type").order("order"),
@@ -92,7 +92,7 @@ export default async function KocKonuAnaliziPage() {
   })
 
   const activeStudents = (students ?? [])
-    .map((s) => ({ id: s.id, full_name: nameById.get(s.id) ?? "—" }))
+    .map((s) => ({ id: s.id, full_name: nameById.get(s.id) ?? "—", grade: s.grade }))
     .sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"))
 
   return (

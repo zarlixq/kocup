@@ -47,7 +47,7 @@ export async function assignCoach(
 const updateSchema = z.object({
   full_name: z.string().trim().min(3),
   phone: z.string().trim().optional().nullable(),
-  grade: z.enum(["9", "10", "11", "12", "Mezun"]).optional().nullable(),
+  grade: z.enum(["7", "8", "9", "10", "11", "12", "Mezun"]).optional().nullable(),
   target_university: z.string().trim().optional().nullable(),
   target_department: z.string().trim().optional().nullable(),
   target_ranking: z.number().int().positive().optional().nullable(),
@@ -101,11 +101,12 @@ export async function deleteStudent(id: string): Promise<ActionResult> {
   const auth = await requireAdmin()
   if (!auth.ok) return { success: false, error: auth.error }
 
-  const admin = supabaseAdmin()
-  const { error } = await admin.auth.admin.deleteUser(id)
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("delete_student_safely", { student_uuid: id })
+
   if (error) {
     console.error("Öğrenci silme hatası:", error)
-    return { success: false, error: "Silinemedi, tekrar deneyin." }
+    return { success: false, error: error.message || "Silinemedi, tekrar deneyin." }
   }
 
   revalidatePath("/mudur/ogrenciler")

@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -85,7 +87,7 @@ export type Database = {
           application_id: string | null
           coach_id: string
           created_at: string | null
-          created_by: string
+          created_by: string | null
           end_time: string
           id: string
           is_recurring: boolean
@@ -107,7 +109,7 @@ export type Database = {
           application_id?: string | null
           coach_id: string
           created_at?: string | null
-          created_by: string
+          created_by?: string | null
           end_time: string
           id?: string
           is_recurring?: boolean
@@ -129,7 +131,7 @@ export type Database = {
           application_id?: string | null
           coach_id?: string
           created_at?: string | null
-          created_by?: string
+          created_by?: string | null
           end_time?: string
           id?: string
           is_recurring?: boolean
@@ -211,7 +213,7 @@ export type Database = {
       }
       blog_posts: {
         Row: {
-          author_id: string
+          author_id: string | null
           category_id: string | null
           content: string
           cover_image_url: string | null
@@ -229,7 +231,7 @@ export type Database = {
           view_count: number
         }
         Insert: {
-          author_id: string
+          author_id?: string | null
           category_id?: string | null
           content: string
           cover_image_url?: string | null
@@ -247,7 +249,7 @@ export type Database = {
           view_count?: number
         }
         Update: {
-          author_id?: string
+          author_id?: string | null
           category_id?: string | null
           content?: string
           cover_image_url?: string | null
@@ -329,7 +331,7 @@ export type Database = {
       exams: {
         Row: {
           created_at: string | null
-          created_by: string
+          created_by: string | null
           date: string
           exam_type: string
           id: string
@@ -340,7 +342,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          created_by: string
+          created_by?: string | null
           date: string
           exam_type: string
           id?: string
@@ -351,7 +353,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          created_by?: string
+          created_by?: string | null
           date?: string
           exam_type?: string
           id?: string
@@ -376,6 +378,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      organizations: {
+        Row: {
+          accent_color: string | null
+          address: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          plan: string
+          primary_color: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string | null
+          address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          plan?: string
+          primary_color?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string | null
+          address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          plan?: string
+          primary_color?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       packages: {
         Row: {
@@ -484,6 +534,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          organization_id: string | null
           phone: string | null
           role: string
           specialties: string[] | null
@@ -497,6 +548,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          organization_id?: string | null
           phone?: string | null
           role: string
           specialties?: string[] | null
@@ -510,12 +562,21 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          organization_id?: string | null
           phone?: string | null
           role?: string
           specialties?: string[] | null
           years_experience?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       schedule: {
         Row: {
@@ -638,6 +699,7 @@ export type Database = {
           is_active: boolean
           kayit_kaynagi: string
           notes: string | null
+          organization_id: string | null
           parent_name: string | null
           parent_phone: string | null
           school: string | null
@@ -653,6 +715,7 @@ export type Database = {
           is_active?: boolean
           kayit_kaynagi?: string
           notes?: string | null
+          organization_id?: string | null
           parent_name?: string | null
           parent_phone?: string | null
           school?: string | null
@@ -668,6 +731,7 @@ export type Database = {
           is_active?: boolean
           kayit_kaynagi?: string
           notes?: string | null
+          organization_id?: string | null
           parent_name?: string | null
           parent_phone?: string | null
           school?: string | null
@@ -690,6 +754,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "students_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       study_sessions: {
@@ -697,7 +768,7 @@ export type Database = {
           assignment_id: string | null
           correct: number
           created_at: string | null
-          created_by: string
+          created_by: string | null
           date: string
           duration_minutes: number | null
           empty: number
@@ -711,7 +782,7 @@ export type Database = {
           assignment_id?: string | null
           correct: number
           created_at?: string | null
-          created_by: string
+          created_by?: string | null
           date: string
           duration_minutes?: number | null
           empty: number
@@ -725,7 +796,7 @@ export type Database = {
           assignment_id?: string | null
           correct?: number
           created_at?: string | null
-          created_by?: string
+          created_by?: string | null
           date?: string
           duration_minutes?: number | null
           empty?: number
@@ -798,7 +869,7 @@ export type Database = {
           baslangic_tarihi: string
           coach_id: string
           created_at: string | null
-          created_by: string
+          created_by: string | null
           hedef_soru: number
           hedef_sure_dk: number | null
           id: string
@@ -813,7 +884,7 @@ export type Database = {
           baslangic_tarihi?: string
           coach_id: string
           created_at?: string | null
-          created_by: string
+          created_by?: string | null
           hedef_soru: number
           hedef_sure_dk?: number | null
           id?: string
@@ -828,7 +899,7 @@ export type Database = {
           baslangic_tarihi?: string
           coach_id?: string
           created_at?: string | null
-          created_by?: string
+          created_by?: string | null
           hedef_soru?: number
           hedef_sure_dk?: number | null
           id?: string
@@ -907,13 +978,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_user_org_id: { Args: never; Returns: string }
       current_user_role: { Args: never; Returns: string }
+      delete_coach_safely: { Args: { coach_uuid: string }; Returns: undefined }
+      delete_student_safely: {
+        Args: { student_uuid: string }
+        Returns: undefined
+      }
       exam_belongs_to_visible_student: {
         Args: { p_exam_id: string }
         Returns: boolean
       }
       increment_blog_post_view: { Args: { p_slug: string }; Returns: undefined }
       is_coach_of: { Args: { student_id: string }; Returns: boolean }
+      is_org_admin_of: { Args: { target_org_id: string }; Returns: boolean }
     }
     Enums: {
       appointment_status: "planlandi" | "tamamlandi" | "iptal" | "gelmedi"

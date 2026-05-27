@@ -1,0 +1,134 @@
+"use server"
+
+import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
+import { createClient } from "@/lib/supabase/server"
+import { supabaseAdmin } from "@/lib/supabase/admin"
+import { inviteCoach as inviteCoachAuth } from "@/lib/auth/invite"
+
+type ActionResult<T = unknown> = { success: boolean; error?: string; data?: T }
+
+export async function signOut() {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  redirect("/giris/kurum")
+}
+
+async function requireOrgAdmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false as const, error: "Yetkisiz işlem." }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, organization_id")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  if (profile?.role !== "org_admin" || !profile.organization_id) {
+    return { ok: false as const, error: "Yetkisiz işlem." }
+  }
+  return { ok: true as const, userId: user.id, orgId: profile.organization_id }
+}
+
+const inviteSchema = z.object({
+  full_name: z.string().trim().min(3, "Ad soyad en az 3 karakter olmalı."),
+  email: z.string().trim().email("Geçerli bir email girin."),
+  phone: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
+})
+
+// Kurum içine koç davet et. Davet edilen koç organization_id ile bağlanır.
+export async function inviteCoachToOrg(input: unknown): Promise<ActionResult> {
+  const auth = await requireOrgAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const parsed = inviteSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Form hatalı." }
+  }
+
+  try {
+    const invited = await inviteCoachAuth({
+      ...parsed.data,
+      // raw_user_meta_data'ya organization_id eklemek için inviteCoachAuth'a
+      // direkt erişim yok — trigger metadata'dan okur. Şimdilik profile sonradan
+      // güncellenir; bu MVP için kabul edilebilir.
+    })
+
+    // Profile satırı trigger ile oluştu, organization_id set et
+    const admin = supabaseAdmin()
+    await admin
+      .from("profiles")
+      .update({ organization_id: auth.orgId })
+      .eq("id", invited.id)
+  } catch (err) {
+    console.error("Kurum koç davet hatası:", err)
+    const message = err instanceof Error ? err.message : "Davet gönderilemedi."
+    return { success: false, error: message }
+  }
+
+  revalidatePath("/kurum/koclar")
+  revalidatePath("/kurum")
+  return { success: true }
+}
+
+const brandingSchema = z.object({
+  name: z.string().trim().min(2),
+  logo_url: z
+    .string()
+    .url()
+    .optional()
+    .nullable()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  primary_color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Renk hex formatında olmalı (#RRGGBB)")
+    .optional()
+    .nullable()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  contact_email: z
+    .string()
+    .email()
+    .optional()
+    .nullable()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+  contact_phone: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+})
+
+export async function updateOrgBranding(input: unknown): Promise<ActionResult> {
+  const auth = await requireOrgAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const parsed = brandingSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Form hatalı." }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("organizations")
+    .update(parsed.data)
+    .eq("id", auth.orgId)
+
+  if (error) {
+    console.error("Kurum güncelleme hatası:", error)
+    return { success: false, error: "Güncellenemedi." }
+  }
+
+  revalidatePath("/kurum/ayarlar")
+  revalidatePath("/kurum")
+  return { success: true }
+}
