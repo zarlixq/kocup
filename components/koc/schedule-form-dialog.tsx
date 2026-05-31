@@ -51,6 +51,8 @@ type Props = {
   studentId: string
   subjects: SubjectOption[]
   initial?: ScheduleEntry
+  /** Yeni kayıt için pre-fill (open=true ile birlikte verilirse uygulanır). */
+  initialDefaults?: { term?: number; day_of_week?: number; start_time?: string }
   trigger?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -77,6 +79,7 @@ export function ScheduleFormDialog({
   studentId,
   subjects,
   initial,
+  initialDefaults,
   trigger,
   open: controlledOpen,
   onOpenChange,
@@ -87,10 +90,16 @@ export function ScheduleFormDialog({
 
   const [pending, startTransition] = useTransition()
 
-  const [term, setTerm] = useState(initial?.term?.toString() ?? "1")
-  const [day, setDay] = useState(initial?.day_of_week?.toString() ?? "1")
+  const [term, setTerm] = useState(
+    initial?.term?.toString() ?? initialDefaults?.term?.toString() ?? "1",
+  )
+  const [day, setDay] = useState(
+    initial?.day_of_week?.toString() ?? initialDefaults?.day_of_week?.toString() ?? "1",
+  )
   const [startTime, setStartTime] = useState(
-    initial ? normalizeTime(initial.start_time) : "16:00",
+    initial
+      ? normalizeTime(initial.start_time)
+      : initialDefaults?.start_time ?? "16:00",
   )
   const [endTime, setEndTime] = useState(
     initial ? normalizeTime(initial.end_time) : "17:00",
@@ -107,9 +116,9 @@ export function ScheduleFormDialog({
   function reset() {
     setError(null)
     if (!initial) {
-      setTerm("1")
-      setDay("1")
-      setStartTime("16:00")
+      setTerm(initialDefaults?.term?.toString() ?? "1")
+      setDay(initialDefaults?.day_of_week?.toString() ?? "1")
+      setStartTime(initialDefaults?.start_time ?? "16:00")
       setEndTime("17:00")
       setSubjectMode("")
       setCustomTitle("")

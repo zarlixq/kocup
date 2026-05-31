@@ -1,66 +1,66 @@
 import { createClient } from "@/lib/supabase/server"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Calendar } from "lucide-react"
+import { WeeklyScheduleGrid, type ScheduleEntryWithSubject } from "@/components/schedule/weekly-grid"
+import { ProgramTermSwitch } from "@/components/schedule/term-switch"
 
-const dayLabel: Record<number, string> = {
-  1: "Pazartesi",
-  2: "Salı",
-  3: "Çarşamba",
-  4: "Perşembe",
-  5: "Cuma",
-  6: "Cumartesi",
-  7: "Pazar",
-}
+type SearchParams = { donem?: string }
 
-export default async function MudurStudentProgramPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function MudurStudentProgramPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<SearchParams>
+}) {
   const { id } = await params
+  const sp = await searchParams
+  const term = sp.donem === "2" ? 2 : 1
+
   const supabase = await createClient()
 
   const { data: schedule } = await supabase
     .from("schedule")
-    .select("id, term, day_of_week, start_time, end_time, custom_title, notes, subjects(name)")
+    .select(
+      "id, term, day_of_week, start_time, end_time, subject_id, custom_title, notes, subjects(id, name, color)",
+    )
     .eq("student_id", id)
+    .eq("term", term)
     .order("day_of_week")
     .order("start_time")
 
+  const entries: ScheduleEntryWithSubject[] = (schedule ?? []).map((r) => ({
+    id: r.id,
+    term: r.term,
+    day_of_week: r.day_of_week,
+    start_time: r.start_time,
+    end_time: r.end_time,
+    subject_id: r.subject_id,
+    custom_title: r.custom_title,
+    notes: r.notes,
+    subject: r.subjects
+      ? { id: r.subjects.id, name: r.subjects.name, color: r.subjects.color }
+      : null,
+  }))
+
   return (
     <div className="space-y-4">
-      <h2 className="text-base font-semibold text-zinc-900">Haftalık Ders Programı</h2>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h2 className="text-base font-semibold text-zinc-900">Haftalık Ders Programı</h2>
+        <ProgramTermSwitch baseHref={`/mudur/ogrenciler/${id}/program`} current={term} />
+      </div>
 
-      {!schedule || schedule.length === 0 ? (
+      {entries.length === 0 ? (
         <div className="bg-white border border-zinc-200 rounded-2xl p-12 text-center">
           <Calendar className="h-6 w-6 text-zinc-400 mx-auto mb-3" />
-          <p className="text-sm text-zinc-500">Henüz program oluşturulmamış.</p>
+          <p className="text-sm text-zinc-500">{term}. dönem programı boş.</p>
         </div>
       ) : (
-        <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Gün</TableHead>
-                <TableHead>Saat</TableHead>
-                <TableHead>Ders</TableHead>
-                <TableHead>Dönem</TableHead>
-                <TableHead>Not</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {schedule.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{dayLabel[row.day_of_week] ?? "—"}</TableCell>
-                  <TableCell className="tabular-nums">
-                    {row.start_time.slice(0, 5)} – {row.end_time.slice(0, 5)}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {row.subjects?.name ?? row.custom_title ?? "—"}
-                  </TableCell>
-                  <TableCell>{row.term === 1 ? "1. Dönem" : "2. Dönem"}</TableCell>
-                  <TableCell className="text-zinc-600 max-w-[240px] truncate">{row.notes ?? "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <WeeklyScheduleGrid
+          entries={entries}
+          subjects={[]}
+          editable={false}
+          term={term}
+        />
       )}
     </div>
   )
