@@ -90,10 +90,13 @@ export function WeeklySummaryDashboard({
   students,
   sessions,
   assignments,
+  hideStudentSelect = false,
 }: {
   students: Student[]
   sessions: TakipSession[]
   assignments: TakipAssignment[]
+  /** Tek öğrenci modunda öğrenci seçiciyi gizler. */
+  hideStudentSelect?: boolean
 }) {
   const [studentId, setStudentId] = useState<string>(students[0]?.id ?? "")
   const [range, setRange] = useState<Range>("week")
@@ -179,22 +182,30 @@ export function WeeklySummaryDashboard({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label className="text-xs text-zinc-500">Öğrenci</label>
-          <Select value={studentId} onValueChange={setStudentId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Seç" />
-            </SelectTrigger>
-            <SelectContent>
-              {students.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div
+        className={
+          hideStudentSelect
+            ? "flex justify-end"
+            : "grid grid-cols-1 md:grid-cols-2 gap-3"
+        }
+      >
+        {!hideStudentSelect && (
+          <div className="space-y-1">
+            <label className="text-xs text-zinc-500">Öğrenci</label>
+            <Select value={studentId} onValueChange={setStudentId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seç" />
+              </SelectTrigger>
+              <SelectContent>
+                {students.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="space-y-1">
           <label className="text-xs text-zinc-500">Dönem</label>
           <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5">

@@ -649,34 +649,43 @@ export type Database = {
           created_at: string | null
           custom_name: string | null
           custom_subject_id: string | null
+          error_notes: string | null
           id: string
           notes: string | null
+          solved_count: number
           status: string
           student_id: string
           topic_id: string | null
           updated_at: string | null
+          wrong_count: number
         }
         Insert: {
           created_at?: string | null
           custom_name?: string | null
           custom_subject_id?: string | null
+          error_notes?: string | null
           id?: string
           notes?: string | null
+          solved_count?: number
           status?: string
           student_id: string
           topic_id?: string | null
           updated_at?: string | null
+          wrong_count?: number
         }
         Update: {
           created_at?: string | null
           custom_name?: string | null
           custom_subject_id?: string | null
+          error_notes?: string | null
           id?: string
           notes?: string | null
+          solved_count?: number
           status?: string
           student_id?: string
           topic_id?: string | null
           updated_at?: string | null
+          wrong_count?: number
         }
         Relationships: [
           {

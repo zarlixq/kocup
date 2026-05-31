@@ -15,6 +15,7 @@ export function StudentDetailNav({ studentId }: { studentId: string }) {
     { href: `${base}/program`, label: "Program" },
     { href: `${base}/denemeler`, label: "Denemeler" },
     { href: `${base}/soru-cozum`, label: "Soru Çözüm" },
+    { href: `${base}/takip`, label: "Takip" },
     { href: `${base}/odemeler`, label: "Ödemeler" },
   ]
 

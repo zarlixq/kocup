@@ -1,23 +1,15 @@
 import { createClient } from "@/lib/supabase/server"
 import { AssignTopicsDialog } from "@/components/koc/assign-topics-dialog"
 import { CustomTopicDialog } from "@/components/koc/custom-topic-dialog"
-import { KonularViewSwitch } from "@/components/konular/view-switch"
 import { CleanList } from "@/components/konular/clean-list"
-import { KanbanBoard } from "@/components/konular/kanban-board"
 import type { Status, TopicCard } from "@/components/konular/types"
-
-type SearchParams = { view?: string }
 
 export default async function StudentKonularPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<SearchParams>
 }) {
   const { id } = await params
-  const sp = await searchParams
-  const view: "kanban" | "liste" = sp.view === "kanban" ? "kanban" : "liste"
 
   const supabase = await createClient()
 
@@ -31,7 +23,7 @@ export default async function StudentKonularPage({
     supabase
       .from("student_topics")
       .select(
-        "id, status, topic_id, custom_name, custom_subject_id, topics(name, subject_id, subjects(name)), subjects:custom_subject_id(name, id)",
+        "id, status, topic_id, custom_name, custom_subject_id, solved_count, wrong_count, error_notes, topics(name, subject_id, subjects(name)), subjects:custom_subject_id(name, id)",
       )
       .eq("student_id", id),
   ])
@@ -48,6 +40,9 @@ export default async function StudentKonularPage({
       topicName,
       subjectName,
       isCustom,
+      solvedCount: r.solved_count ?? 0,
+      wrongCount: r.wrong_count ?? 0,
+      errorNotes: r.error_notes,
     }
   })
 
@@ -63,11 +58,6 @@ export default async function StudentKonularPage({
           <p className="text-xs text-zinc-500 mt-0.5">{cards.length} atanmış konu</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <KonularViewSwitch
-            baseHref={`/koc/ogrenciler/${id}/konular`}
-            view={view}
-          />
-          <div className="hidden sm:block w-px h-6 bg-zinc-200" />
           <CustomTopicDialog studentId={id} subjects={subjects ?? []} />
           <AssignTopicsDialog
             studentId={id}
@@ -78,11 +68,7 @@ export default async function StudentKonularPage({
         </div>
       </div>
 
-      {view === "kanban" ? (
-        <KanbanBoard studentId={id} cards={cards} />
-      ) : (
-        <CleanList studentId={id} cards={cards} />
-      )}
+      <CleanList studentId={id} cards={cards} editable />
     </div>
   )
 }

@@ -1,20 +1,18 @@
 import { createClient } from "@/lib/supabase/server"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { TopicStatusSelect } from "@/components/ogrenci/topic-status-select"
 import { BookOpen, Target } from "lucide-react"
 import {
   AssignmentsCardGrid,
   type StudentAssignmentRow,
 } from "@/components/konu-analizi/assignments-card-grid"
+import { CleanList } from "@/components/konular/clean-list"
+import type { Status, TopicCard } from "@/components/konular/types"
 
 export const metadata = { title: "Konularım — KoçUp" }
-
-const STATUS_ORDER: Record<string, number> = { devam: 0, tekrar: 1, basla: 2, tamam: 3 }
 
 export default async function KonularimPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const userId = user!.id
 
   const [
     { data: topics },
@@ -24,24 +22,23 @@ export default async function KonularimPage() {
     supabase
       .from("student_topics")
       .select(
-        "id, status, notes, custom_name, topics(name, subjects(name)), custom_subject_id, subjects:custom_subject_id(name)"
+        "id, status, topic_id, custom_name, custom_subject_id, solved_count, wrong_count, error_notes, topics(name, subjects(name)), subjects:custom_subject_id(name)",
       )
-      .eq("student_id", user!.id)
+      .eq("student_id", userId)
       .order("created_at", { ascending: false }),
     supabase
       .from("topic_assignments")
       .select(
         "id, hedef_soru, hedef_sure_dk, son_tarih, notes, status, coach_id, topics(name, subjects(name))",
       )
-      .eq("student_id", user!.id),
+      .eq("student_id", userId),
     supabase
       .from("study_sessions")
       .select("assignment_id, total_questions, correct, duration_minutes")
-      .eq("student_id", user!.id)
+      .eq("student_id", userId)
       .not("assignment_id", "is", null),
   ])
 
-  // Koç adlarını çek
   const coachIds = Array.from(new Set((assignments ?? []).map((a) => a.coach_id)))
   const { data: coaches } = coachIds.length
     ? await supabase.from("profiles").select("id, full_name").in("id", coachIds)
@@ -76,12 +73,23 @@ export default async function KonularimPage() {
     }
   })
 
-  // Eski student_topics (basit durum)
-  const sorted = (topics ?? []).slice().sort((a, b) => (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99))
-  const counts = { basla: 0, devam: 0, tamam: 0, tekrar: 0 }
-  for (const t of topics ?? []) {
-    if (t.status in counts) counts[t.status as keyof typeof counts]++
-  }
+  const cards: TopicCard[] = (topics ?? []).map((t) => {
+    const isCustom = !t.topic_id
+    const topicName = isCustom ? t.custom_name ?? "—" : t.topics?.name ?? "—"
+    const subjectName = isCustom
+      ? t.subjects?.name ?? "—"
+      : t.topics?.subjects?.name ?? "—"
+    return {
+      id: t.id,
+      status: ((t.status as Status) ?? "basla") as Status,
+      topicName,
+      subjectName,
+      isCustom,
+      solvedCount: t.solved_count ?? 0,
+      wrongCount: t.wrong_count ?? 0,
+      errorNotes: t.error_notes,
+    }
+  })
 
   return (
     <div className="space-y-8">
@@ -92,7 +100,6 @@ export default async function KonularimPage() {
         </p>
       </div>
 
-      {/* Hedefli atamalar (yeni) */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Target className="h-5 w-5 text-[#F97316]" />
@@ -101,76 +108,18 @@ export default async function KonularimPage() {
         <AssignmentsCardGrid rows={assignmentRows} />
       </section>
 
-      {/* Basit konu durumu (mevcut korunur) */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <BookOpen className="h-5 w-5 text-[#1B6B8A]" />
           <h2 className="text-lg font-semibold text-zinc-900">Konu Durumum</h2>
         </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <Pill label="Başla" count={counts.basla} variant="outline" />
-          <Pill label="Devam" count={counts.devam} variant="partial" />
-          <Pill label="Tamam" count={counts.tamam} variant="paid" />
-          <Pill label="Tekrar" count={counts.tekrar} variant="pending" />
-        </div>
-
-        {sorted.length === 0 ? (
-          <div className="bg-white border border-zinc-200 rounded-2xl p-12 text-center">
-            <BookOpen className="h-6 w-6 text-zinc-400 mx-auto mb-3" />
-            <h3 className="text-base font-semibold text-zinc-900 mb-1">Konu durumu boş</h3>
-            <p className="text-sm text-zinc-500">Koçun konu işaretlemesi yapınca burada görünecek.</p>
-          </div>
-        ) : (
-          <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Konu</TableHead>
-                  <TableHead>Ders</TableHead>
-                  <TableHead>Not</TableHead>
-                  <TableHead className="text-right">Durum</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.map((t) => {
-                  const subject = t.topics?.subjects?.name ?? t.subjects?.name ?? "—"
-                  const name = t.topics?.name ?? t.custom_name ?? "—"
-                  return (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-medium">{name}</TableCell>
-                      <TableCell className="text-zinc-600">{subject}</TableCell>
-                      <TableCell className="text-zinc-600 max-w-[280px] truncate">{t.notes ?? "—"}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="inline-flex">
-                          <TopicStatusSelect topicId={t.id} status={t.status} />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        <CleanList
+          studentId={userId}
+          cards={cards}
+          editable
+          canDelete={false}
+        />
       </section>
-    </div>
-  )
-}
-
-function Pill({
-  label,
-  count,
-  variant,
-}: {
-  label: string
-  count: number
-  variant: "paid" | "partial" | "pending" | "outline"
-}) {
-  return (
-    <div className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between">
-      <span className="text-sm text-zinc-600">{label}</span>
-      <Badge variant={variant}>{count}</Badge>
     </div>
   )
 }

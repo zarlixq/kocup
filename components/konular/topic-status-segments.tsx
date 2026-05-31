@@ -11,9 +11,15 @@ type Props = {
   studentId: string
   trackingId: string
   status: Status
+  disabled?: boolean
 }
 
-export function TopicStatusSegments({ studentId, trackingId, status }: Props) {
+export function TopicStatusSegments({
+  studentId,
+  trackingId,
+  status,
+  disabled = false,
+}: Props) {
   const [optimisticStatus, setOptimisticStatus] = useOptimistic(
     status,
     (_, next: Status) => next,
@@ -21,7 +27,7 @@ export function TopicStatusSegments({ studentId, trackingId, status }: Props) {
   const [pending, startTransition] = useTransition()
 
   function handleChange(next: Status) {
-    if (next === optimisticStatus || pending) return
+    if (next === optimisticStatus || pending || disabled) return
     startTransition(async () => {
       setOptimisticStatus(next)
       const res = await updateTopicStatus(studentId, trackingId, next)
@@ -35,7 +41,10 @@ export function TopicStatusSegments({ studentId, trackingId, status }: Props) {
     <div
       role="radiogroup"
       aria-label="Durum"
-      className="inline-flex rounded-full bg-zinc-100 p-0.5"
+      className={cn(
+        "inline-flex rounded-full bg-zinc-100 p-0.5",
+        disabled && "opacity-70",
+      )}
     >
       {STATUS_LIST.map((s) => {
         const isActive = optimisticStatus === s.value
@@ -46,12 +55,13 @@ export function TopicStatusSegments({ studentId, trackingId, status }: Props) {
             role="radio"
             aria-checked={isActive}
             onClick={() => handleChange(s.value)}
-            disabled={pending && !isActive}
+            disabled={disabled || (pending && !isActive)}
             className={cn(
               "inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-full transition-all",
               isActive
                 ? `bg-white shadow-sm ${s.tone.split(" ")[1]}`
                 : "text-zinc-500 hover:text-zinc-900",
+              disabled && "cursor-not-allowed hover:text-zinc-500",
             )}
             title={s.label}
           >

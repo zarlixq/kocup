@@ -1,46 +1,54 @@
 import Link from "next/link"
-import { Users, TrendingUp, Wallet, AlertCircle, Plus } from "lucide-react"
+import { Users, GraduationCap, Activity, Calendar, Plus } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { StatCard } from "@/components/koc/stat-card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { formatTRY, formatDate, formatMonth } from "@/lib/format"
-import { currentPeriodMonthISO, getPaymentStatus, statusLabel } from "@/lib/payments"
-import { PaymentFormDialog } from "@/components/koc/payment-form-dialog"
 import { TodaysAppointmentsCard } from "@/components/randevu/todays-appointments-card"
+import {
+  StudentCardGrid,
+  type StudentCardRow,
+} from "@/components/koc/student-card-grid"
 
 export const metadata = { title: "Dashboard — KoçUp" }
+
+function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10)
+}
+
+function maxIso(a: string | null, b: string | null): string | null {
+  if (!a) return b
+  if (!b) return a
+  return a > b ? a : b
+}
 
 export default async function KocDashboard() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const periodIso = currentPeriodMonthISO()
 
-  // Bugünkü aralık (yerel)
+  // Tarih sınırları
   const today = new Date()
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
   const todayEnd = new Date(todayStart)
   todayEnd.setDate(todayEnd.getDate() + 1)
 
+  // Bu hafta (Pzt - Paz)
+  const weekStart = new Date(todayStart)
+  const day = weekStart.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  weekStart.setDate(weekStart.getDate() + diff)
+  const weekStartIso = isoDate(weekStart)
+
   const [
     { data: students },
-    { data: paymentsThisMonth },
-    { data: recentPayments },
     { data: todaysAppts },
+    { data: weekSessions },
+    { data: topicsAll },
+    { data: examsAll },
   ] = await Promise.all([
     supabase
       .from("students")
-      .select(
-        "id, is_active, packages(id, name, monthly_price, payment_day, status), payments(amount, period_month)"
-      )
+      .select("id, is_active, grade")
       .eq("coach_id", user!.id),
-    supabase.from("payments").select("amount").eq("period_month", periodIso),
-    supabase
-      .from("payments")
-      .select("id, amount, payment_date, method, student_id")
-      .order("payment_date", { ascending: false })
-      .limit(10),
     supabase
       .from("appointments")
       .select("id, title, type, start_time, end_time, meeting_link, student_id, application_id")
@@ -49,14 +57,39 @@ export default async function KocDashboard() {
       .gte("start_time", todayStart.toISOString())
       .lt("start_time", todayEnd.toISOString())
       .order("start_time", { ascending: true }),
+    // koçun bütün öğrencilerinin bu haftaki çalışmaları — student_id'leri sonra eşleyeceğiz
+    supabase
+      .from("study_sessions")
+      .select("student_id, date, total_questions")
+      .gte("date", weekStartIso),
+    supabase
+      .from("student_topics")
+      .select("student_id, status"),
+    supabase
+      .from("exams")
+      .select("student_id, date"),
   ])
 
-  // Bugünkü randevulardaki kişi adlarını çek (öğrenci profil VEYA tanıtım başvuru adı)
+  const studentRows = students ?? []
+  const studentIds = studentRows.map((s) => s.id)
+  const studentIdSet = new Set(studentIds)
+  const activeStudentIds = studentRows.filter((s) => s.is_active).map((s) => s.id)
+
+  // Profilleri ayrı çek (koç'a atanmış öğrenciler için)
+  const { data: profiles } = studentIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name, email, first_login_at")
+        .in("id", studentIds)
+    : { data: [] as Array<{ id: string; full_name: string; email: string; first_login_at: string | null }> }
+  const profileById = new Map((profiles ?? []).map((p) => [p.id, p]))
+
+  // Bugünkü randevulardaki kişi adlarını çek
   const todayStudentIds = Array.from(
-    new Set((todaysAppts ?? []).map((a) => a.student_id).filter(Boolean) as string[])
+    new Set((todaysAppts ?? []).map((a) => a.student_id).filter(Boolean) as string[]),
   )
   const todayAppIds = Array.from(
-    new Set((todaysAppts ?? []).map((a) => a.application_id).filter(Boolean) as string[])
+    new Set((todaysAppts ?? []).map((a) => a.application_id).filter(Boolean) as string[]),
   )
 
   const [{ data: todayStudents }, { data: todayApps }] = await Promise.all([
@@ -73,10 +106,8 @@ export default async function KocDashboard() {
       return todayStudents?.find((p) => p.id === a.student_id)?.full_name ?? null
     }
     if (a.application_id) {
-      return (
-        (todayApps?.find((p) => p.id === a.application_id)?.full_name ?? null) &&
-        `${todayApps!.find((p) => p.id === a.application_id)!.full_name} (Tanıtım)`
-      )
+      const app = todayApps?.find((p) => p.id === a.application_id)
+      return app ? `${app.full_name} (Tanıtım)` : null
     }
     return null
   }
@@ -91,41 +122,79 @@ export default async function KocDashboard() {
     otherPersonName: todayPersonName(a),
   }))
 
-  const studentIds = (students ?? []).map((s) => s.id)
-  const { data: studentProfiles } = studentIds.length
-    ? await supabase.from("profiles").select("id, full_name").in("id", studentIds)
-    : { data: [] as { id: string; full_name: string }[] }
+  // Stat kartları — bu hafta toplam soru (koç öğrencileri)
+  const weekTotalQuestions = (weekSessions ?? [])
+    .filter((s) => studentIdSet.has(s.student_id))
+    .reduce((sum, s) => sum + (s.total_questions ?? 0), 0)
 
-  const nameById: Record<string, string> = {}
-  for (const p of studentProfiles ?? []) nameById[p.id] = p.full_name
+  // Yaklaşan randevu sayısı (bugün + sonraki 24 saat)
+  const upcomingEnd = new Date(todayStart)
+  upcomingEnd.setDate(upcomingEnd.getDate() + 2)
+  const { count: upcomingCount } = await supabase
+    .from("appointments")
+    .select("*", { count: "exact", head: true })
+    .eq("coach_id", user!.id)
+    .neq("status", "iptal")
+    .gte("start_time", todayStart.toISOString())
+    .lt("start_time", upcomingEnd.toISOString())
 
-  const recentIds = (recentPayments ?? []).map((p) => p.student_id)
-  const { data: recentProfiles } = recentIds.length
-    ? await supabase.from("profiles").select("id, full_name").in("id", recentIds)
-    : { data: [] as { id: string; full_name: string }[] }
-  const recentNameById: Record<string, string> = {}
-  for (const p of recentProfiles ?? []) recentNameById[p.id] = p.full_name
+  // Öğrenci başına aggregasyon
+  const weekQByStudent = new Map<string, number>()
+  for (const s of weekSessions ?? []) {
+    if (!studentIdSet.has(s.student_id)) continue
+    weekQByStudent.set(
+      s.student_id,
+      (weekQByStudent.get(s.student_id) ?? 0) + (s.total_questions ?? 0),
+    )
+  }
 
-  const activeStudents = (students ?? []).filter((s) => s.is_active)
-  const expected = activeStudents.reduce((sum, s) => {
-    const active = s.packages?.find((p) => p.status === "active")
-    return sum + (active ? Number(active.monthly_price) : 0)
-  }, 0)
-  const collected = (paymentsThisMonth ?? []).reduce((s, p) => s + Number(p.amount), 0)
+  const totalTopicsByStudent = new Map<string, number>()
+  const completedTopicsByStudent = new Map<string, number>()
+  for (const t of topicsAll ?? []) {
+    if (!studentIdSet.has(t.student_id)) continue
+    totalTopicsByStudent.set(t.student_id, (totalTopicsByStudent.get(t.student_id) ?? 0) + 1)
+    if (t.status === "tamam") {
+      completedTopicsByStudent.set(
+        t.student_id,
+        (completedTopicsByStudent.get(t.student_id) ?? 0) + 1,
+      )
+    }
+  }
 
-  const rows = activeStudents.map((s) => {
-    const active = s.packages?.find((p) => p.status === "active")
-    const paid = (s.payments ?? [])
-      .filter((p) => p.period_month === periodIso)
-      .reduce((sum, p) => sum + Number(p.amount), 0)
-    const status = active ? getPaymentStatus([{ amount: paid }], active.monthly_price) : ("pending" as const)
-    return { student: s, name: nameById[s.id] ?? "—", active, paid, status }
-  })
-  const pendingCount = rows.filter((r) => r.active && r.status === "pending").length
+  // Son aktivite — study_session date veya exam date max
+  const lastSessionByStudent = new Map<string, string>()
+  for (const s of weekSessions ?? []) {
+    if (!studentIdSet.has(s.student_id)) continue
+    const prev = lastSessionByStudent.get(s.student_id) ?? null
+    const next = maxIso(prev, s.date)
+    if (next) lastSessionByStudent.set(s.student_id, next)
+  }
+  const lastExamByStudent = new Map<string, string>()
+  for (const e of examsAll ?? []) {
+    if (!studentIdSet.has(e.student_id)) continue
+    const prev = lastExamByStudent.get(e.student_id) ?? null
+    const next = maxIso(prev, e.date)
+    if (next) lastExamByStudent.set(e.student_id, next)
+  }
 
-  rows.sort((a, b) => {
-    const order = { pending: 0, partial: 1, paid: 2 } as const
-    return order[a.status] - order[b.status]
+  const cardRows: StudentCardRow[] = studentRows.map((s) => {
+    const profile = profileById.get(s.id)
+    const lastActivity = maxIso(
+      lastSessionByStudent.get(s.id) ?? null,
+      lastExamByStudent.get(s.id) ?? null,
+    )
+    return {
+      id: s.id,
+      fullName: profile?.full_name ?? "—",
+      email: profile?.email ?? "",
+      grade: s.grade,
+      isActive: s.is_active,
+      firstLoginAt: profile?.first_login_at ?? null,
+      weekQuestions: weekQByStudent.get(s.id) ?? 0,
+      totalTopics: totalTopicsByStudent.get(s.id) ?? 0,
+      completedTopics: completedTopicsByStudent.get(s.id) ?? 0,
+      lastActivityAt: lastActivity,
+    }
   })
 
   return (
@@ -133,7 +202,9 @@ export default async function KocDashboard() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Dashboard</h1>
-          <p className="text-sm text-zinc-500 mt-1 capitalize">{formatMonth(new Date())}</p>
+          <p className="text-sm text-zinc-500 mt-1">
+            Öğrencilerini tek bakışta yönet.
+          </p>
         </div>
         <Link href="/koc/ogrenciler/yeni">
           <Button variant="accent">
@@ -144,28 +215,27 @@ export default async function KocDashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Aktif Öğrenci"
-          value={String(activeStudents.length)}
+          label="Toplam Öğrenci"
+          value={String(studentRows.length)}
           icon={<Users className="h-4 w-4" />}
         />
         <StatCard
-          label="Bu Ay Beklenen"
-          value={formatTRY(expected)}
-          icon={<TrendingUp className="h-4 w-4" />}
-          accent="orange"
-        />
-        <StatCard
-          label="Bu Ay Tahsil Edilen"
-          value={formatTRY(collected)}
-          hint={`${expected > 0 ? Math.round((collected / expected) * 100) : 0}% tahsilat`}
-          icon={<Wallet className="h-4 w-4" />}
+          label="Aktif Öğrenci"
+          value={String(activeStudentIds.length)}
+          icon={<GraduationCap className="h-4 w-4" />}
           accent="green"
         />
         <StatCard
-          label="Bekleyen Ödeme"
-          value={String(pendingCount)}
-          icon={<AlertCircle className="h-4 w-4" />}
-          accent={pendingCount > 0 ? "red" : "default"}
+          label="Bu Hafta Soru"
+          value={weekTotalQuestions.toLocaleString("tr-TR")}
+          icon={<Activity className="h-4 w-4" />}
+          accent="orange"
+        />
+        <StatCard
+          label="Yaklaşan Randevu"
+          value={String(upcomingCount ?? 0)}
+          hint="Bugün ve yarın"
+          icon={<Calendar className="h-4 w-4" />}
         />
       </div>
 
@@ -175,116 +245,16 @@ export default async function KocDashboard() {
       />
 
       <div>
-        <h2 className="text-base font-semibold text-zinc-900 mb-3 capitalize">Bu Ay — {formatMonth(new Date())}</h2>
-        {rows.length === 0 ? (
-          <div className="bg-white border border-zinc-200 rounded-2xl p-12 text-center">
-            <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center mx-auto mb-4">
-              <Users className="h-6 w-6 text-zinc-500" />
-            </div>
-            <h3 className="text-base font-semibold text-zinc-900 mb-1">Henüz aktif öğrencin yok</h3>
-            <p className="text-sm text-zinc-500 mb-5">İlk öğrencini eklemek için aşağıdaki butona tıkla.</p>
-            <Link href="/koc/ogrenciler/yeni">
-              <Button variant="accent">
-                <Plus className="h-4 w-4" /> Yeni Öğrenci
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Öğrenci</TableHead>
-                  <TableHead>Paket</TableHead>
-                  <TableHead className="text-right">Aylık</TableHead>
-                  <TableHead className="text-right">Ödenen</TableHead>
-                  <TableHead>Durum</TableHead>
-                  <TableHead>Ödeme Günü</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.student.id}>
-                    <TableCell>
-                      <Link href={`/koc/ogrenciler/${r.student.id}`} className="font-medium hover:text-[#1B6B8A]">
-                        {r.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-zinc-600">{r.active?.name ?? <span className="text-zinc-400">—</span>}</TableCell>
-                    <TableCell className="text-right tabular-nums">{r.active ? formatTRY(r.active.monthly_price) : "-"}</TableCell>
-                    <TableCell className="text-right tabular-nums font-semibold">{formatTRY(r.paid)}</TableCell>
-                    <TableCell>
-                      {r.active ? (
-                        <Badge variant={r.status === "paid" ? "paid" : r.status === "partial" ? "partial" : "pending"}>
-                          {statusLabel(r.status)}
-                        </Badge>
-                      ) : (
-                        <span className="text-zinc-400 text-xs">Paket yok</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-zinc-600">{r.active?.payment_day ? `Ayın ${r.active.payment_day}'i` : "-"}</TableCell>
-                    <TableCell>
-                      {r.active && r.status !== "paid" && (
-                        <PaymentFormDialog
-                          studentId={r.student.id}
-                          packages={[{ id: r.active.id, name: r.active.name, monthly_price: r.active.monthly_price }]}
-                          defaultPackageId={r.active.id}
-                          trigger={
-                            <Button variant="outline" size="sm">
-                              Ödeme Ekle
-                            </Button>
-                          }
-                        />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
-
-      <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-zinc-900">Son Ödemeler</h2>
-          <Link href="/koc/payments" className="text-sm text-[#1B6B8A] hover:underline">
-            Tümünü Gör →
+          <h2 className="text-base font-semibold text-zinc-900">Öğrencilerim</h2>
+          <Link
+            href="/koc/ogrenciler"
+            className="text-sm text-[#1B6B8A] hover:underline"
+          >
+            Tüm liste →
           </Link>
         </div>
-        {!recentPayments || recentPayments.length === 0 ? (
-          <div className="bg-white border border-zinc-200 rounded-2xl p-8 text-center text-sm text-zinc-500">
-            Henüz ödeme kaydı yok.
-          </div>
-        ) : (
-          <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tarih</TableHead>
-                  <TableHead>Öğrenci</TableHead>
-                  <TableHead className="text-right">Tutar</TableHead>
-                  <TableHead>Yöntem</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentPayments.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="whitespace-nowrap">{formatDate(p.payment_date)}</TableCell>
-                    <TableCell>
-                      <Link href={`/koc/ogrenciler/${p.student_id}`} className="font-medium hover:text-[#1B6B8A]">
-                        {recentNameById[p.student_id] ?? "—"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">{formatTRY(p.amount)}</TableCell>
-                    <TableCell className="capitalize text-zinc-600">{p.method ?? "-"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        <StudentCardGrid students={cardRows} />
       </div>
     </div>
   )

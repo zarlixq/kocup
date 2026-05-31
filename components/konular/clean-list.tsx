@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState, useTransition } from "react"
-import { Trash2, BookOpen } from "lucide-react"
+import { Trash2, BookOpen, StickyNote } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,23 +17,30 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { TopicStatusSegments } from "@/components/konular/topic-status-segments"
+import { TopicProgressDialog } from "@/components/konular/topic-progress-dialog"
 import {
   STATUS_LIST,
   type Status,
   type TopicCard,
+  successRate,
+  progressTone,
 } from "@/components/konular/types"
 import { removeTopic } from "@/app/koc/ogrenciler/[id]/konular/actions"
 
 type Props = {
   studentId: string
   cards: TopicCard[]
+  /** Default true. False olunca segmented control, silme ve progress dialog gizlenir. */
+  editable?: boolean
+  /** Koç tarafında true: kaldır butonu görünür. Öğrencide false (sadece progress + status). */
+  canDelete?: boolean
 }
 
 type Filter = "all" | Status
 
 const STATUS_ORDER: Record<Status, number> = { devam: 0, tekrar: 1, basla: 2, tamam: 3 }
 
-export function CleanList({ studentId, cards }: Props) {
+export function CleanList({ studentId, cards, editable = true, canDelete = true }: Props) {
   const [filter, setFilter] = useState<Filter>("all")
   const [deleteTarget, setDeleteTarget] = useState<TopicCard | null>(null)
   const [pending, startTransition] = useTransition()
@@ -79,7 +86,6 @@ export function CleanList({ studentId, cards }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Üst filtre kartları */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
         <FilterCard
           active={filter === "all"}
@@ -114,7 +120,9 @@ export function CleanList({ studentId, cards }: Props) {
           </h3>
           <p className="text-sm text-zinc-500">
             {cards.length === 0
-              ? "Sağ üstten konu ata."
+              ? editable
+                ? "Sağ üstten konu ata."
+                : "Koçun konu atadığında burada görünecek."
               : "Filtreyi değiştirmeyi dene."}
           </p>
         </div>
@@ -132,44 +140,87 @@ export function CleanList({ studentId, cards }: Props) {
                 <Badge variant="outline">{list.length}</Badge>
               </div>
               <ul className="divide-y divide-zinc-100">
-                {list.map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex items-center gap-3 px-4 py-2.5"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div
-                        className={cn(
-                          "text-sm",
-                          c.status === "tamam"
-                            ? "text-zinc-400 line-through"
-                            : "text-zinc-900",
-                        )}
-                      >
-                        {c.topicName}
-                        {c.isCustom && (
-                          <Badge variant="outline" className="ml-2 text-[10px]">
-                            Özel
-                          </Badge>
+                {list.map((c) => {
+                  const rate = successRate(c.solvedCount, c.wrongCount)
+                  const tone = progressTone(rate)
+                  return (
+                    <li
+                      key={c.id}
+                      className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center gap-2.5"
+                    >
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div
+                          className={cn(
+                            "text-sm flex items-center gap-2 flex-wrap",
+                            c.status === "tamam"
+                              ? "text-zinc-400 line-through"
+                              : "text-zinc-900",
+                          )}
+                        >
+                          <span className="truncate">{c.topicName}</span>
+                          {c.isCustom && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Özel
+                            </Badge>
+                          )}
+                          {c.errorNotes && (
+                            <span
+                              title={c.errorNotes}
+                              className="inline-flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md max-w-[200px]"
+                            >
+                              <StickyNote className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{c.errorNotes}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {c.solvedCount > 0 && (
+                          <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium tabular-nums",
+                                tone.bg,
+                                tone.text,
+                              )}
+                            >
+                              <span className={cn("h-1.5 w-1.5 rounded-full", tone.dot)} />
+                              %{rate}
+                            </span>
+                            <span className="text-zinc-500 tabular-nums">
+                              {c.solvedCount.toLocaleString("tr-TR")} çözüldü
+                            </span>
+                            {c.wrongCount > 0 && (
+                              <span className="text-[#F97316] tabular-nums">
+                                · {c.wrongCount} yanlış
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
-                    </div>
-                    <TopicStatusSegments
-                      studentId={studentId}
-                      trackingId={c.id}
-                      status={c.status}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => setDeleteTarget(c)}
-                      aria-label="Konuyu kaldır"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </li>
-                ))}
+
+                      <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                        {editable && <TopicProgressDialog card={c} />}
+                        <TopicStatusSegments
+                          studentId={studentId}
+                          trackingId={c.id}
+                          status={c.status}
+                          disabled={!editable}
+                        />
+                        {editable && canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => setDeleteTarget(c)}
+                            aria-label="Konuyu kaldır"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           ))}
