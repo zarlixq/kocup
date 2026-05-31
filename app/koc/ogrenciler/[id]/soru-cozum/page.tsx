@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Plus, Hash } from "lucide-react"
+import { Hash, Info } from "lucide-react"
 import { formatDate } from "@/lib/format"
 
 export default async function StudentSoruCozumPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,11 +16,12 @@ export default async function StudentSoruCozumPage({ params }: { params: Promise
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div>
         <h2 className="text-base font-semibold text-zinc-900">Soru Çözüm Geçmişi</h2>
-        <Button variant="accent" size="sm" disabled>
-          <Plus className="h-4 w-4" /> Yeni Kayıt
-        </Button>
+        <p className="text-sm text-zinc-500 mt-1 inline-flex items-center gap-1.5">
+          <Info className="h-3.5 w-3.5" />
+          Öğrencinin kendi panelinden girdiği günlük soru çözüm kayıtları.
+        </p>
       </div>
 
       {!sessions || sessions.length === 0 ? (
@@ -30,7 +30,7 @@ export default async function StudentSoruCozumPage({ params }: { params: Promise
             <Hash className="h-6 w-6 text-zinc-500" />
           </div>
           <h3 className="text-base font-semibold text-zinc-900 mb-1">Henüz soru çözüm kaydı yok</h3>
-          <p className="text-sm text-zinc-500">Günlük soru girişi özelliği yakında.</p>
+          <p className="text-sm text-zinc-500">Öğrenci ilk soru çözümünü kaydettiğinde burada görünecek.</p>
         </div>
       ) : (
         <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">

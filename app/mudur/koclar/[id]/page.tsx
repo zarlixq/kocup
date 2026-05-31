@@ -9,6 +9,12 @@ import { formatTRY } from "@/lib/format"
 import { currentPeriodMonthISO } from "@/lib/payments"
 import { EditCoachDialog } from "@/components/mudur/edit-coach-dialog"
 import { DeleteCoachButton } from "@/components/mudur/delete-coach-button"
+import { ResendInviteButton } from "@/components/shared/resend-invite-button"
+import { CoachSourceBadge } from "@/components/mudur/coach-source-badge"
+import { EditCoachSourceDialog } from "@/components/mudur/edit-coach-source-dialog"
+import { UserStatusBadge } from "@/components/shared/user-status-badge"
+import { getUserStatus } from "@/lib/user-status"
+import { resendCoachInvitationMudur } from "@/app/mudur/koclar/actions"
 
 function initials(name: string) {
   return name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase()
@@ -27,7 +33,7 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, full_name, email, phone, bio, certificate_info, years_experience, specialties, created_at, role")
+    .select("id, full_name, email, phone, bio, certificate_info, years_experience, specialties, created_at, role, coach_source, first_login_at")
     .eq("id", id)
     .maybeSingle()
 
@@ -67,6 +73,16 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
 
   const studentCount = (students ?? []).length
 
+  // Status: profiles.first_login_at üzerinden hesapla (auth.users fetch'i
+  // gerek yok — trigger sync ediyor).
+  const status = getUserStatus({ first_login_at: profile.first_login_at })
+  const hasLoggedIn = status !== "pending"
+
+  async function handleResend() {
+    "use server"
+    return resendCoachInvitationMudur(id)
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <Link
@@ -85,7 +101,12 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 space-y-2">
-            <h1 className="text-2xl font-bold text-zinc-900">{profile.full_name}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-bold text-zinc-900">{profile.full_name}</h1>
+              <CoachSourceBadge source={profile.coach_source} />
+              <EditCoachSourceDialog coachId={profile.id} current={profile.coach_source} />
+              <UserStatusBadge status={status} />
+            </div>
             <div className="flex items-center gap-3 text-sm text-zinc-500 flex-wrap">
               <span className="inline-flex items-center gap-1">
                 <Mail className="w-3.5 h-3.5" /> {profile.email}
@@ -116,23 +137,32 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
               <p className="text-sm text-zinc-500">{profile.years_experience} yıl deneyim</p>
             )}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <EditCoachDialog
-              coachId={profile.id}
-              initial={{
-                full_name: profile.full_name,
-                phone: profile.phone ?? "",
-                bio: profile.bio ?? "",
-                certificate_info: profile.certificate_info ?? "",
-                years_experience: profile.years_experience?.toString() ?? "",
-                specialties: (profile.specialties ?? []).join(", "),
-              }}
-            />
-            <DeleteCoachButton
-              coachId={profile.id}
-              coachName={profile.full_name}
-              studentCount={studentCount}
-            />
+          <div className="flex flex-col gap-2 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <EditCoachDialog
+                coachId={profile.id}
+                initial={{
+                  full_name: profile.full_name,
+                  phone: profile.phone ?? "",
+                  bio: profile.bio ?? "",
+                  certificate_info: profile.certificate_info ?? "",
+                  years_experience: profile.years_experience?.toString() ?? "",
+                  specialties: (profile.specialties ?? []).join(", "),
+                }}
+              />
+              <DeleteCoachButton
+                coachId={profile.id}
+                coachName={profile.full_name}
+                studentCount={studentCount}
+              />
+            </div>
+            {!hasLoggedIn && (
+              <ResendInviteButton
+                userName={profile.full_name}
+                email={profile.email}
+                action={handleResend}
+              />
+            )}
           </div>
         </div>
 

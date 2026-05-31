@@ -5,6 +5,7 @@ import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { inviteCoach as inviteCoachAuth } from "@/lib/auth/invite"
+import { resendInvitationServer, type ResendResult } from "@/lib/auth/resend"
 
 type ActionResult<T = unknown> = { success: boolean; error?: string; data?: T }
 
@@ -16,6 +17,7 @@ const inviteSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v && v.length > 0 ? v : undefined)),
+  coach_source: z.enum(["internal", "external"]).default("internal"),
 })
 
 async function requireAdmin() {
@@ -41,7 +43,18 @@ export async function inviteCoach(input: unknown): Promise<ActionResult> {
   }
 
   try {
-    await inviteCoachAuth(parsed.data)
+    const invited = await inviteCoachAuth({
+      email: parsed.data.email,
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+    })
+
+    // coach_source profiles trigger ile gelmiyor, ardından admin client ile patch
+    const admin = supabaseAdmin()
+    await admin
+      .from("profiles")
+      .update({ coach_source: parsed.data.coach_source })
+      .eq("id", invited.id)
   } catch (err) {
     console.error("Koç davet hatası:", err)
     const message = err instanceof Error ? err.message : "Davet gönderilemedi."
@@ -50,6 +63,39 @@ export async function inviteCoach(input: unknown): Promise<ActionResult> {
 
   revalidatePath("/mudur/koclar")
   revalidatePath("/mudur")
+  return { success: true }
+}
+
+const sourceSchema = z.object({
+  coach_source: z.enum(["internal", "external"]),
+})
+
+export async function updateCoachSource(
+  coachId: string,
+  input: unknown,
+): Promise<ActionResult> {
+  const auth = await requireAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const parsed = sourceSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Geçersiz değer." }
+  }
+
+  const admin = supabaseAdmin()
+  const { error } = await admin
+    .from("profiles")
+    .update({ coach_source: parsed.data.coach_source })
+    .eq("id", coachId)
+    .eq("role", "coach")
+
+  if (error) {
+    console.error("Koç kaynağı güncelleme hatası:", error)
+    return { success: false, error: "Güncellenemedi, tekrar deneyin." }
+  }
+
+  revalidatePath("/mudur/koclar")
+  revalidatePath(`/mudur/koclar/${coachId}`)
   return { success: true }
 }
 
@@ -125,6 +171,10 @@ export async function updateCoach(id: string, input: unknown): Promise<ActionRes
   revalidatePath(`/mudur/koclar/${id}`)
   revalidatePath("/")
   return { success: true }
+}
+
+export async function resendCoachInvitationMudur(coachId: string): Promise<ResendResult> {
+  return resendInvitationServer(coachId, { caller: "admin" })
 }
 
 export async function deleteCoach(id: string): Promise<ActionResult> {

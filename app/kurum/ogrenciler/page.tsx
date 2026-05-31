@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { UserStatusBadge } from "@/components/shared/user-status-badge"
+import { getUserStatus } from "@/lib/user-status"
 import {
   Table,
   TableBody,
@@ -40,8 +42,18 @@ export default async function KurumOgrencilerPage() {
 
   const [{ data: studentProfiles }, { data: coachProfiles }] = await Promise.all([
     studentIds.length
-      ? supabase.from("profiles").select("id, full_name, email").in("id", studentIds)
-      : Promise.resolve({ data: [] as Array<{ id: string; full_name: string; email: string }> }),
+      ? supabase
+          .from("profiles")
+          .select("id, full_name, email, first_login_at")
+          .in("id", studentIds)
+      : Promise.resolve({
+          data: [] as Array<{
+            id: string
+            full_name: string
+            email: string
+            first_login_at: string | null
+          }>,
+        }),
     coachIds.length
       ? supabase.from("profiles").select("id, full_name").in("id", coachIds)
       : Promise.resolve({ data: [] as Array<{ id: string; full_name: string }> }),
@@ -112,9 +124,12 @@ export default async function KurumOgrencilerPage() {
                       {s.coach_id ? coachById.get(s.coach_id) ?? "—" : "Atanmamış"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={s.is_active ? "paid" : "inactive"}>
-                        {s.is_active ? "Aktif" : "Pasif"}
-                      </Badge>
+                      <UserStatusBadge
+                        status={getUserStatus({
+                          first_login_at: p?.first_login_at ?? null,
+                          is_active: s.is_active,
+                        })}
+                      />
                     </TableCell>
                   </TableRow>
                 )

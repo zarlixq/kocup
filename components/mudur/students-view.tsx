@@ -41,6 +41,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { AssignCoachDialog } from "@/components/mudur/assign-coach-dialog"
 import { EmptyState } from "@/components/shared/empty-state"
+import { UserStatusBadge } from "@/components/shared/user-status-badge"
+import { getUserStatus } from "@/lib/user-status"
 import { deleteStudent } from "@/app/mudur/ogrenciler/actions"
 
 export type StudentRow = {
@@ -52,6 +54,8 @@ export type StudentRow = {
   coach_name: string | null
   target_department: string | null
   parent_phone: string | null
+  is_active: boolean
+  first_login_at: string | null
   created_at: string | null
 }
 
@@ -60,6 +64,11 @@ type Coach = { id: string; full_name: string }
 const GRADES = ["7", "8", "9", "10", "11", "12", "Mezun"] as const
 const ALL = "__all__"
 const UNASSIGNED = "__unassigned__"
+const STATUS_OPTIONS = [
+  { value: "pending", label: "Davet Bekliyor" },
+  { value: "active", label: "Aktif" },
+  { value: "passive", label: "Pasif" },
+] as const
 
 function initials(name: string) {
   return name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase()
@@ -88,6 +97,7 @@ export function StudentsView({
   const [query, setQuery] = useState("")
   const [grade, setGrade] = useState<string>(ALL)
   const [coachFilter, setCoachFilter] = useState<string>(ALL)
+  const [statusFilter, setStatusFilter] = useState<string>("active")
   const [assignTarget, setAssignTarget] = useState<StudentRow | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<StudentRow | null>(null)
 
@@ -100,9 +110,16 @@ export function StudentsView({
       if (grade !== ALL && s.grade !== grade) return false
       if (coachFilter === UNASSIGNED && s.coach_id !== null) return false
       if (coachFilter !== ALL && coachFilter !== UNASSIGNED && s.coach_id !== coachFilter) return false
+      const status = getUserStatus({
+        first_login_at: s.first_login_at,
+        is_active: s.is_active,
+      })
+      if (statusFilter === "pending" && status !== "pending") return false
+      if (statusFilter === "active" && status !== "active") return false
+      if (statusFilter === "passive" && status !== "inactive") return false
       return true
     })
-  }, [students, query, grade, coachFilter])
+  }, [students, query, grade, coachFilter, statusFilter])
 
   function handleDelete() {
     if (!deleteTarget) return
@@ -172,6 +189,20 @@ export function StudentsView({
             ))}
           </SelectContent>
         </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="md:w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>Tüm durumlar</SelectItem>
+            {STATUS_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {students.length === 0 ? (
@@ -199,8 +230,13 @@ export function StudentsView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((s) => (
-                <TableRow key={s.id}>
+              {filtered.map((s) => {
+                const status = getUserStatus({
+                  first_login_at: s.first_login_at,
+                  is_active: s.is_active,
+                })
+                return (
+                <TableRow key={s.id} className={status === "inactive" ? "opacity-50" : undefined}>
                   <TableCell>
                     <Link
                       href={`/mudur/ogrenciler/${s.id}`}
@@ -212,7 +248,10 @@ export function StudentsView({
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <div className="font-medium text-zinc-900 truncate">{s.full_name}</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-zinc-900 truncate">{s.full_name}</span>
+                          <UserStatusBadge status={status} size="sm" />
+                        </div>
                         <div className="text-xs text-zinc-500 truncate">{s.email}</div>
                       </div>
                     </Link>
@@ -268,7 +307,8 @@ export function StudentsView({
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+                )
+              })}
             </TableBody>
           </Table>
         </div>

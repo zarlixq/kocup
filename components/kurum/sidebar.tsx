@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import {
@@ -18,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { BrandLogo } from "@/components/brand/logo"
 import { signOut } from "@/app/kurum/actions"
 
 type NavItem = { href: string; label: string; icon: typeof LayoutDashboard }
@@ -84,13 +84,12 @@ function SidebarBody({
 }: SidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname()
   const orgName = organization?.name ?? "Kurum"
-  const logoSrc = organization?.logo_url || "/logo.png"
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-4 py-5 border-b border-zinc-100">
-        <Image
-          src={logoSrc}
+        <BrandLogo
+          src={organization?.logo_url}
           alt={orgName}
           width={36}
           height={36}
@@ -136,7 +135,6 @@ function SidebarBody({
 export function Sidebar({ user, organization }: SidebarProps) {
   const [open, setOpen] = useState(false)
   const orgName = organization?.name ?? "Kurum"
-  const logoSrc = organization?.logo_url || "/logo.png"
 
   return (
     <>
@@ -146,7 +144,7 @@ export function Sidebar({ user, organization }: SidebarProps) {
 
       <header className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-white border-b border-zinc-200">
         <div className="flex items-center gap-2">
-          <Image src={logoSrc} alt={orgName} width={28} height={28} className="rounded object-contain" />
+          <BrandLogo src={organization?.logo_url} alt={orgName} width={28} height={28} className="rounded object-contain" />
           <span className="font-semibold text-[#1B6B8A] truncate max-w-[180px]">{orgName}</span>
         </div>
         <Sheet open={open} onOpenChange={setOpen}>

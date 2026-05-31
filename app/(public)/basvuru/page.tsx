@@ -1,8 +1,8 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
 import { useActionState, useEffect } from "react"
+import { BrandLogo } from "@/components/brand/logo"
 import { submitBasvuru } from "./actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -53,7 +53,7 @@ export default function BasvuruPage() {
       <div className="max-w-lg mx-auto">
         <div className="flex justify-center mb-8">
           <Link href="/">
-            <Image src="/images/logo.png" alt="KoçUp" width={120} height={40} className="h-10 w-auto" />
+            <BrandLogo className="h-10 w-auto" />
           </Link>
         </div>
 

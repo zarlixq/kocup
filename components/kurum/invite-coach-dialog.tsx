@@ -50,6 +50,8 @@ export function InviteCoachToOrgDialog({ children }: { children: React.ReactNode
           <DialogTitle>Yeni Koç Davet Et</DialogTitle>
           <DialogDescription>
             Koç davet edildiğinde email'ine bir şifre belirleme linki gönderilir.
+            Link 24 saat geçerlidir; süresi dolarsa detay sayfasından
+            &ldquo;Daveti Yeniden Gönder&rdquo; butonunu kullanabilirsin.
           </DialogDescription>
         </DialogHeader>
 

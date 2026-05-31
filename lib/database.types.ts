@@ -530,10 +530,14 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           certificate_info: string | null
+          coach_source: string | null
           created_at: string | null
           email: string
+          first_login_at: string | null
           full_name: string
           id: string
+          last_invitation_sent_at: string | null
+          notification_preferences: Json
           organization_id: string | null
           phone: string | null
           role: string
@@ -544,10 +548,14 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           certificate_info?: string | null
+          coach_source?: string | null
           created_at?: string | null
           email: string
+          first_login_at?: string | null
           full_name: string
           id: string
+          last_invitation_sent_at?: string | null
+          notification_preferences?: Json
           organization_id?: string | null
           phone?: string | null
           role: string
@@ -558,10 +566,14 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           certificate_info?: string | null
+          coach_source?: string | null
           created_at?: string | null
           email?: string
+          first_login_at?: string | null
           full_name?: string
           id?: string
+          last_invitation_sent_at?: string | null
+          notification_preferences?: Json
           organization_id?: string | null
           phone?: string | null
           role?: string

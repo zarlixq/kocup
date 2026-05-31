@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import {
@@ -23,6 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { BrandLogo } from "@/components/brand/logo"
 import { signOut } from "@/app/koc/actions"
 
 type NavItem = {
@@ -92,7 +92,7 @@ function SidebarBody({ user, onNavigate }: SidebarProps & { onNavigate?: () => v
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-4 py-5 border-b border-zinc-100">
-        <Image src="/logo.png" alt="KoçUp" width={36} height={36} className="rounded" />
+        <BrandLogo width={36} height={36} className="rounded" />
         <div className="flex flex-col">
           <span className="font-bold text-[#1B6B8A] leading-tight">KoçUp</span>
           <span className="text-xs text-zinc-500 leading-tight">Koç Paneli</span>
@@ -141,7 +141,7 @@ export function Sidebar({ user }: SidebarProps) {
 
       <header className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-white border-b border-zinc-200">
         <div className="flex items-center gap-2">
-          <Image src="/logo.png" alt="KoçUp" width={28} height={28} className="rounded" />
+          <BrandLogo width={28} height={28} className="rounded" />
           <span className="font-semibold text-[#1B6B8A]">KoçUp</span>
         </div>
         <Sheet open={open} onOpenChange={setOpen}>

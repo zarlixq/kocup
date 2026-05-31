@@ -6,6 +6,7 @@ import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { inviteCoach as inviteCoachAuth } from "@/lib/auth/invite"
+import { resendInvitationServer, type ResendResult } from "@/lib/auth/resend"
 
 type ActionResult<T = unknown> = { success: boolean; error?: string; data?: T }
 
@@ -107,6 +108,45 @@ const brandingSchema = z.object({
     .nullable()
     .transform((v) => (v && v.length > 0 ? v : null)),
 })
+
+/**
+ * Koçu kurumdan çıkar (profile'ı silmez, sadece organization_id = null).
+ * Koç bireysel koç olarak sistemde kalır.
+ */
+export async function removeCoachFromOrg(coachId: string): Promise<ActionResult> {
+  const auth = await requireOrgAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const admin = supabaseAdmin()
+  // Sadece kendi kurumundaki koçu çıkarabilsin
+  const { data: target } = await admin
+    .from("profiles")
+    .select("organization_id, role")
+    .eq("id", coachId)
+    .maybeSingle()
+
+  if (!target || target.organization_id !== auth.orgId || target.role !== "coach") {
+    return { success: false, error: "Bu koç kurumunuza ait değil." }
+  }
+
+  const { error } = await admin
+    .from("profiles")
+    .update({ organization_id: null })
+    .eq("id", coachId)
+
+  if (error) {
+    console.error("Kurum koç çıkarma hatası:", error)
+    return { success: false, error: "İşlem başarısız, tekrar deneyin." }
+  }
+
+  revalidatePath("/kurum/koclar")
+  revalidatePath("/kurum")
+  return { success: true }
+}
+
+export async function resendCoachInvitationKurum(coachId: string): Promise<ResendResult> {
+  return resendInvitationServer(coachId, { caller: "org_admin" })
+}
 
 export async function updateOrgBranding(input: unknown): Promise<ActionResult> {
   const auth = await requireOrgAdmin()

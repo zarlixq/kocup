@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { currentPeriodMonthISO, getPaymentStatus, statusLabel } from "@/lib/payments"
 import { StudentSearch } from "@/components/koc/student-search"
+import { UserStatusBadge } from "@/components/shared/user-status-badge"
+import { getUserStatus } from "@/lib/user-status"
 
 export const metadata = { title: "Öğrencilerim — KoçUp" }
 
@@ -39,11 +41,16 @@ export default async function OgrencilerPage({ searchParams }: { searchParams: P
 
   const studentIds = (students ?? []).map((s) => s.id)
   const { data: profiles } = studentIds.length
-    ? await supabase.from("profiles").select("id, full_name, email").in("id", studentIds)
-    : { data: [] as { id: string; full_name: string; email: string }[] }
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name, email, first_login_at")
+        .in("id", studentIds)
+    : { data: [] as { id: string; full_name: string; email: string; first_login_at: string | null }[] }
 
-  const profileById: Record<string, { full_name: string; email: string }> = {}
-  for (const p of profiles ?? []) profileById[p.id] = { full_name: p.full_name, email: p.email }
+  const profileById: Record<string, { full_name: string; email: string; first_login_at: string | null }> = {}
+  for (const p of profiles ?? []) {
+    profileById[p.id] = { full_name: p.full_name, email: p.email, first_login_at: p.first_login_at }
+  }
 
   // İsim/email araması (profiles üzerinden) — student-side filtre ile birleştir
   let visibleStudents = students ?? []
@@ -117,12 +124,19 @@ export default async function OgrencilerPage({ searchParams }: { searchParams: P
                 const status = active
                   ? getPaymentStatus(paymentsThisMonth, active.monthly_price)
                   : "pending"
+                const userStatus = getUserStatus({
+                  first_login_at: profile?.first_login_at ?? null,
+                  is_active: s.is_active,
+                })
                 return (
-                  <TableRow key={s.id} className="cursor-pointer">
+                  <TableRow key={s.id} className={userStatus === "inactive" ? "opacity-50 cursor-pointer" : "cursor-pointer"}>
                     <TableCell>
-                      <Link href={`/koc/ogrenciler/${s.id}`} className="font-medium text-zinc-900 hover:text-[#1B6B8A] block">
-                        {profile?.full_name ?? "—"}
-                      </Link>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link href={`/koc/ogrenciler/${s.id}`} className="font-medium text-zinc-900 hover:text-[#1B6B8A]">
+                          {profile?.full_name ?? "—"}
+                        </Link>
+                        <UserStatusBadge status={userStatus} size="sm" />
+                      </div>
                       <span className="text-xs text-zinc-500">{profile?.email}</span>
                     </TableCell>
                     <TableCell>{s.grade ?? "-"}</TableCell>

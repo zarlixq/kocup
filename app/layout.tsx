@@ -88,8 +88,16 @@ export const metadata: Metadata = {
   verification: process.env.GOOGLE_SITE_VERIFICATION
     ? { google: process.env.GOOGLE_SITE_VERIFICATION }
     : undefined,
+  // Not: app/icon.png ve app/apple-icon.png Next.js file convention'lar ile
+  // otomatik algılanır. Aşağıdaki açık tanım ekstra güven ve sıralama içindir.
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", type: "image/png", sizes: "180x180" },
+    ],
+    shortcut: ["/icon.png"],
   },
 }
 

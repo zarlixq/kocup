@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import {
@@ -15,12 +14,15 @@ import {
   Menu,
   LogOut,
   UserCog,
+  User,
+  Settings,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { BrandLogo } from "@/components/brand/logo"
 import { signOut } from "@/app/ogrenci/actions"
 
 type NavItem = {
@@ -38,6 +40,11 @@ const NAV: NavItem[] = [
   { href: "/ogrenci/analizim", label: "Analizim", icon: LineChart },
   { href: "/ogrenci/soru-cozum", label: "Soru Çözüm", icon: Hash },
   { href: "/ogrenci/kocum", label: "Koçum", icon: UserCog },
+]
+
+const ACCOUNT_NAV: NavItem[] = [
+  { href: "/ogrenci/profilim", label: "Profilim", icon: User },
+  { href: "/ogrenci/ayarlar", label: "Ayarlar", icon: Settings },
 ]
 
 type SidebarProps = {
@@ -88,7 +95,7 @@ function SidebarBody({ user, onNavigate }: SidebarProps & { onNavigate?: () => v
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-4 py-5 border-b border-zinc-100">
-        <Image src="/logo.png" alt="KoçUp" width={36} height={36} className="rounded" />
+        <BrandLogo width={36} height={36} className="rounded" />
         <div className="flex flex-col">
           <span className="font-bold text-[#1B6B8A] leading-tight">KoçUp</span>
           <span className="text-xs text-zinc-500 leading-tight">Öğrenci Paneli</span>
@@ -97,6 +104,29 @@ function SidebarBody({ user, onNavigate }: SidebarProps & { onNavigate?: () => v
 
       <NavList pathname={pathname} onClick={onNavigate} />
 
+      <Separator />
+      <nav className="px-3 py-3 space-y-1">
+        {ACCOUNT_NAV.map((item) => {
+          const Icon = item.icon
+          const isActive = pathname.startsWith(item.href)
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-orange-50 text-[#1B6B8A] border-l-4 border-[#F97316] pl-2"
+                  : "text-zinc-600 hover:bg-zinc-50",
+              )}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              <span className="flex-1">{item.label}</span>
+            </Link>
+          )
+        })}
+      </nav>
       <Separator />
       <div className="p-3">
         <div className="flex items-center gap-3 px-2 py-2 mb-2">
@@ -137,7 +167,7 @@ export function Sidebar({ user }: SidebarProps) {
 
       <header className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-white border-b border-zinc-200">
         <div className="flex items-center gap-2">
-          <Image src="/logo.png" alt="KoçUp" width={28} height={28} className="rounded" />
+          <BrandLogo width={28} height={28} className="rounded" />
           <span className="font-semibold text-[#1B6B8A]">KoçUp</span>
         </div>
         <Sheet open={open} onOpenChange={setOpen}>

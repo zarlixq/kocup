@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/table"
 import { getCurrentProfile } from "@/lib/auth/current-user"
 import { InviteCoachToOrgDialog } from "@/components/kurum/invite-coach-dialog"
+import { UserStatusBadge } from "@/components/shared/user-status-badge"
+import { getUserStatus } from "@/lib/user-status"
 
 export const metadata = { title: "Koçlar — Kurum" }
 
@@ -41,7 +43,7 @@ export default async function KurumKoclarPage() {
   const supabase = await createClient()
   const { data: coaches } = await supabase
     .from("profiles")
-    .select("id, full_name, email, phone, created_at")
+    .select("id, full_name, email, phone, created_at, first_login_at")
     .eq("organization_id", orgId)
     .eq("role", "coach")
     .order("created_at", { ascending: false })
@@ -90,32 +92,39 @@ export default async function KurumKoclarPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Koç</TableHead>
+                <TableHead>Durum</TableHead>
                 <TableHead>Telefon</TableHead>
                 <TableHead>Öğrenci</TableHead>
                 <TableHead>Eklendi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(coaches ?? []).map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    <Link href={`/kurum/koclar/${c.id}`} className="flex items-center gap-3 hover:opacity-80">
-                      <Avatar className="h-9 w-9">
-                        <AvatarFallback className="bg-[#1B6B8A] text-white text-xs">
-                          {initials(c.full_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <div className="font-medium text-zinc-900 truncate">{c.full_name}</div>
-                        <div className="text-xs text-zinc-500 truncate">{c.email}</div>
-                      </div>
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-zinc-600">{c.phone ?? "—"}</TableCell>
-                  <TableCell className="tabular-nums">{studentCountByCoach.get(c.id) ?? 0}</TableCell>
-                  <TableCell className="text-zinc-600">{formatDate(c.created_at)}</TableCell>
-                </TableRow>
-              ))}
+              {(coaches ?? []).map((c) => {
+                const status = getUserStatus({ first_login_at: c.first_login_at })
+                return (
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      <Link href={`/kurum/koclar/${c.id}`} className="flex items-center gap-3 hover:opacity-80">
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback className="bg-[#1B6B8A] text-white text-xs">
+                            {initials(c.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="font-medium text-zinc-900 truncate">{c.full_name}</div>
+                          <div className="text-xs text-zinc-500 truncate">{c.email}</div>
+                        </div>
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <UserStatusBadge status={status} />
+                    </TableCell>
+                    <TableCell className="text-zinc-600">{c.phone ?? "—"}</TableCell>
+                    <TableCell className="tabular-nums">{studentCountByCoach.get(c.id) ?? 0}</TableCell>
+                    <TableCell className="text-zinc-600">{formatDate(c.created_at)}</TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

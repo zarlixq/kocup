@@ -4,14 +4,14 @@ import Hero from "@/blocks/Hero"
 import { StatsBar } from "@/blocks/StatsBar"
 import HowItWorks from "@/blocks/HowItWorks"
 import Features from "@/blocks/Features"
-import Coaches from "@/blocks/Coaches"
+import ExpertCoaches from "@/blocks/ExpertCoaches"
+import IndependentCoachesCTA from "@/blocks/IndependentCoachesCTA"
 import Pricing from "@/blocks/Pricing"
 import FAQ from "@/blocks/FAQ"
 import Contact from "@/blocks/Contact"
 import Footer from "@/blocks/Footer"
 import { JsonLd } from "@/components/seo/json-ld"
-import { organizationSchema, websiteSchema, personSchema } from "@/lib/seo/schemas"
-import { createClient } from "@/lib/supabase/server"
+import { organizationSchema, websiteSchema } from "@/lib/seo/schemas"
 
 export const metadata: Metadata = {
   title: "KoçUp Akademi — YKS Eğitim Koçluğu Platformu",
@@ -27,19 +27,7 @@ export const metadata: Metadata = {
 }
 
 export default async function Home() {
-  const supabase = await createClient()
-  const { data: coaches } = await supabase
-    .from("profiles")
-    .select("id, full_name, bio, certificate_info, specialties")
-    .eq("role", "coach")
-    .not("certificate_info", "is", null)
-    .order("created_at", { ascending: true })
-
-  const schemas = [
-    organizationSchema(),
-    websiteSchema(),
-    ...(coaches ?? []).map((c) => personSchema(c)),
-  ]
+  const schemas = [organizationSchema(), websiteSchema()]
 
   return (
     <>
@@ -50,7 +38,8 @@ export default async function Home() {
         <StatsBar />
         <HowItWorks />
         <Features />
-        <Coaches />
+        <ExpertCoaches />
+        <IndependentCoachesCTA />
         <Pricing />
         <FAQ />
         <Contact />

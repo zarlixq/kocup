@@ -97,6 +97,30 @@ export async function updateStudent(id: string, input: unknown): Promise<ActionR
   return { success: true }
 }
 
+export async function toggleStudentActive(
+  id: string,
+  nextValue: boolean,
+): Promise<ActionResult> {
+  const auth = await requireAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const admin = supabaseAdmin()
+  const { error } = await admin
+    .from("students")
+    .update({ is_active: nextValue })
+    .eq("id", id)
+
+  if (error) {
+    console.error("Öğrenci aktiflik güncelleme hatası:", error)
+    return { success: false, error: "Durum güncellenemedi, tekrar deneyin." }
+  }
+
+  revalidatePath("/mudur/ogrenciler")
+  revalidatePath(`/mudur/ogrenciler/${id}`)
+  revalidatePath("/mudur")
+  return { success: true }
+}
+
 export async function deleteStudent(id: string): Promise<ActionResult> {
   const auth = await requireAdmin()
   if (!auth.ok) return { success: false, error: auth.error }

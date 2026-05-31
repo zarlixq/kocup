@@ -47,7 +47,7 @@ export function Navbar({ variant = "transparent" }: NavbarProps) {
       <nav className="max-w-7xl mx-auto flex items-center justify-between gap-3 px-5 md:px-8 lg:px-12 h-16 md:h-[4.5rem]">
         <Link href="/" className="flex items-center shrink-0">
           <Image
-            src="/logo.png"
+            src="/images/logo.png"
             alt="KoçUp Akademi"
             width={110}
             height={40}
@@ -118,7 +118,7 @@ export function Navbar({ variant = "transparent" }: NavbarProps) {
             <SheetContent side="right" className="w-80 p-0 bg-white">
               <div className="flex items-center justify-between px-5 h-16 border-b border-zinc-200">
                 <Image
-                  src="/logo.png"
+                  src="/images/logo.png"
                   alt="KoçUp"
                   width={100}
                   height={36}

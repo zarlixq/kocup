@@ -1,12 +1,12 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
 import { useActionState } from "react"
 import { loginOgrenci } from "@/app/(public)/giris/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { BrandLogo } from "@/components/brand/logo"
 
 export default function OgrenciGirisPage() {
   const [state, action, pending] = useActionState(loginOgrenci, undefined)
@@ -16,7 +16,7 @@ export default function OgrenciGirisPage() {
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
           <Link href="/">
-            <Image src="/images/logo.png" alt="KoçUp" width={120} height={40} className="h-10 w-auto" />
+            <BrandLogo className="h-10 w-auto" />
           </Link>
         </div>
 
@@ -33,13 +33,12 @@ export default function OgrenciGirisPage() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Şifre</Label>
-                <span
-                  className="text-xs text-zinc-400 cursor-not-allowed"
-                  title="Yakında"
-                  aria-disabled="true"
+                <Link
+                  href="/sifremi-unuttum"
+                  className="text-xs text-[#1B6B8A] hover:underline"
                 >
                   Şifremi unuttum
-                </span>
+                </Link>
               </div>
               <Input id="password" name="password" type="password" placeholder="••••••••" required autoComplete="current-password" />
             </div>

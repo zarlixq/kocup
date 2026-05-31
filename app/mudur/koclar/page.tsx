@@ -8,7 +8,7 @@ export default async function KoclarPage() {
 
   const { data: coachProfiles } = await supabase
     .from("profiles")
-    .select("id, full_name, email, phone, created_at")
+    .select("id, full_name, email, phone, created_at, coach_source, first_login_at")
     .eq("role", "coach")
     .order("created_at", { ascending: false })
 
@@ -43,6 +43,8 @@ export default async function KoclarPage() {
     email: c.email,
     phone: c.phone,
     created_at: c.created_at,
+    coach_source: c.coach_source,
+    first_login_at: c.first_login_at,
     student_count: byCoach[c.id]?.length ?? 0,
     students: byCoach[c.id] ?? [],
   }))

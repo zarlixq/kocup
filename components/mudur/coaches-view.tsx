@@ -1,12 +1,19 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { MoreHorizontal, Plus, UserCog } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { CoachSourceBadge } from "@/components/mudur/coach-source-badge"
+import { UserStatusBadge } from "@/components/shared/user-status-badge"
+import { ResendInviteButton } from "@/components/shared/resend-invite-button"
+import { cn } from "@/lib/utils"
+import type { CoachSource } from "@/lib/coach-source"
+import { getUserStatus } from "@/lib/user-status"
+import { resendCoachInvitationMudur } from "@/app/mudur/koclar/actions"
 import {
   Table,
   TableBody,
@@ -41,9 +48,19 @@ export type CoachRow = {
   email: string
   phone: string | null
   created_at: string | null
+  coach_source: string | null
+  first_login_at: string | null
   student_count: number
   students: { id: string; full_name: string; grade: string | null }[]
 }
+
+type SourceFilter = "all" | CoachSource
+
+const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
+  { value: "all", label: "Tümü" },
+  { value: "internal", label: "KoçUp" },
+  { value: "external", label: "Bağımsız" },
+]
 
 function initials(name: string) {
   return name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase()
@@ -60,6 +77,25 @@ export function CoachesView({ coaches }: { coaches: CoachRow[] }) {
   const [isPending, startTransition] = useTransition()
   const [showInvite, setShowInvite] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CoachRow | null>(null)
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all")
+
+  const counts = useMemo(() => {
+    let internal = 0
+    let external = 0
+    for (const c of coaches) {
+      if (c.coach_source === "external") external++
+      else internal++
+    }
+    return { all: coaches.length, internal, external }
+  }, [coaches])
+
+  const filtered = useMemo(() => {
+    if (sourceFilter === "all") return coaches
+    return coaches.filter((c) => {
+      const src = c.coach_source === "external" ? "external" : "internal"
+      return src === sourceFilter
+    })
+  }, [coaches, sourceFilter])
 
   function handleDelete() {
     if (!deleteTarget) return
@@ -94,11 +130,53 @@ export function CoachesView({ coaches }: { coaches: CoachRow[] }) {
           description="Sağ üstten yeni koç ekleyin."
         />
       ) : (
+        <>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {SOURCE_FILTERS.map((f) => {
+              const count =
+                f.value === "all"
+                  ? counts.all
+                  : f.value === "internal"
+                  ? counts.internal
+                  : counts.external
+              const isActive = sourceFilter === f.value
+              return (
+                <button
+                  key={f.value}
+                  type="button"
+                  onClick={() => setSourceFilter(f.value)}
+                  className={cn(
+                    "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border",
+                    isActive
+                      ? "bg-[#1B6B8A] text-white border-[#1B6B8A]"
+                      : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50",
+                  )}
+                >
+                  {f.label}
+                  <span
+                    className={cn(
+                      "tabular-nums text-xs rounded-full px-1.5",
+                      isActive ? "bg-white/20 text-white" : "bg-zinc-100 text-zinc-600",
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="bg-white border border-zinc-200 rounded-2xl p-12 text-center text-sm text-zinc-500">
+              Bu kaynak filtresine uyan koç yok.
+            </div>
+          ) : (
         <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Koç</TableHead>
+                <TableHead>Kaynak</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Telefon</TableHead>
                 <TableHead className="text-center">Öğrenci</TableHead>
@@ -108,7 +186,7 @@ export function CoachesView({ coaches }: { coaches: CoachRow[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {coaches.map((c) => (
+              {filtered.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
                     <Link
@@ -123,6 +201,9 @@ export function CoachesView({ coaches }: { coaches: CoachRow[] }) {
                       <span className="font-medium text-zinc-900">{c.full_name}</span>
                     </Link>
                   </TableCell>
+                  <TableCell>
+                    <CoachSourceBadge source={c.coach_source} />
+                  </TableCell>
                   <TableCell className="text-zinc-600">{c.email}</TableCell>
                   <TableCell className="text-zinc-600">{c.phone ?? "—"}</TableCell>
                   <TableCell className="text-center tabular-nums text-zinc-900 font-medium">
@@ -130,7 +211,25 @@ export function CoachesView({ coaches }: { coaches: CoachRow[] }) {
                   </TableCell>
                   <TableCell className="text-zinc-600">{formatDate(c.created_at)}</TableCell>
                   <TableCell>
-                    <Badge variant="paid">Aktif</Badge>
+                    {(() => {
+                      const status = getUserStatus({ first_login_at: c.first_login_at })
+                      return (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <UserStatusBadge status={status} />
+                          {status === "pending" && (
+                            <ResendInviteButton
+                              userName={c.full_name}
+                              email={c.email}
+                              action={async () => resendCoachInvitationMudur(c.id)}
+                              size="sm"
+                              variant="ghost"
+                              label="Tekrar gönder"
+                              className="h-7 px-2 text-xs text-[#1B6B8A] hover:bg-[#1B6B8A]/10"
+                            />
+                          )}
+                        </div>
+                      )
+                    })()}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -157,6 +256,8 @@ export function CoachesView({ coaches }: { coaches: CoachRow[] }) {
             </TableBody>
           </Table>
         </div>
+          )}
+        </>
       )}
 
       <InviteCoachDialog open={showInvite} onOpenChange={setShowInvite} />

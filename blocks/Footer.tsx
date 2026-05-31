@@ -51,7 +51,7 @@ export default function Footer() {
           {/* Hakkımızda */}
           <div className="col-span-2 md:col-span-1">
             <Image
-              src="/logo.png"
+              src="/images/logo.png"
               alt="KoçUp Akademi"
               width={120}
               height={42}

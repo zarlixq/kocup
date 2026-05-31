@@ -1,4 +1,5 @@
-import { UserCog, GraduationCap, Activity, BookOpen } from "lucide-react"
+import Link from "next/link"
+import { UserCog, GraduationCap, Activity, BookOpen, ArrowRight } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentProfile } from "@/lib/auth/current-user"
 
@@ -93,11 +94,17 @@ export default async function KurumDashboard() {
 
       <div className="bg-white border border-zinc-200 rounded-2xl p-6">
         <h2 className="text-base font-semibold text-zinc-900 mb-2">Hoş geldiniz 👋</h2>
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-zinc-600 mb-4">
           Kurum paneline hoş geldiniz. Sol menüden koçlarınızı yönetebilir, kurum
           öğrencilerini görüntüleyebilir ve marka ayarlarınızı güncelleyebilirsiniz.
-          Detaylı analitik yakında bu panele entegre edilecek.
         </p>
+        <Link
+          href="/kurum/analitik"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-[#1B6B8A] hover:underline"
+        >
+          Detaylı analitik görünümü
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
     </div>
   )

@@ -1,8 +1,8 @@
-import Image from "next/image"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { SifreBelirleForm } from "./form"
+import { BrandLogo } from "@/components/brand/logo"
 
 import type { Metadata } from "next"
 export const metadata: Metadata = {
@@ -35,7 +35,7 @@ export default async function SifreBelirle() {
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
           <Link href="/">
-            <Image src="/images/logo.png" alt="KoçUp" width={120} height={40} className="h-10 w-auto" />
+            <BrandLogo className="h-10 w-auto" />
           </Link>
         </div>
 

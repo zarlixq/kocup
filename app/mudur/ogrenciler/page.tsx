@@ -9,10 +9,10 @@ export default async function OgrencilerPage() {
   const [{ data: studentProfiles }, { data: studentRows }, { data: coaches }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, full_name, email, created_at")
+      .select("id, full_name, email, created_at, first_login_at")
       .eq("role", "student")
       .order("created_at", { ascending: false }),
-    supabase.from("students").select("id, coach_id, grade, target_department, parent_phone"),
+    supabase.from("students").select("id, coach_id, grade, target_department, parent_phone, is_active"),
     supabase
       .from("profiles")
       .select("id, full_name")
@@ -30,6 +30,7 @@ export default async function OgrencilerPage() {
       grade: string | null
       target_department: string | null
       parent_phone: string | null
+      is_active: boolean
     }
   > = {}
   for (const s of studentRows ?? []) {
@@ -38,6 +39,7 @@ export default async function OgrencilerPage() {
       grade: s.grade,
       target_department: s.target_department,
       parent_phone: s.parent_phone,
+      is_active: s.is_active ?? true,
     }
   }
 
@@ -47,6 +49,7 @@ export default async function OgrencilerPage() {
       grade: null,
       target_department: null,
       parent_phone: null,
+      is_active: true,
     }
     return {
       id: p.id,
@@ -57,6 +60,8 @@ export default async function OgrencilerPage() {
       coach_name: extra.coach_id ? coachNameById[extra.coach_id] ?? null : null,
       target_department: extra.target_department,
       parent_phone: extra.parent_phone,
+      is_active: extra.is_active,
+      first_login_at: p.first_login_at,
       created_at: p.created_at,
     }
   })

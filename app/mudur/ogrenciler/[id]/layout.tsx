@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { StudentDetailActions } from "@/components/mudur/student-detail-actions"
 import { StudentDetailNav } from "@/components/mudur/student-detail-nav"
+import { UserStatusBadge } from "@/components/shared/user-status-badge"
+import { getUserStatus } from "@/lib/user-status"
 
 function initials(name: string) {
   return name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase()
@@ -24,7 +26,7 @@ export default async function StudentDetailLayout({
   const [{ data: profile }, { data: student }, { data: coaches }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, full_name, email, phone, role")
+      .select("id, full_name, email, phone, role, first_login_at")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("students").select("*").eq("id", id).maybeSingle(),
@@ -63,17 +65,26 @@ export default async function StudentDetailLayout({
                   </span>
                 )}
               </div>
-              {student?.grade && (
-                <Badge variant="outline" className="mt-2">
-                  {student.grade === "Mezun" ? "Mezun" : `${student.grade}. Sınıf`}
-                </Badge>
-              )}
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {student?.grade && (
+                  <Badge variant="outline">
+                    {student.grade === "Mezun" ? "Mezun" : `${student.grade}. Sınıf`}
+                  </Badge>
+                )}
+                <UserStatusBadge
+                  status={getUserStatus({
+                    first_login_at: profile.first_login_at,
+                    is_active: student?.is_active ?? true,
+                  })}
+                />
+              </div>
             </div>
           </div>
 
           <StudentDetailActions
             studentId={id}
             studentName={profile.full_name}
+            isActive={student?.is_active ?? true}
             currentCoachId={student?.coach_id ?? null}
             coaches={coaches ?? []}
           />
