@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useEffect, useRef } from "react"
 
 type ExpertCoach = {
@@ -82,10 +83,13 @@ export default function ExpertCoaches() {
               <article className="group bg-white/[0.04] border border-white/10 rounded-2xl p-6 h-full hover:bg-white/[0.07] hover:-translate-y-1 transition-all duration-200">
                 <div className="flex justify-center mb-5">
                   {coach.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={coach.image}
-                      alt={coach.name}
+                      alt={`${coach.name} — ${coach.title}`}
+                      width={80}
+                      height={80}
+                      sizes="80px"
+                      loading="lazy"
                       className="w-20 h-20 rounded-full object-cover ring-2 ring-white/10"
                     />
                   ) : (

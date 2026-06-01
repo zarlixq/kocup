@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { Toaster } from "@/components/ui/sonner"
 import { Sidebar } from "@/components/ogrenci/sidebar"
+import { PomodoroProvider } from "@/components/pomodoro/pomodoro-provider"
 import { getCurrentProfile } from "@/lib/auth/current-user"
 
 export default async function OgrenciLayout({ children }: { children: React.ReactNode }) {
@@ -15,6 +16,7 @@ export default async function OgrenciLayout({ children }: { children: React.Reac
           {children}
         </div>
       </main>
+      <PomodoroProvider />
       <Toaster />
     </div>
   )

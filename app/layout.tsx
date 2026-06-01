@@ -57,20 +57,13 @@ export const metadata: Metadata = {
     locale: "tr_TR",
     url: siteUrl,
     siteName: "KoçUp Akademi",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "KoçUp Akademi — Eğitim Koçluğu",
-      },
-    ],
+    // OG görseli app/opengraph-image.tsx ile dinamik üretiliyor
   },
   twitter: {
     card: "summary_large_image",
     title: "KoçUp Akademi — YKS Eğitim Koçluğu Platformu",
     description,
-    images: ["/og-image.png"],
+    // Twitter görseli app/twitter-image.tsx ile dinamik üretiliyor
   },
   alternates: {
     canonical: siteUrl,
@@ -110,7 +103,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tr" className={`${jakarta.variable} ${instrument.variable}`}>
+    <html lang="tr" className={`${jakarta.variable} ${instrument.variable} scroll-smooth`}>
       <head>
         {supabaseUrl && (
           <link rel="preconnect" href={supabaseUrl} crossOrigin="anonymous" />

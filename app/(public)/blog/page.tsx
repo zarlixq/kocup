@@ -14,15 +14,29 @@ const siteUrl = getSiteUrl()
 export const revalidate = 3600
 
 export const metadata: Metadata = {
-  title: "Blog — Eğitim Koçluğu ve YKS Hazırlığı",
+  title: "Blog — YKS, LGS ve Eğitim Koçluğu Rehberi",
   description:
-    "Eğitim koçluğu, YKS hazırlık stratejileri, çalışma teknikleri ve veli rehberi üzerine güncel yazılar.",
+    "YKS ve LGS hazırlık stratejileri, çalışma teknikleri, koçluk yöntemleri ve veli rehberi. Sertifikalı koçlarımızdan güncel içerikler.",
+  keywords: [
+    "YKS hazırlık blog",
+    "LGS hazırlık blog",
+    "eğitim koçluğu blog",
+    "çalışma teknikleri",
+    "veli rehberi",
+    "sınav stratejileri",
+  ],
   alternates: { canonical: "/blog" },
   openGraph: {
-    title: "KoçUp Blog — Eğitim Koçluğu ve YKS Hazırlığı",
-    description: "Eğitim koçluğu, sınav stratejileri ve çalışma teknikleri üzerine yazılar.",
+    title: "KoçUp Blog — YKS, LGS ve Eğitim Koçluğu Rehberi",
+    description:
+      "YKS ve LGS hazırlık stratejileri, çalışma teknikleri ve veli rehberi üzerine güncel yazılar.",
     url: "/blog",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "KoçUp Blog — YKS, LGS ve Eğitim Koçluğu Rehberi",
+    description: "Sınav stratejileri, çalışma teknikleri ve veli rehberi.",
   },
 }
 

@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { BrandLogo } from "@/components/brand/logo"
+import { PomodoroWidget } from "@/components/pomodoro/pomodoro-widget"
 import { signOut } from "@/app/koc/actions"
 
 type NavItem = {
@@ -95,6 +96,8 @@ function SidebarBody({ user, onNavigate }: SidebarProps & { onNavigate?: () => v
 
       <NavList pathname={pathname} onClick={onNavigate} />
 
+      <Separator />
+      <PomodoroWidget />
       <Separator />
       <div className="p-3">
         <div className="flex items-center gap-3 px-2 py-2 mb-2">

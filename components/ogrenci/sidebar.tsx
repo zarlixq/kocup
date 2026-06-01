@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { BrandLogo } from "@/components/brand/logo"
+import { PomodoroWidget } from "@/components/pomodoro/pomodoro-widget"
 import { signOut } from "@/app/ogrenci/actions"
 
 type NavItem = {
@@ -104,6 +105,8 @@ function SidebarBody({ user, onNavigate }: SidebarProps & { onNavigate?: () => v
 
       <NavList pathname={pathname} onClick={onNavigate} />
 
+      <Separator />
+      <PomodoroWidget />
       <Separator />
       <nav className="px-3 py-3 space-y-1">
         {ACCOUNT_NAV.map((item) => {

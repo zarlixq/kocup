@@ -9,9 +9,11 @@ import { PostCover } from "@/components/blog/post-cover"
 import { PostCard } from "@/components/blog/post-card"
 import { ShareButtons } from "@/components/blog/share-buttons"
 import { ViewCounter } from "@/components/blog/view-counter"
+import { TableOfContents } from "@/components/blog/toc"
 import { JsonLd } from "@/components/seo/json-ld"
 import { articleSchema, breadcrumbSchema } from "@/lib/seo/schemas"
 import { readingTime } from "@/lib/blog/read-time"
+import { extractH2Headings } from "@/lib/blog/headings"
 import { getSiteUrl } from "@/lib/site-url"
 
 export const revalidate = 3600
@@ -40,7 +42,7 @@ async function getPost(slug: string) {
     .from("blog_posts")
     .select(
       `slug, title, excerpt, content, cover_image_url, published_at, updated_at,
-       meta_title, meta_description, meta_keywords,
+       category_id, meta_title, meta_description, meta_keywords,
        blog_categories(name, slug),
        profiles!author_id(full_name)`
     )
@@ -98,27 +100,39 @@ export default async function BlogPostPage({
 
   const supabase = await createClient()
 
-  // İlgili yazılar (aynı kategori, kendisi hariç, 3 tane)
-  const { data: related } = post.blog_categories?.slug
+  // İlgili yazılar: önce aynı kategoriden 3'e kadar çek; 3'ten azsa
+  // en son yayınlanan diğer published yazılarla tamamla.
+  const RELATED_LIMIT = 3
+  const relatedSelect =
+    "slug, title, excerpt, content, cover_image_url, published_at, blog_categories(name, slug)"
+
+  const { data: sameCategory } = post.category_id
     ? await supabase
         .from("blog_posts")
-        .select(
-          "slug, title, excerpt, content, cover_image_url, published_at, blog_categories(name, slug)"
-        )
+        .select(relatedSelect)
         .eq("status", "published")
-        .eq("category_id", (
-          await supabase
-            .from("blog_categories")
-            .select("id")
-            .eq("slug", post.blog_categories.slug)
-            .maybeSingle()
-        ).data?.id ?? "00000000-0000-0000-0000-000000000000")
+        .eq("category_id", post.category_id)
         .neq("slug", post.slug)
         .order("published_at", { ascending: false })
-        .limit(3)
+        .limit(RELATED_LIMIT)
     : { data: [] }
 
+  let related = sameCategory ?? []
+
+  if (related.length < RELATED_LIMIT) {
+    const excludedSlugs = [post.slug, ...related.map((p) => p.slug)]
+    const { data: fillers } = await supabase
+      .from("blog_posts")
+      .select(relatedSelect)
+      .eq("status", "published")
+      .not("slug", "in", `(${excludedSlugs.map((s) => `"${s}"`).join(",")})`)
+      .order("published_at", { ascending: false })
+      .limit(RELATED_LIMIT - related.length)
+    related = [...related, ...(fillers ?? [])]
+  }
+
   const minutes = readingTime(post.content)
+  const headings = extractH2Headings(post.content)
   const dateStr = post.published_at ? TR_DATE.format(new Date(post.published_at)) : ""
   const authorName = post.profiles?.full_name ?? "KoçUp Akademi"
   const categoryName = post.blog_categories?.name ?? null
@@ -197,6 +211,14 @@ export default async function BlogPostPage({
                 </Link>
               </>
             )}
+            <ChevronRight className="w-3 h-3" />
+            <span
+              aria-current="page"
+              className="text-white/90 truncate max-w-[16rem] sm:max-w-xs md:max-w-md"
+              title={post.title}
+            >
+              {post.title}
+            </span>
           </nav>
 
           {categoryName && (
@@ -228,6 +250,7 @@ export default async function BlogPostPage({
 
       {/* Article body */}
       <section className="max-w-3xl mx-auto px-5 md:px-8 lg:px-12 py-12 md:py-16">
+        <TableOfContents headings={headings} />
         <Markdown content={post.content} />
 
         {/* Share */}

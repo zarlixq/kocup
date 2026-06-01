@@ -13,7 +13,7 @@ type BrandLogoProps = {
 
 export function BrandLogo({
   src,
-  alt = "KoçUp",
+  alt = "KoçUp Akademi",
   width = 120,
   height = 40,
   className,

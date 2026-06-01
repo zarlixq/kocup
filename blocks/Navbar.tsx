@@ -119,7 +119,7 @@ export function Navbar({ variant = "transparent" }: NavbarProps) {
               <div className="flex items-center justify-between px-5 h-16 border-b border-zinc-200">
                 <Image
                   src="/images/logo.png"
-                  alt="KoçUp"
+                  alt="KoçUp Akademi"
                   width={100}
                   height={36}
                   className="object-contain h-9 w-auto"
