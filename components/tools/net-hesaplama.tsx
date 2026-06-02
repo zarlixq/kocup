@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { Calculator, ArrowRight } from "lucide-react"
 import { Card } from "@/components/ui/card"
@@ -39,7 +39,9 @@ function parseRow(row: Row, max: number) {
   return { correct, wrong }
 }
 
-function SubjectRow({
+// memo: stable updaters + EMPTY_ROW sayesinde sadece kendi row'u değişen subject
+// re-render olur. Bir derste yazarken diğer 3-6 ders sessiz kalır.
+const SubjectRow = memo(function SubjectRow({
   subject,
   row,
   exam,
@@ -105,7 +107,7 @@ function SubjectRow({
       </div>
     </div>
   )
-}
+})
 
 function TotalCard({ label, net }: { label: string; net: number }) {
   return (
@@ -143,13 +145,16 @@ export function NetHesaplama() {
   const [aytRows, setAytRows] = useState<Rows>({})
   const [lgsRows, setLgsRows] = useState<Rows>({})
 
-  const makeUpdater = useCallback(
-    (setter: React.Dispatch<React.SetStateAction<Rows>>) =>
-      (key: string, next: Row) => {
-        setter((prev) => ({ ...prev, [key]: next }))
-      },
-    []
-  )
+  // Sabit referanslı updater'lar → SubjectRow memo'su gerçekten devreye girer.
+  const updateTyt = useCallback((key: string, next: Row) => {
+    setTytRows((prev) => ({ ...prev, [key]: next }))
+  }, [])
+  const updateAyt = useCallback((key: string, next: Row) => {
+    setAytRows((prev) => ({ ...prev, [key]: next }))
+  }, [])
+  const updateLgs = useCallback((key: string, next: Row) => {
+    setLgsRows((prev) => ({ ...prev, [key]: next }))
+  }, [])
 
   const aytSubjects = useMemo(
     () => AYT_FIELDS.find((f) => f.key === aytField)?.subjects ?? [],
@@ -174,10 +179,6 @@ export function NetHesaplama() {
     trackedRef.current = true
     trackToolUse("net-hesaplama")
   }, [hasValid])
-
-  const updateTyt = makeUpdater(setTytRows)
-  const updateAyt = makeUpdater(setAytRows)
-  const updateLgs = makeUpdater(setLgsRows)
 
   return (
     <Card className="p-4 sm:p-6">

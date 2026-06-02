@@ -5,6 +5,7 @@ import { JsonLd } from "@/components/seo/json-ld"
 import { NetHesaplama } from "@/components/tools/net-hesaplama"
 import {
   ToolHero,
+  ToolContentSection,
   RelatedBlogCallout,
   BackToTools,
 } from "@/components/tools/tool-page-shell"
@@ -44,9 +45,8 @@ export default function NetHesaplamaPage() {
           title="TYT, AYT, LGS Net Hesaplayıcı"
           description="Doğru ve yanlış sayılarını gir, ders başına ve toplam neti anında gör."
         />
-        <section className="px-5 md:px-8 lg:px-12 -mt-10 md:-mt-12">
-          <div className="max-w-3xl mx-auto space-y-6">
-            <NetHesaplama />
+        <ToolContentSection>
+          <NetHesaplama />
 
             <div className="rounded-2xl bg-white border border-zinc-200 p-5 sm:p-6">
               <h2 className="text-lg md:text-xl font-bold text-zinc-900 mb-3">
@@ -76,9 +76,8 @@ export default function NetHesaplamaPage() {
               />
             )}
 
-            <BackToTools />
-          </div>
-        </section>
+          <BackToTools />
+        </ToolContentSection>
       </main>
       <Footer />
 

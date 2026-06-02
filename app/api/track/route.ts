@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server"
 
 const SESSION_COOKIE = "kup_sid"
 const ONE_YEAR = 60 * 60 * 24 * 365
+// Supabase SSR auth cookie deseni: "sb-<project-ref>-auth-token" (chunked
+// versiyonu için ".0", ".1" suffix'i olabilir).
+const AUTH_COOKIE_RE = /^sb-.+-auth-token(\.\d+)?$/
 
 function clean(value: unknown, max: number): string | null {
   if (typeof value !== "string") return null
@@ -38,18 +41,22 @@ export async function POST(req: NextRequest) {
     mintedNew = true
   }
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Hızlı yol: anonim ziyaretçilerde auth.getUser() round-trip'i atlanır.
+  // Supabase oturum cookie'si varsa is_authenticated=true, yoksa false.
+  // Yaklaşıklığı kabul ediyoruz — analytics kesin auth doğrulaması istemiyor;
+  // gerçek auth kararları başka yerde RLS ile veriliyor.
+  const isAuthenticated = cookieStore
+    .getAll()
+    .some((c) => AUTH_COOKIE_RE.test(c.name))
 
+  const supabase = await createClient()
   await supabase.from("page_views").insert({
     event_type: eventType,
     path,
     tool_slug: toolSlug,
     referrer,
     session_id: sessionId,
-    is_authenticated: Boolean(user),
+    is_authenticated: isAuthenticated,
   })
 
   const res = NextResponse.json({ ok: true })

@@ -5,6 +5,7 @@ import { JsonLd } from "@/components/seo/json-ld"
 import { TercihRehberi } from "@/components/tools/tercih-rehberi"
 import {
   ToolHero,
+  ToolContentSection,
   RelatedBlogCallout,
   BackToTools,
 } from "@/components/tools/tool-page-shell"
@@ -44,9 +45,8 @@ export default function TercihRehberiPage() {
           title="YÖK Atlas ile Doğru Tercih"
           description="Resmi kaynağa nasıl bakılır, hangi veriye güvenilir — adım adım."
         />
-        <section className="px-5 md:px-8 lg:px-12 -mt-10 md:-mt-12">
-          <div className="max-w-3xl mx-auto space-y-6">
-            <TercihRehberi />
+        <ToolContentSection>
+          <TercihRehberi />
 
             {tool.relatedBlogSlug && tool.relatedBlogTitle && (
               <RelatedBlogCallout
@@ -56,9 +56,8 @@ export default function TercihRehberiPage() {
               />
             )}
 
-            <BackToTools />
-          </div>
-        </section>
+          <BackToTools />
+        </ToolContentSection>
       </main>
       <Footer />
 

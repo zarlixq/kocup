@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { ArrowLeft, BookOpen } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export function ToolHero({
   eyebrow,
@@ -65,6 +66,31 @@ export function RelatedBlogCallout({
         <p className="text-sm text-zinc-500 mt-1 leading-relaxed">{caption}</p>
       </div>
     </div>
+  )
+}
+
+/**
+ * Hero ile overlap eden içerik kabuğu.
+ *
+ * Neden `relative z-10`:
+ * ToolHero `position: relative` (içindeki absolute blur blob için). CSS painting
+ * order'a göre positioned-without-z-index elementler static elementlerin ÜZERİNE
+ * boyanır — DOM sırasından bağımsız. Bu yüzden hero, peşinden gelen static
+ * içerik section'ının üstüne biniyor ve negatif margin ile yukarı çekilen ilk
+ * kart (sekme barı dahil) hero'nun arkasında kalıyordu. `relative z-10` ile
+ * içerik kendi pozitif z-index seviyesine taşınıp hero'nun üstünde boyanır.
+ */
+export function ToolContentSection({
+  maxWidth = "max-w-3xl",
+  children,
+}: {
+  maxWidth?: "max-w-2xl" | "max-w-3xl"
+  children: React.ReactNode
+}) {
+  return (
+    <section className="relative z-10 px-5 md:px-8 lg:px-12 -mt-10 md:-mt-12">
+      <div className={cn("mx-auto space-y-6", maxWidth)}>{children}</div>
+    </section>
   )
 }
 
