@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next"
 import { createClient } from "@/lib/supabase/server"
 import { getSiteUrl } from "@/lib/site-url"
+import { TOOLS } from "@/lib/tools/config"
 
 const baseUrl = getSiteUrl()
 
@@ -11,6 +12,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/`, lastModified: now, changeFrequency: "weekly", priority: 1.0 },
     { url: `${baseUrl}/basvuru`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
     { url: `${baseUrl}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${baseUrl}/araclar`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    ...TOOLS.map((t) => ({
+      url: `${baseUrl}${t.publicPath}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
     { url: `${baseUrl}/#fiyatlar`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${baseUrl}/#koclarimiz`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${baseUrl}/#nasil-calisir`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },

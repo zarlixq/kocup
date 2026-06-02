@@ -13,6 +13,7 @@ import {
   LogOut,
   User,
   Calendar,
+  Wrench,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,7 @@ const NAV: NavItem[] = [
   { href: "/koc/randevular", label: "Randevular", icon: Calendar },
   { href: "/koc/payments", label: "Ödemeler", icon: Wallet },
   { href: "/koc/packages", label: "Paketler", icon: Package },
+  { href: "/koc/araclar", label: "Araçlar", icon: Wrench },
   { href: "/koc/profilim", label: "Profilim", icon: User },
   { href: "/koc/ayarlar", label: "Ayarlar", icon: Settings },
 ]

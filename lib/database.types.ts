@@ -474,6 +474,39 @@ export type Database = {
           },
         ]
       }
+      page_views: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          is_authenticated: boolean
+          path: string
+          referrer: string | null
+          session_id: string | null
+          tool_slug: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          is_authenticated?: boolean
+          path: string
+          referrer?: string | null
+          session_id?: string | null
+          tool_slug?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          is_authenticated?: boolean
+          path?: string
+          referrer?: string | null
+          session_id?: string | null
+          tool_slug?: string | null
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -999,6 +1032,75 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_pv_auth_split: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          is_authenticated: boolean
+          sessions: number
+          views: number
+        }[]
+      }
+      admin_pv_daily: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          day: string
+          uniques: number
+          views: number
+        }[]
+      }
+      admin_pv_funnel: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          converted_sessions: number
+          tool_or_blog_sessions: number
+          total_sessions: number
+        }[]
+      }
+      admin_pv_kpis: {
+        Args: { p_end: string; p_prev_start: string; p_start: string }
+        Returns: {
+          basvuru_views: number
+          prev_basvuru_views: number
+          prev_tool_uses: number
+          prev_total_views: number
+          prev_unique_visitors: number
+          tool_uses: number
+          total_views: number
+          unique_visitors: number
+        }[]
+      }
+      admin_pv_source_breakdown: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          sessions: number
+          source: string
+        }[]
+      }
+      admin_pv_tool_breakdown: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          sessions: number
+          tool_slug: string
+          uses: number
+        }[]
+      }
+      admin_pv_top_blog: {
+        Args: { p_end: string; p_limit: number; p_start: string }
+        Returns: {
+          slug: string
+          title: string
+          uniques: number
+          views: number
+        }[]
+      }
+      admin_pv_top_pages: {
+        Args: { p_end: string; p_limit: number; p_start: string }
+        Returns: {
+          path: string
+          uniques: number
+          views: number
+        }[]
+      }
       current_user_org_id: { Args: never; Returns: string }
       current_user_role: { Args: never; Returns: string }
       delete_coach_safely: { Args: { coach_uuid: string }; Returns: undefined }

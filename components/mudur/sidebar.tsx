@@ -18,6 +18,7 @@ import {
   LogOut,
   User,
   Settings,
+  BarChart3,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -45,6 +46,7 @@ const NAV: NavItem[] = [
   { href: "/mudur/finans", label: "Finans", icon: Wallet },
   { href: "/mudur/mufredat", label: "Müfredat", icon: BookOpen },
   { href: "/mudur/blog", label: "Blog", icon: BookText },
+  { href: "/mudur/ziyaretler", label: "Ziyaretler", icon: BarChart3 },
 ]
 
 const ACCOUNT_NAV: NavItem[] = [
