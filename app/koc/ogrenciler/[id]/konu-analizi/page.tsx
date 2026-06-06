@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { fetchCurriculumTopics } from "@/lib/curriculum/topics"
 import {
   KocKonuAnaliziView,
   type AssignmentRow,
@@ -29,8 +30,7 @@ export default async function StudentKonuAnaliziPage({
   const [
     { data: profile },
     { data: assignments },
-    { data: subjects },
-    { data: topics },
+    curriculumData,
     { data: sessions },
   ] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", id).maybeSingle(),
@@ -41,8 +41,7 @@ export default async function StudentKonuAnaliziPage({
       )
       .eq("student_id", id)
       .eq("coach_id", user!.id),
-    supabase.from("subjects").select("id, name, exam_type, order").order("exam_type").order("order"),
-    supabase.from("topics").select("id, subject_id, name, order").order("order"),
+    fetchCurriculumTopics(supabase),
     supabase
       .from("study_sessions")
       .select(
@@ -50,6 +49,11 @@ export default async function StudentKonuAnaliziPage({
       )
       .eq("student_id", id),
   ])
+
+  const filterSubjects = [
+    ...curriculumData.normal.subjects,
+    ...curriculumData.maarif.subjects,
+  ]
 
   if (!profile) notFound()
 
@@ -95,8 +99,8 @@ export default async function StudentKonuAnaliziPage({
         <KocKonuAnaliziView
           rows={rows}
           students={[{ id, full_name: profile.full_name }]}
-          subjects={subjects ?? []}
-          topics={topics ?? []}
+          subjects={filterSubjects}
+          curriculumData={curriculumData}
           showStudent={false}
           defaultStudentId={id}
         />

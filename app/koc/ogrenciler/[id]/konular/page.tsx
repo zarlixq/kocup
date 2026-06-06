@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { fetchCurriculumTopics } from "@/lib/curriculum/topics"
 import { AssignTopicsDialog } from "@/components/koc/assign-topics-dialog"
 import { CustomTopicDialog } from "@/components/koc/custom-topic-dialog"
 import { CleanList } from "@/components/konular/clean-list"
@@ -14,12 +15,10 @@ export default async function StudentKonularPage({
   const supabase = await createClient()
 
   const [
-    { data: subjects },
-    { data: topics },
+    curriculumData,
     { data: assignedRows },
   ] = await Promise.all([
-    supabase.from("subjects").select("id, name, exam_type").order("exam_type").order("order"),
-    supabase.from("topics").select("id, name, subject_id, order").order("order"),
+    fetchCurriculumTopics(supabase),
     supabase
       .from("student_topics")
       .select(
@@ -58,11 +57,10 @@ export default async function StudentKonularPage({
           <p className="text-xs text-zinc-500 mt-0.5">{cards.length} atanmış konu</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <CustomTopicDialog studentId={id} subjects={subjects ?? []} />
+          <CustomTopicDialog studentId={id} curriculumData={curriculumData} />
           <AssignTopicsDialog
             studentId={id}
-            subjects={subjects ?? []}
-            topics={topics ?? []}
+            curriculumData={curriculumData}
             assignedTopicIds={assignedTopicIds}
           />
         </div>

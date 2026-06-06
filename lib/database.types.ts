@@ -895,6 +895,7 @@ export type Database = {
         Row: {
           color: string
           created_at: string | null
+          curriculum: string
           exam_type: string
           id: string
           name: string
@@ -903,6 +904,7 @@ export type Database = {
         Insert: {
           color: string
           created_at?: string | null
+          curriculum?: string
           exam_type: string
           id?: string
           name: string
@@ -911,6 +913,7 @@ export type Database = {
         Update: {
           color?: string
           created_at?: string | null
+          curriculum?: string
           exam_type?: string
           id?: string
           name?: string

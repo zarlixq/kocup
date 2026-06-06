@@ -25,23 +25,32 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { assignTopicsToStudent } from "@/app/koc/ogrenciler/[id]/konular/actions"
-
-export type AssignSubject = { id: string; name: string }
-export type AssignTopic = { id: string; name: string; subject_id: string }
+import { CurriculumSwitch, useCurriculumTopics } from "@/components/konular/curriculum-picker"
+import type { CurriculumData, CurriculumKey } from "@/lib/curriculum/topics"
 
 type Props = {
   studentId: string
-  subjects: AssignSubject[]
-  topics: AssignTopic[]
+  curriculumData: CurriculumData
   assignedTopicIds: string[]
 }
 
-export function AssignTopicsDialog({ studentId, subjects, topics, assignedTopicIds }: Props) {
+export function AssignTopicsDialog({ studentId, curriculumData, assignedTopicIds }: Props) {
   const [open, setOpen] = useState(false)
-  const [subjectId, setSubjectId] = useState<string>(subjects[0]?.id ?? "")
+  const { curriculum, setCurriculum, subjects, topics, maarifEmpty } =
+    useCurriculumTopics(curriculumData)
+  const [subjectId, setSubjectId] = useState<string>(curriculumData.normal.subjects[0]?.id ?? "")
   const [search, setSearch] = useState("")
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pending, start] = useTransition()
+
+  // Müfredat değişince dersi ve aramayı sıfırla (seçili konular id bazlı korunur).
+  function handleCurriculumChange(next: CurriculumKey) {
+    setCurriculum(next)
+    setSearch("")
+    const nextSubjects =
+      next === "maarif" ? curriculumData.maarif.subjects : curriculumData.normal.subjects
+    setSubjectId(nextSubjects[0]?.id ?? "")
+  }
 
   const assignedSet = useMemo(() => new Set(assignedTopicIds), [assignedTopicIds])
 
@@ -117,9 +126,11 @@ export function AssignTopicsDialog({ studentId, subjects, topics, assignedTopicI
         <DialogHeader>
           <DialogTitle>Konu Ata</DialogTitle>
           <DialogDescription>
-            Dersi seç, atamak istediğin konuları işaretle.
+            Düzeni ve dersi seç, atamak istediğin konuları işaretle.
           </DialogDescription>
         </DialogHeader>
+
+        <CurriculumSwitch value={curriculum} onChange={handleCurriculumChange} />
 
         <div className="flex flex-col md:flex-row gap-4 flex-1 overflow-hidden">
           <div className="md:w-56 shrink-0 space-y-2">
@@ -163,7 +174,11 @@ export function AssignTopicsDialog({ studentId, subjects, topics, assignedTopicI
             <div className="border border-zinc-200 rounded-lg overflow-y-auto flex-1 min-h-[300px]">
               {visibleTopics.length === 0 ? (
                 <div className="p-6 text-center text-sm text-zinc-500">
-                  {subjectId ? "Bu derste konu bulunamadı." : "Bir ders seç."}
+                  {maarifEmpty
+                    ? "Henüz Maarif konusu eklenmedi."
+                    : subjectId
+                      ? "Bu derste konu bulunamadı."
+                      : "Bir ders seç."}
                 </div>
               ) : (
                 <ul className="divide-y divide-zinc-100">

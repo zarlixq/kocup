@@ -38,6 +38,7 @@ import {
 import { AssignTopicDialog } from "@/components/konu-analizi/assign-topic-dialog"
 import { BulkAssignDialog } from "@/components/konu-analizi/bulk-assign-dialog"
 import { EditAssignmentDialog } from "@/components/konu-analizi/edit-assignment-dialog"
+import type { CurriculumData } from "@/lib/curriculum/topics"
 
 export type AssignmentRow = {
   id: string
@@ -61,7 +62,6 @@ export type AssignmentRow = {
 type Student = { id: string; full_name: string; grade?: string | null }
 type Subject = { id: string; name: string; exam_type?: string | null }
 type Topic = { id: string; subject_id: string; name: string }
-type TopicWithSubject = Topic & { subject_name: string }
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("tr-TR", {
@@ -76,7 +76,10 @@ type Props = {
   rows: AssignmentRow[]
   students: Student[]
   subjects: Subject[]
-  topics: Topic[]
+  /** Filtre dropdown'ı için (atama dialogları artık curriculumData kullanır). */
+  topics?: Topic[]
+  /** Normal + Maarif konu setleri. Yalnızca canManage=true ekranlarda gerekir. */
+  curriculumData?: CurriculumData
   showStudent?: boolean
   defaultStudentId?: string
   /** False ise atama/düzenleme butonları gizlenir (müdür mirror için) */
@@ -89,7 +92,7 @@ export function KocKonuAnaliziView({
   rows,
   students,
   subjects,
-  topics,
+  curriculumData,
   showStudent = true,
   defaultStudentId,
   canManage = true,
@@ -103,11 +106,6 @@ export function KocKonuAnaliziView({
   const [editRow, setEditRow] = useState<AssignmentRow | null>(null)
 
   const today = useMemo(() => new Date(), [])
-
-  const topicsWithSubject = useMemo<TopicWithSubject[]>(() => {
-    const subjMap = new Map(subjects.map((s) => [s.id, s.name]))
-    return topics.map((t) => ({ ...t, subject_name: subjMap.get(t.subject_id) ?? "—" }))
-  }, [subjects, topics])
 
   const enriched = useMemo(
     () =>
@@ -309,23 +307,21 @@ export function KocKonuAnaliziView({
         </div>
       )}
 
-      {canManage && assignOpen && (
+      {canManage && curriculumData && assignOpen && (
         <AssignTopicDialog
           open
           onOpenChange={setAssignOpen}
           students={students}
-          subjects={subjects}
-          topics={topics}
+          curriculumData={curriculumData}
           defaultStudentId={defaultStudentId}
         />
       )}
-      {canManage && bulkOpen && (
+      {canManage && curriculumData && bulkOpen && (
         <BulkAssignDialog
           open
           onOpenChange={setBulkOpen}
           students={students}
-          subjects={subjects}
-          topics={topicsWithSubject}
+          curriculumData={curriculumData}
         />
       )}
       {canManage && editRow && (

@@ -10,21 +10,39 @@ import { Label } from "@/components/ui/label"
 
 declare global {
   interface Window {
-    gtag?: (...args: any[]) => void
+    gtag?: (...args: unknown[]) => void
   }
 }
+
+// Google Ads conversion etiketi hesaba özeldir → HARDCODE ETME.
+// Değer `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID` env'inden okunur.
+// Format: "AW-XXXXXXXXXX/YYYYYYYYYYYYYYYYYY" (Google Ads > Conversions > "Tag setup").
+// TODO(env): Production env'e NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID ekle.
+// Env tanımlı değilse mevcut (çalışan) değer fallback olarak kullanılır ki akış bozulmasın.
+const ADS_CONVERSION_TARGET =
+  process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID || "AW-18185085898/89APCKGYsrIcEMrHqd9D"
 
 export default function BasvuruPage() {
   const [state, action, pending] = useActionState(submitBasvuru, undefined)
 
   useEffect(() => {
-    if (state?.success && typeof window !== "undefined" && window.gtag) {
-      window.gtag("event", "conversion", {
-        send_to: "AW-18185085898/89APCKGYsrIcEMrHqd9D",
-        value: 1.0,
-        currency: "TRY",
-      })
-    }
+    // Sadece başvuru BAŞARIYLA oluştuğunda ateşle (sayfa açılışında / hatada DEĞİL).
+    if (!state?.success) return
+    // window.gtag tanımsızsa güvenli no-op.
+    if (typeof window === "undefined" || typeof window.gtag !== "function") return
+
+    // Google Ads — conversion
+    window.gtag("event", "conversion", {
+      send_to: ADS_CONVERSION_TARGET,
+      value: 1.0,
+      currency: "TRY",
+    })
+
+    // GA4 — lead event
+    window.gtag("event", "generate_lead", {
+      value: 1.0,
+      currency: "TRY",
+    })
   }, [state?.success])
 
   if (state?.success) {

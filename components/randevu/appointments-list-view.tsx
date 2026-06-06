@@ -1,6 +1,6 @@
 "use client"
 
-import { Video } from "lucide-react"
+import { Repeat, Video } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -29,6 +29,10 @@ export type ListAppointment = {
   meeting_link: string | null
   personName?: string | null
   coachName?: string | null
+  /** Tekrarlı serinin parçası mı */
+  isSeries?: boolean
+  /** "Her hafta" / "İki haftada bir" gibi seri etiketi */
+  recurrenceLabel?: string | null
 }
 
 function formatDate(iso: string) {
@@ -91,7 +95,20 @@ export function AppointmentsListView({
                 <TableCell className="tabular-nums whitespace-nowrap">
                   {formatTime(a.start_time)} — {formatTime(a.end_time)}
                 </TableCell>
-                <TableCell className="font-medium text-zinc-900">{a.title}</TableCell>
+                <TableCell className="font-medium text-zinc-900">
+                  <span className="inline-flex items-center gap-1.5">
+                    {a.title}
+                    {a.isSeries && (
+                      <span
+                        className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-600"
+                        title={a.recurrenceLabel ?? "Tekrarlı seri"}
+                      >
+                        <Repeat className="h-3 w-3" />
+                        {a.recurrenceLabel ?? "Seri"}
+                      </span>
+                    )}
+                  </span>
+                </TableCell>
                 <TableCell className="text-zinc-600">{a.personName ?? "—"}</TableCell>
                 {showCoach && (
                   <TableCell className="text-zinc-600">{a.coachName ?? "—"}</TableCell>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Repeat } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   APPOINTMENT_TYPE_COLOR,
@@ -18,6 +18,8 @@ export type CalendarAppointment = {
   start_time: string
   end_time: string
   personName?: string | null
+  /** Tekrarlı serinin parçası mı (rozet/ikon için) */
+  isSeries?: boolean
 }
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 8) // 08:00 - 22:00
@@ -168,6 +170,9 @@ export function WeekCalendar({
                           title={`${APPOINTMENT_TYPE_LABEL[a.type]} — ${a.title}`}
                         >
                           <div className="font-medium truncate">
+                            {a.isSeries && (
+                              <Repeat className="inline h-2.5 w-2.5 mr-0.5 -translate-y-px" />
+                            )}
                             {s.toLocaleTimeString("tr-TR", {
                               hour: "2-digit",
                               minute: "2-digit",

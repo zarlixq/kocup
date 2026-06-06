@@ -18,10 +18,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { bulkAssign } from "@/app/koc/konu-analizi/actions"
+import { CurriculumSwitch, useCurriculumTopics } from "@/components/konular/curriculum-picker"
+import type { CurriculumData, CurriculumKey } from "@/lib/curriculum/topics"
 
 type Student = { id: string; full_name: string }
-type Subject = { id: string; name: string }
-type Topic = { id: string; subject_id: string; name: string; subject_name: string }
 
 function nextWeekIso() {
   const d = new Date()
@@ -33,14 +33,12 @@ export function BulkAssignDialog({
   open,
   onOpenChange,
   students,
-  subjects,
-  topics,
+  curriculumData,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   students: Student[]
-  subjects: Subject[]
-  topics: Topic[]
+  curriculumData: CurriculumData
 }) {
   const [studentIds, setStudentIds] = useState<Set<string>>(new Set())
   const [topicIds, setTopicIds] = useState<Set<string>>(new Set())
@@ -52,15 +50,32 @@ export function BulkAssignDialog({
   const [notes, setNotes] = useState<string>("")
   const [pending, startTransition] = useTransition()
 
+  const { curriculum, setCurriculum, subjects, topics, maarifEmpty } =
+    useCurriculumTopics(curriculumData)
+
+  // Aktif müfredattaki konuları ders adıyla zenginleştir.
+  const topicsWithSubject = useMemo(() => {
+    const subjMap = new Map(subjects.map((s) => [s.id, s.name]))
+    return topics.map((t) => ({ ...t, subject_name: subjMap.get(t.subject_id) ?? "—" }))
+  }, [subjects, topics])
+
+  // Müfredat değişince konu seçimi ve filtreleri sıfırla (öğrenci seçimi korunur).
+  function handleCurriculumChange(next: CurriculumKey) {
+    setCurriculum(next)
+    setTopicIds(new Set())
+    setTopicFilter("")
+    setTopicSubjectFilter("all")
+  }
+
   const visibleTopics = useMemo(() => {
     const q = topicFilter.toLowerCase()
-    return topics.filter((t) => {
+    return topicsWithSubject.filter((t) => {
       if (topicSubjectFilter !== "all" && t.subject_id !== topicSubjectFilter) return false
       if (q && !t.name.toLowerCase().includes(q) && !t.subject_name.toLowerCase().includes(q))
         return false
       return true
     })
-  }, [topics, topicFilter, topicSubjectFilter])
+  }, [topicsWithSubject, topicFilter, topicSubjectFilter])
 
   function toggleStudent(id: string) {
     setStudentIds((prev) => {
@@ -126,6 +141,8 @@ export function BulkAssignDialog({
         </DialogHeader>
 
         <div className="space-y-5">
+          <CurriculumSwitch value={curriculum} onChange={handleCurriculumChange} />
+
           {/* Öğrenciler */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -192,7 +209,9 @@ export function BulkAssignDialog({
             <div className="border border-zinc-200 rounded-xl max-h-56 overflow-y-auto divide-y divide-zinc-100">
               {visibleTopics.length === 0 ? (
                 <div className="p-4 text-sm text-zinc-500 text-center">
-                  Filtreyle eşleşen konu yok.
+                  {maarifEmpty
+                    ? "Henüz Maarif konusu eklenmedi."
+                    : "Filtreyle eşleşen konu yok."}
                 </div>
               ) : (
                 visibleTopics.map((t) => (

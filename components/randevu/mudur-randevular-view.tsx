@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Calendar, List, Filter } from "lucide-react"
+import { Filter } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -11,6 +11,11 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { WeekCalendar, type CalendarAppointment } from "@/components/randevu/week-calendar"
+import { MonthCalendar } from "@/components/randevu/month-calendar"
+import {
+  ViewModeToggle,
+  type AppointmentViewMode,
+} from "@/components/randevu/view-mode-toggle"
 import {
   AppointmentsListView,
   type ListAppointment,
@@ -19,10 +24,21 @@ import {
   AppointmentDetailDialog,
   type DetailAppointment,
 } from "@/components/randevu/appointment-detail-dialog"
-import type {
-  AppointmentStatus,
-  AppointmentType,
+import {
+  RECURRENCE_LABEL,
+  type AppointmentStatus,
+  type AppointmentType,
 } from "@/lib/appointments/constants"
+
+function seriesInfo(a: {
+  is_recurring: boolean
+  parent_appointment_id: string | null
+  recurrence_rule: string | null
+}) {
+  const isSeries = a.is_recurring || a.parent_appointment_id !== null
+  const recurrenceLabel = a.recurrence_rule ? RECURRENCE_LABEL[a.recurrence_rule] ?? "Seri" : null
+  return { isSeries, recurrenceLabel }
+}
 
 export type AdminAppointmentRow = DetailAppointment & {
   coach_id: string
@@ -36,12 +52,11 @@ type Props = {
   coaches: Coach[]
 }
 
-type View = "list" | "calendar"
 type StatusFilter = "all" | AppointmentStatus
 type TypeFilter = "all" | AppointmentType
 
 export function MudurRandevularView({ appointments, coaches }: Props) {
-  const [view, setView] = useState<View>("list")
+  const [view, setView] = useState<AppointmentViewMode>("week")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
   const [coachFilter, setCoachFilter] = useState<string>("all")
@@ -85,44 +100,31 @@ export function MudurRandevularView({ appointments, coaches }: Props) {
     start_time: a.start_time,
     end_time: a.end_time,
     personName: a.studentName ?? a.applicationName ?? null,
+    isSeries: seriesInfo(a).isSeries,
   }))
 
-  const listItems: ListAppointment[] = sorted.map((a) => ({
-    id: a.id,
-    title: a.title,
-    type: a.type,
-    status: a.status,
-    start_time: a.start_time,
-    end_time: a.end_time,
-    meeting_link: a.meeting_link,
-    personName: a.studentName ?? a.applicationName ?? null,
-    coachName: a.coachName ?? null,
-  }))
+  const listItems: ListAppointment[] = sorted.map((a) => {
+    const { isSeries, recurrenceLabel } = seriesInfo(a)
+    return {
+      id: a.id,
+      title: a.title,
+      type: a.type,
+      status: a.status,
+      start_time: a.start_time,
+      end_time: a.end_time,
+      meeting_link: a.meeting_link,
+      personName: a.studentName ?? a.applicationName ?? null,
+      coachName: a.coachName ?? null,
+      isSeries,
+      recurrenceLabel,
+    }
+  })
 
   const selected = selectedId ? appointments.find((a) => a.id === selectedId) ?? null : null
 
   return (
     <div className="space-y-4">
-      <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5">
-        <button
-          type="button"
-          onClick={() => setView("list")}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
-            view === "list" ? "bg-[#1B6B8A] text-white" : "text-zinc-600 hover:text-zinc-900"
-          }`}
-        >
-          <List className="h-4 w-4" /> Liste
-        </button>
-        <button
-          type="button"
-          onClick={() => setView("calendar")}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
-            view === "calendar" ? "bg-[#1B6B8A] text-white" : "text-zinc-600 hover:text-zinc-900"
-          }`}
-        >
-          <Calendar className="h-4 w-4" /> Takvim
-        </button>
-      </div>
+      <ViewModeToggle value={view} onChange={setView} />
 
       <div className="bg-white border border-zinc-200 rounded-2xl p-4">
         <div className="flex items-center gap-2 text-xs text-zinc-500 mb-3">
@@ -188,6 +190,8 @@ export function MudurRandevularView({ appointments, coaches }: Props) {
 
       {view === "list" ? (
         <AppointmentsListView appointments={listItems} onSelect={setSelectedId} showCoach />
+      ) : view === "month" ? (
+        <MonthCalendar appointments={calendarItems} onSelect={setSelectedId} />
       ) : (
         <WeekCalendar appointments={calendarItems} onSelect={setSelectedId} />
       )}

@@ -23,17 +23,27 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { addCustomTopic } from "@/app/koc/ogrenciler/[id]/konular/actions"
+import { CurriculumSwitch, useCurriculumTopics } from "@/components/konular/curriculum-picker"
+import type { CurriculumData, CurriculumKey } from "@/lib/curriculum/topics"
 
 type Props = {
   studentId: string
-  subjects: { id: string; name: string }[]
+  curriculumData: CurriculumData
 }
 
-export function CustomTopicDialog({ studentId, subjects }: Props) {
+export function CustomTopicDialog({ studentId, curriculumData }: Props) {
   const [open, setOpen] = useState(false)
-  const [subjectId, setSubjectId] = useState<string>(subjects[0]?.id ?? "")
+  const { curriculum, setCurriculum, subjects, maarifEmpty } = useCurriculumTopics(curriculumData)
+  const [subjectId, setSubjectId] = useState<string>(curriculumData.normal.subjects[0]?.id ?? "")
   const [name, setName] = useState("")
   const [pending, start] = useTransition()
+
+  function handleCurriculumChange(next: CurriculumKey) {
+    setCurriculum(next)
+    const nextSubjects =
+      next === "maarif" ? curriculumData.maarif.subjects : curriculumData.normal.subjects
+    setSubjectId(nextSubjects[0]?.id ?? "")
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -72,20 +82,28 @@ export function CustomTopicDialog({ studentId, subjects }: Props) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <CurriculumSwitch value={curriculum} onChange={handleCurriculumChange} />
+
           <div className="space-y-1.5">
             <Label>Ders</Label>
-            <Select value={subjectId} onValueChange={setSubjectId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Ders seç" />
-              </SelectTrigger>
-              <SelectContent>
-                {subjects.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {curriculum === "maarif" && maarifEmpty ? (
+              <p className="text-sm text-zinc-500 border border-dashed border-zinc-200 rounded-md px-3 py-2">
+                Henüz Maarif konusu eklenmedi.
+              </p>
+            ) : (
+              <Select value={subjectId} onValueChange={setSubjectId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Ders seç" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="custom-topic-name">Konu Adı</Label>

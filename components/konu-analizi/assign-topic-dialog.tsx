@@ -24,10 +24,10 @@ import {
 } from "@/components/ui/select"
 import { createAssignment } from "@/app/koc/konu-analizi/actions"
 import { gradeToExamTypes } from "@/lib/exam-target"
+import { CurriculumSwitch, useCurriculumTopics } from "@/components/konular/curriculum-picker"
+import type { CurriculumData, CurriculumKey } from "@/lib/curriculum/topics"
 
 type Student = { id: string; full_name: string; grade?: string | null }
-type Subject = { id: string; name: string; exam_type?: string | null }
-type Topic = { id: string; subject_id: string; name: string }
 
 function nextWeekIso() {
   const d = new Date()
@@ -39,15 +39,13 @@ export function AssignTopicDialog({
   open,
   onOpenChange,
   students,
-  subjects,
-  topics,
+  curriculumData,
   defaultStudentId,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   students: Student[]
-  subjects: Subject[]
-  topics: Topic[]
+  curriculumData: CurriculumData
   defaultStudentId?: string
 }) {
   const [studentId, setStudentId] = useState<string>(defaultStudentId ?? "")
@@ -58,6 +56,15 @@ export function AssignTopicDialog({
   const [sonTarih, setSonTarih] = useState<string>(nextWeekIso)
   const [notes, setNotes] = useState<string>("")
   const [pending, startTransition] = useTransition()
+
+  const { curriculum, setCurriculum, isMaarif, subjects, topics, maarifEmpty } =
+    useCurriculumTopics(curriculumData)
+
+  function handleCurriculumChange(next: CurriculumKey) {
+    setCurriculum(next)
+    setSubjectId("")
+    setTopicId("")
+  }
 
   // Seçili öğrencinin sınıfına göre uygun ders türleri (LGS / YKS)
   const selectedStudent = useMemo(
@@ -70,16 +77,16 @@ export function AssignTopicDialog({
     [selectedStudent?.grade],
   )
 
-  // okul exam_type'lı (genel okul denemesi) ve null exam_type'lı dersler her zaman gösterilir
-  const subjectOptions = useMemo(
-    () =>
-      subjects.filter((s) => {
-        if (!s.exam_type) return true
-        if (s.exam_type === "okul") return true
-        return allowedExamTypes.has(s.exam_type as "tyt" | "ayt" | "lgs")
-      }),
-    [subjects, allowedExamTypes],
-  )
+  // Normal düzende exam_type filtresi (okul/null her zaman gösterilir).
+  // Maarif düzeninde exam_type filtresi UYGULANMAZ — her sınıfa açık.
+  const subjectOptions = useMemo(() => {
+    if (isMaarif) return subjects
+    return subjects.filter((s) => {
+      if (!s.exam_type) return true
+      if (s.exam_type === "okul") return true
+      return allowedExamTypes.has(s.exam_type as "tyt" | "ayt" | "lgs")
+    })
+  }, [subjects, isMaarif, allowedExamTypes])
 
   const topicOptions = useMemo(
     () => topics.filter((t) => t.subject_id === subjectId),
@@ -124,6 +131,14 @@ export function AssignTopicDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          <CurriculumSwitch value={curriculum} onChange={handleCurriculumChange} />
+
+          {isMaarif && maarifEmpty && (
+            <p className="text-sm text-zinc-500 border border-dashed border-zinc-200 rounded-md px-3 py-2">
+              Henüz Maarif konusu eklenmedi.
+            </p>
+          )}
+
           <div className="space-y-1.5">
             <Label>Öğrenci</Label>
             <Select value={studentId} onValueChange={setStudentId}>
