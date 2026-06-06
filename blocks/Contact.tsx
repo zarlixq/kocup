@@ -69,18 +69,18 @@ export default function Contact() {
                 <ArrowRight className="w-6 h-6 text-[#F97316]" />
               </div>
 
-              <h3 className="text-2xl font-bold text-zinc-900 mb-3">Başvuru formuna geç</h3>
+              <h3 className="text-2xl font-bold text-zinc-900 mb-3">Ücretsiz ilk dersini al</h3>
 
               <p className="text-sm text-zinc-500 leading-relaxed mb-7">
                 Formu doldurduktan sonra başvurun bize ulaşır. Sana uygun koçu eşleştirip
-                en kısa sürede tanışma seansı planlarız. Bilgilerin gizli tutulur, spam yok.
+                en kısa sürede ücretsiz ilk dersini planlarız. Bilgilerin gizli tutulur, spam yok.
               </p>
 
               <Link
                 href="/basvuru"
                 className="inline-flex w-full items-center justify-center gap-2 bg-[#1B6B8A] hover:bg-[#155873] text-white font-semibold py-3.5 rounded-full transition-colors text-sm"
               >
-                Başvuru formunu aç
+                Ücretsiz İlk Ders Al
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>

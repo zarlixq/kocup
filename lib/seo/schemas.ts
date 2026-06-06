@@ -149,41 +149,6 @@ export function faqPageSchema(items: readonly FaqItem[]) {
   }
 }
 
-export type ServicePlanInput = {
-  name: string
-  description: string
-  priceMonthly: string
-  url: string
-}
-
-export function servicePlanSchema(p: ServicePlanInput) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Service",
-    "@id": `${SITE.url}#service-${p.name.toLowerCase().replace(/\s+/g, "-")}`,
-    name: `${p.name} Koçluk Paketi`,
-    serviceType: "Eğitim Koçluğu",
-    description: p.description,
-    areaServed: { "@type": "Country", name: "Türkiye" },
-    provider: { "@id": `${SITE.url}#organization` },
-    url: p.url,
-    offers: {
-      "@type": "Offer",
-      price: p.priceMonthly,
-      priceCurrency: "TRY",
-      priceSpecification: {
-        "@type": "UnitPriceSpecification",
-        price: p.priceMonthly,
-        priceCurrency: "TRY",
-        unitText: "MONTH",
-        referenceQuantity: { "@type": "QuantitativeValue", value: 1, unitCode: "MON" },
-      },
-      availability: "https://schema.org/InStock",
-      url: p.url,
-    },
-  }
-}
-
 export type ExpertCoachInput = {
   name: string
   title: string

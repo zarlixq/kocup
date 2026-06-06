@@ -17,13 +17,8 @@ import {
   organizationSchema,
   websiteSchema,
   faqPageSchema,
-  servicePlanSchema,
   expertCoachPersonSchema,
 } from "@/lib/seo/schemas"
-import { getSiteUrl } from "@/lib/site-url"
-
-const siteUrl = getSiteUrl()
-
 // FAQ bloğundaki sorularla aynı — zengin sonuç (FAQPage) için
 const FAQ_FOR_SCHEMA = [
   {
@@ -42,9 +37,14 @@ const FAQ_FOR_SCHEMA = [
       "Sınavdan önce ne kadar erken başlanırsa o kadar iyi. 24 ay önceden başlamak ideal, 12 ay yaygın, 9 ay ise hâlâ yapılabilir. Önemli olan başladıktan sonra disiplinli ilerlemek.",
   },
   {
+    question: "İlk ders ücretsiz mi?",
+    answer:
+      "Evet, tanışma amaçlı ilk ders tamamen ücretsiz. İlk derste hedeflerini ve seviyeni konuşuyoruz; hiçbir ön ödeme veya taahhüt yok.",
+  },
+  {
     question: "Ücretler nasıl?",
     answer:
-      "Aylık abonelik şeklinde 3 paketimiz var: Temel (₺1.500), Pro (₺2.700), Sprint (₺3.900). Gizli ücret yok, istediğin zaman paket değiştirebilir veya iptal edebilirsin. İlk tanışma seansı her zaman ücretsiz.",
+      "Koçluk sana özel planlandığı için ihtiyacına göre belirlenir. Önce ücretsiz ilk derste tanışıyor, hedeflerini ve seviyeni konuşuyoruz; ardından sana en uygun planı birlikte netleştiriyoruz. Gizli ücret yok.",
   },
   {
     question: "Görüşmeler online mı, yüz yüze mi?",
@@ -59,37 +59,12 @@ const FAQ_FOR_SCHEMA = [
   {
     question: "Veliyi süreç içinde bilgilendiriyor musunuz?",
     answer:
-      "Evet. Pro ve Sprint paketlerinde düzenli veli bilgilendirme görüşmeleri var. Temel pakette ise aylık yazılı rapor paylaşılıyor. Ailen her zaman gelişiminden haberdar.",
+      "Evet. Düzenli veli bilgilendirme görüşmeleri ve yazılı raporlarla ailen her zaman gelişiminden haberdar olur.",
   },
   {
     question: "Koçlarınız sertifikalı mı?",
     answer:
       "Evet. Ekibimizdeki tüm koçlar üniversite onaylı Psikoloji veya Psikolojik Danışmanlık bölümü mezunudur ve MYK Onaylı Eğitim Koçluğu Sertifikası'na sahiptir.",
-  },
-]
-
-// Pricing bloğundaki paketlerle aynı
-const PLANS_FOR_SCHEMA = [
-  {
-    name: "Temel",
-    description:
-      "Koçluk dünyasına adım atmak isteyenler için. Haftada 1 görüşme, kişisel program, WhatsApp destek ve aylık ilerleme raporu.",
-    priceMonthly: "1500",
-    url: `${siteUrl}/#fiyatlar`,
-  },
-  {
-    name: "Pro",
-    description:
-      "Ciddi hedefleri olan öğrenciler için en çok tercih edilen paket. Haftada 2 görüşme, 7/24 WhatsApp, haftalık rapor, veli görüşmesi, deneme analizi.",
-    priceMonthly: "2700",
-    url: `${siteUrl}/#fiyatlar`,
-  },
-  {
-    name: "Sprint",
-    description:
-      "Sınava 3 ay kala yoğun hazırlık gerektirenler için. Haftada 3 görüşme, günlük takip, sınav simülasyonu ve psikolojik destek seansı.",
-    priceMonthly: "3900",
-    url: `${siteUrl}/#fiyatlar`,
   },
 ]
 
@@ -132,7 +107,6 @@ export default async function Home() {
     organizationSchema(),
     websiteSchema(),
     faqPageSchema(FAQ_FOR_SCHEMA),
-    ...PLANS_FOR_SCHEMA.map(servicePlanSchema),
     ...COACHES_FOR_SCHEMA.map(expertCoachPersonSchema),
   ]
 

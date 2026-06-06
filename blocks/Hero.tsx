@@ -36,12 +36,17 @@ export default function Hero() {
               MYK onaylı koçlarla bireysel takip, konu analizi, deneme yönlendirmesi ve veri destekli haftalık program. Öğrencinin için bütüncül bir hazırlık sistemi.
             </p>
 
+            <div className="inline-flex items-center gap-1.5 bg-[#F97316]/15 border border-[#F97316]/30 text-orange-100 text-xs font-semibold px-3 py-1.5 rounded-full w-fit mb-4">
+              <Sparkles className="w-3.5 h-3.5 text-[#F97316]" />
+              İlk ders ücretsiz
+            </div>
+
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-8">
               <Link
                 href="/basvuru"
                 className="inline-flex items-center justify-center gap-2 bg-[#F97316] text-white font-semibold px-7 py-3.5 rounded-full hover:bg-[#ea6c10] transition-colors text-sm md:text-base shadow-lg shadow-orange-500/20"
               >
-                Ücretsiz tanışma seansı
+                Ücretsiz İlk Ders Al
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link

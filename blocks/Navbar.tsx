@@ -11,7 +11,7 @@ const NAV_LINKS = [
   { href: "/#nasil-calisir", label: "Nasıl Çalışır" },
   { href: "/#hizmetler", label: "Hizmetler" },
   { href: "/#koclarimiz", label: "Koçlar" },
-  { href: "/#fiyatlar", label: "Paketler" },
+  { href: "/#fiyatlar", label: "Koçluk" },
   { href: "/araclar", label: "Araçlar" },
   { href: "/kurumlar", label: "Kurumlar" },
   { href: "/blog", label: "Blog" },
@@ -102,7 +102,7 @@ export function Navbar({ variant = "transparent" }: NavbarProps) {
             href="/basvuru"
             className="hidden sm:inline-flex bg-[#F97316] text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-[#ea6c10] transition-colors shadow-md shadow-orange-500/20"
           >
-            Hemen Başvur
+            Ücretsiz İlk Ders
           </Link>
 
           {/* Mobile menu */}
@@ -167,7 +167,7 @@ export function Navbar({ variant = "transparent" }: NavbarProps) {
                   onClick={() => setOpen(false)}
                   className="block w-full text-center bg-[#1B6B8A] text-white text-sm font-semibold px-4 py-3 rounded-full hover:bg-[#155873] transition-colors"
                 >
-                  Hemen Başvur
+                  Ücretsiz İlk Ders
                 </Link>
               </div>
             </SheetContent>

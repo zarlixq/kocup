@@ -20,8 +20,12 @@ const FAQS = [
     a: "Sınavdan önce ne kadar erken başlanırsa o kadar iyi. 24 ay önceden başlamak ideal, 12 ay yaygın, 9 ay ise hâlâ yapılabilir. Önemli olan başladıktan sonra disiplinli ilerlemek.",
   },
   {
+    q: "İlk ders ücretsiz mi?",
+    a: "Evet, tanışma amaçlı ilk ders tamamen ücretsiz. İlk derste hedeflerini ve seviyeni konuşuyoruz; hiçbir ön ödeme veya taahhüt yok.",
+  },
+  {
     q: "Ücretler nasıl?",
-    a: "Aylık abonelik şeklinde 3 paketimiz var: Temel (₺1.500), Pro (₺2.700), Sprint (₺3.900). Gizli ücret yok, istediğin zaman paket değiştirebilir veya iptal edebilirsin. İlk tanışma seansı her zaman ücretsiz.",
+    a: "Koçluk sana özel planlandığı için ihtiyacına göre belirlenir. Önce ücretsiz ilk derste tanışıyor, hedeflerini ve seviyeni konuşuyoruz; ardından sana en uygun planı birlikte netleştiriyoruz. Gizli ücret yok.",
   },
   {
     q: "Görüşmeler online mı, yüz yüze mi?",
@@ -33,7 +37,7 @@ const FAQS = [
   },
   {
     q: "Veliyi süreç içinde bilgilendiriyor musunuz?",
-    a: "Evet. Pro ve Sprint paketlerinde düzenli veli bilgilendirme görüşmeleri var. Temel pakette ise aylık yazılı rapor paylaşılıyor. Ailen her zaman gelişiminden haberdar.",
+    a: "Evet. Düzenli veli bilgilendirme görüşmeleri ve yazılı raporlarla ailen her zaman gelişiminden haberdar olur.",
   },
   {
     q: "Koçlarınız sertifikalı mı?",

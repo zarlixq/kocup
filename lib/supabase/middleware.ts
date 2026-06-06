@@ -35,11 +35,14 @@ export async function updateSession(request: NextRequest) {
     return redirect(request, "/giris/koc")
   }
 
-  // Portal panel paths
-  const isOgrenciPath = path.startsWith("/ogrenci")
-  const isKocPath = path.startsWith("/koc")
-  const isMudurPath = path.startsWith("/mudur")
-  const isKurumPath = path.startsWith("/kurum")
+  // Portal panel paths — yalnızca tam segment ("/x" veya "/x/...") korunur.
+  // Sınırsız startsWith kullanılırsa /kurumlar gibi public route'lar /kurum
+  // paneliyle çakışır. Bu yüzden segment sınırına çekiyoruz.
+  const inSegment = (prefix: string) => path === prefix || path.startsWith(`${prefix}/`)
+  const isOgrenciPath = inSegment("/ogrenci")
+  const isKocPath = inSegment("/koc")
+  const isMudurPath = inSegment("/mudur")
+  const isKurumPath = inSegment("/kurum")
   const isPortalPath = isOgrenciPath || isKocPath || isMudurPath || isKurumPath
 
   // ── Unauthenticated ────────────────────────────────────────────────────
