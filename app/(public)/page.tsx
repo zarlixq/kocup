@@ -1,4 +1,6 @@
 import type { Metadata } from "next"
+import Link from "next/link"
+import { ArrowRight } from "lucide-react"
 import { Navbar } from "@/blocks/Navbar"
 import Hero from "@/blocks/Hero"
 import { StatsBar } from "@/blocks/StatsBar"
@@ -42,7 +44,7 @@ const FAQ_FOR_SCHEMA = [
   {
     question: "Ücretler nasıl?",
     answer:
-      "Aylık abonelik şeklinde 3 paketimiz var: Temel (₺2.500), Pro (₺4.500), Sprint (₺6.500). Gizli ücret yok, istediğin zaman paket değiştirebilir veya iptal edebilirsin. İlk tanışma seansı her zaman ücretsiz.",
+      "Aylık abonelik şeklinde 3 paketimiz var: Temel (₺1.500), Pro (₺2.700), Sprint (₺3.900). Gizli ücret yok, istediğin zaman paket değiştirebilir veya iptal edebilirsin. İlk tanışma seansı her zaman ücretsiz.",
   },
   {
     question: "Görüşmeler online mı, yüz yüze mi?",
@@ -72,21 +74,21 @@ const PLANS_FOR_SCHEMA = [
     name: "Temel",
     description:
       "Koçluk dünyasına adım atmak isteyenler için. Haftada 1 görüşme, kişisel program, WhatsApp destek ve aylık ilerleme raporu.",
-    priceMonthly: "2500",
+    priceMonthly: "1500",
     url: `${siteUrl}/#fiyatlar`,
   },
   {
     name: "Pro",
     description:
       "Ciddi hedefleri olan öğrenciler için en çok tercih edilen paket. Haftada 2 görüşme, 7/24 WhatsApp, haftalık rapor, veli görüşmesi, deneme analizi.",
-    priceMonthly: "4500",
+    priceMonthly: "2700",
     url: `${siteUrl}/#fiyatlar`,
   },
   {
     name: "Sprint",
     description:
       "Sınava 3 ay kala yoğun hazırlık gerektirenler için. Haftada 3 görüşme, günlük takip, sınav simülasyonu ve psikolojik destek seansı.",
-    priceMonthly: "6500",
+    priceMonthly: "3900",
     url: `${siteUrl}/#fiyatlar`,
   },
 ]
@@ -148,6 +150,20 @@ export default async function Home() {
         <Pricing />
         <FAQ />
         <Contact />
+        <section className="bg-zinc-50 border-t border-zinc-200 px-5 md:px-8 lg:px-12 py-5">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-x-2 gap-y-1 text-center">
+            <span className="text-sm text-zinc-600">
+              Kurum musunuz? Dershane ve eğitim kurumlarına özel koçluk altyapısı.
+            </span>
+            <Link
+              href="/kurumlar"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1B6B8A] hover:text-[#155873] transition-colors"
+            >
+              Kurumlar
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </section>
         <Footer />
       </main>
     </>

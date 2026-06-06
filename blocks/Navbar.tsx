@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: "/#koclarimiz", label: "Koçlar" },
   { href: "/#fiyatlar", label: "Paketler" },
   { href: "/araclar", label: "Araçlar" },
+  { href: "/kurumlar", label: "Kurumlar" },
   { href: "/blog", label: "Blog" },
   { href: "/#sss", label: "SSS" },
 ]

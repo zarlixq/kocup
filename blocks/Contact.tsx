@@ -38,7 +38,7 @@ export default function Contact() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <a
-                  href="mailto:info@kocupakedemi.com"
+                  href="mailto:kocupkocluk@gmail.com"
                   className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors"
                 >
                   <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
@@ -46,7 +46,7 @@ export default function Contact() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-200/70">Email</div>
-                    <div className="text-sm font-semibold text-white truncate">info@kocupakedemi.com</div>
+                    <div className="text-sm font-semibold text-white truncate">kocupkocluk@gmail.com</div>
                   </div>
                 </a>
 

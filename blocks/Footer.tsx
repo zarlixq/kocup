@@ -29,6 +29,7 @@ function LinkedinIcon(props: React.SVGProps<SVGSVGElement>) {
 const QUICK_LINKS = [
   { href: "/basvuru", label: "Başvuru" },
   { href: "/araclar", label: "Ücretsiz Araçlar" },
+  { href: "/kurumlar", label: "Kurumlar" },
   { href: "/giris/ogrenci", label: "Öğrenci Girişi" },
   { href: "/giris/koc", label: "Koç Girişi" },
   { href: "/blog", label: "Blog" },
@@ -133,13 +134,13 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href="mailto:info@kocupakedemi.com"
+                  href="mailto:kocupkocluk@gmail.com"
                   className="flex items-start gap-2.5 text-sm text-zinc-400 hover:text-white transition-colors"
                 >
                   <Mail className="w-4 h-4 mt-0.5 shrink-0 text-[#F97316]" />
                   <span>
                     <span className="block text-[10px] uppercase tracking-wider text-zinc-500">Email</span>
-                    info@kocupakedemi.com
+                    kocupkocluk@gmail.com
                   </span>
                 </a>
               </li>

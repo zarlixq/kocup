@@ -25,7 +25,7 @@ const PLANS: Plan[] = [
   {
     badge: "Başlangıç",
     name: "Temel",
-    price: "2.500",
+    price: "1.500",
     desc: "Koçluk dünyasına adım atmak isteyenler için.",
     features: [
       "Haftada 1 görüşme (45 dk)",
@@ -38,7 +38,7 @@ const PLANS: Plan[] = [
   {
     badge: "En Popüler",
     name: "Pro",
-    price: "4.500",
+    price: "2.700",
     desc: "Ciddi hedefleri olan öğrenciler için en çok tercih edilen paket.",
     features: [
       "Haftada 2 görüşme (45 dk)",
@@ -53,7 +53,7 @@ const PLANS: Plan[] = [
   {
     badge: "Yoğun Dönem",
     name: "Sprint",
-    price: "6.500",
+    price: "3.900",
     desc: "Sınava 3 ay kala yoğun hazırlık gerektirenler için.",
     features: [
       "Haftada 3 görüşme (45 dk)",

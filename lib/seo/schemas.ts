@@ -9,7 +9,7 @@ export const SITE = {
   description:
     "Sertifikalı eğitim koçları ile YKS hazırlığında bireysel takip, konu analizi, deneme yönlendirmesi.",
   phone: "+905333704391",
-  email: "info@kocupakedemi.com",
+  email: "kocupkocluk@gmail.com",
   whatsapp: "https://wa.me/905333704391",
   sameAs: [] as string[],
 }

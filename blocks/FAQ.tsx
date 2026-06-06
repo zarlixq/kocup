@@ -21,7 +21,7 @@ const FAQS = [
   },
   {
     q: "Ücretler nasıl?",
-    a: "Aylık abonelik şeklinde 3 paketimiz var: Temel (₺2.500), Pro (₺4.500), Sprint (₺6.500). Gizli ücret yok, istediğin zaman paket değiştirebilir veya iptal edebilirsin. İlk tanışma seansı her zaman ücretsiz.",
+    a: "Aylık abonelik şeklinde 3 paketimiz var: Temel (₺1.500), Pro (₺2.700), Sprint (₺3.900). Gizli ücret yok, istediğin zaman paket değiştirebilir veya iptal edebilirsin. İlk tanışma seansı her zaman ücretsiz.",
   },
   {
     q: "Görüşmeler online mı, yüz yüze mi?",

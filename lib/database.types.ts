@@ -891,6 +891,45 @@ export type Database = {
           },
         ]
       }
+      institution_inquiries: {
+        Row: {
+          coach_count: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          institution_name: string
+          message: string | null
+          phone: string
+          status: string
+          student_count: string | null
+        }
+        Insert: {
+          coach_count?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          institution_name: string
+          message?: string | null
+          phone: string
+          status?: string
+          student_count?: string | null
+        }
+        Update: {
+          coach_count?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          institution_name?: string
+          message?: string | null
+          phone?: string
+          status?: string
+          student_count?: string | null
+        }
+        Relationships: []
+      }
       subjects: {
         Row: {
           color: string
