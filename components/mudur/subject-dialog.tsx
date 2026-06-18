@@ -49,7 +49,7 @@ type Props = {
   initial?: {
     id: string
     name: string
-    exam_type: string
+    exam_type: string | null
     color: string
     order: number
   } | null

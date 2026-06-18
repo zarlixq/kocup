@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils"
 export type SubjectItem = {
   id: string
   name: string
-  exam_type: string
+  exam_type: string | null
   color: string
   order: number
   topic_count: number

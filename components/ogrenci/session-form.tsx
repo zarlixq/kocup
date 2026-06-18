@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { isoDate } from "@/lib/format"
 import { createSessionAction } from "@/app/ogrenci/soru-cozum/actions"
 
-type Subject = { id: string; name: string; exam_type: string }
+type Subject = { id: string; name: string; exam_type: string | null }
 
 export function SessionForm({ subjects }: { subjects: Subject[] }) {
   const router = useRouter()
@@ -69,7 +69,7 @@ export function SessionForm({ subjects }: { subjects: Subject[] }) {
             <SelectContent>
               {sortedSubjects.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
-                  {s.exam_type.toUpperCase()} · {s.name}
+                  {s.exam_type ? `${s.exam_type.toUpperCase()} · ` : ""}{s.name}
                 </SelectItem>
               ))}
             </SelectContent>

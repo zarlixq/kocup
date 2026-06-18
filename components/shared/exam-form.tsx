@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { isoDate } from "@/lib/format"
 
-export type ExamFormSubject = { id: string; name: string; exam_type: string }
+export type ExamFormSubject = { id: string; name: string; exam_type: string | null }
 export type ExamFormResult = { subject_id: string; correct: number; wrong: number; empty: number }
 export type ExamFormInput = {
   name: string
