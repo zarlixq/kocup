@@ -28,6 +28,7 @@ export type Database = {
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          segment: string | null
           status: string
           tanitim_appointment_id: string | null
           target_department: string | null
@@ -47,6 +48,7 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          segment?: string | null
           status?: string
           tanitim_appointment_id?: string | null
           target_department?: string | null
@@ -66,6 +68,7 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          segment?: string | null
           status?: string
           tanitim_appointment_id?: string | null
           target_department?: string | null
@@ -378,6 +381,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      institution_inquiries: {
+        Row: {
+          coach_count: string | null
+          created_at: string | null
+          email: string | null
+          full_name: string
+          id: string
+          institution_name: string
+          message: string | null
+          phone: string
+          status: string
+          student_count: string | null
+        }
+        Insert: {
+          coach_count?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          institution_name: string
+          message?: string | null
+          phone: string
+          status?: string
+          student_count?: string | null
+        }
+        Update: {
+          coach_count?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          institution_name?: string
+          message?: string | null
+          phone?: string
+          status?: string
+          student_count?: string | null
+        }
+        Relationships: []
       }
       organizations: {
         Row: {
@@ -891,51 +933,13 @@ export type Database = {
           },
         ]
       }
-      institution_inquiries: {
-        Row: {
-          coach_count: string | null
-          created_at: string
-          email: string | null
-          full_name: string
-          id: string
-          institution_name: string
-          message: string | null
-          phone: string
-          status: string
-          student_count: string | null
-        }
-        Insert: {
-          coach_count?: string | null
-          created_at?: string
-          email?: string | null
-          full_name: string
-          id?: string
-          institution_name: string
-          message?: string | null
-          phone: string
-          status?: string
-          student_count?: string | null
-        }
-        Update: {
-          coach_count?: string | null
-          created_at?: string
-          email?: string | null
-          full_name?: string
-          id?: string
-          institution_name?: string
-          message?: string | null
-          phone?: string
-          status?: string
-          student_count?: string | null
-        }
-        Relationships: []
-      }
       subjects: {
         Row: {
           color: string
           created_at: string | null
           curriculum: string
-          exam_type: string
+          exam_type: string | null
+          grade: number | null
           id: string
           name: string
           order: number
@@ -944,7 +948,8 @@ export type Database = {
           color: string
           created_at?: string | null
           curriculum?: string
-          exam_type: string
+          exam_type?: string | null
+          grade?: number | null
           id?: string
           name: string
           order: number
@@ -953,7 +958,8 @@ export type Database = {
           color?: string
           created_at?: string | null
           curriculum?: string
-          exam_type?: string
+          exam_type?: string | null
+          grade?: number | null
           id?: string
           name?: string
           order?: number
@@ -1157,6 +1163,7 @@ export type Database = {
       increment_blog_post_view: { Args: { p_slug: string }; Returns: undefined }
       is_coach_of: { Args: { student_id: string }; Returns: boolean }
       is_org_admin_of: { Args: { target_org_id: string }; Returns: boolean }
+      my_coach_id: { Args: never; Returns: string }
     }
     Enums: {
       appointment_status: "planlandi" | "tamamlandi" | "iptal" | "gelmedi"

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -23,8 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { addCustomTopic } from "@/app/koc/ogrenciler/[id]/konular/actions"
-import { CurriculumSwitch, useCurriculumTopics } from "@/components/konular/curriculum-picker"
-import type { CurriculumData, CurriculumKey } from "@/lib/curriculum/topics"
+import {
+  CurriculumSwitch,
+  GradeLevelSwitch,
+  useCurriculumTopics,
+} from "@/components/konular/curriculum-picker"
+import type { CurriculumData, CurriculumKey, GradeLevel } from "@/lib/curriculum/topics"
 
 type Props = {
   studentId: string
@@ -33,21 +37,30 @@ type Props = {
 
 export function CustomTopicDialog({ studentId, curriculumData }: Props) {
   const [open, setOpen] = useState(false)
-  const { curriculum, setCurriculum, subjects, maarifEmpty } = useCurriculumTopics(curriculumData)
-  const [subjectId, setSubjectId] = useState<string>(curriculumData.normal.subjects[0]?.id ?? "")
+  const { curriculum, setCurriculum, level, setLevel, subjects, maarifEmpty } =
+    useCurriculumTopics(curriculumData, { levelFilter: true })
+  const [subjectId, setSubjectId] = useState<string>("")
   const [name, setName] = useState("")
   const [pending, start] = useTransition()
 
+  // Seçili düzen+seviyedeki ders listesi `subjects`. Seçili ders bu listede
+  // yoksa ilk derse düş — manuel reset gerekmez.
+  const effectiveSubjectId = useMemo(
+    () => (subjects.some((s) => s.id === subjectId) ? subjectId : subjects[0]?.id ?? ""),
+    [subjects, subjectId]
+  )
+
   function handleCurriculumChange(next: CurriculumKey) {
     setCurriculum(next)
-    const nextSubjects =
-      next === "maarif" ? curriculumData.maarif.subjects : curriculumData.normal.subjects
-    setSubjectId(nextSubjects[0]?.id ?? "")
+  }
+
+  function handleLevelChange(next: GradeLevel) {
+    setLevel(next)
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!subjectId) {
+    if (!effectiveSubjectId) {
       toast.error("Ders seç.")
       return
     }
@@ -56,7 +69,7 @@ export function CustomTopicDialog({ studentId, curriculumData }: Props) {
       return
     }
     start(async () => {
-      const res = await addCustomTopic(studentId, { subjectId, name: name.trim() })
+      const res = await addCustomTopic(studentId, { subjectId: effectiveSubjectId, name: name.trim() })
       if (res.success) {
         toast.success("Özel konu eklendi.")
         setName("")
@@ -82,7 +95,10 @@ export function CustomTopicDialog({ studentId, curriculumData }: Props) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <CurriculumSwitch value={curriculum} onChange={handleCurriculumChange} />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <CurriculumSwitch value={curriculum} onChange={handleCurriculumChange} />
+            <GradeLevelSwitch value={level} onChange={handleLevelChange} />
+          </div>
 
           <div className="space-y-1.5">
             <Label>Ders</Label>
@@ -90,8 +106,12 @@ export function CustomTopicDialog({ studentId, curriculumData }: Props) {
               <p className="text-sm text-zinc-500 border border-dashed border-zinc-200 rounded-md px-3 py-2">
                 Henüz Maarif konusu eklenmedi.
               </p>
+            ) : subjects.length === 0 ? (
+              <p className="text-sm text-zinc-500 border border-dashed border-zinc-200 rounded-md px-3 py-2">
+                Bu seviyede ders bulunamadı.
+              </p>
             ) : (
-              <Select value={subjectId} onValueChange={setSubjectId}>
+              <Select value={effectiveSubjectId} onValueChange={setSubjectId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Ders seç" />
                 </SelectTrigger>

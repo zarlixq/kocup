@@ -25,8 +25,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { assignTopicsToStudent } from "@/app/koc/ogrenciler/[id]/konular/actions"
-import { CurriculumSwitch, useCurriculumTopics } from "@/components/konular/curriculum-picker"
-import type { CurriculumData, CurriculumKey } from "@/lib/curriculum/topics"
+import {
+  CurriculumSwitch,
+  GradeLevelSwitch,
+  useCurriculumTopics,
+} from "@/components/konular/curriculum-picker"
+import type { CurriculumData, CurriculumKey, GradeLevel } from "@/lib/curriculum/topics"
 
 type Props = {
   studentId: string
@@ -36,31 +40,40 @@ type Props = {
 
 export function AssignTopicsDialog({ studentId, curriculumData, assignedTopicIds }: Props) {
   const [open, setOpen] = useState(false)
-  const { curriculum, setCurriculum, subjects, topics, maarifEmpty } =
-    useCurriculumTopics(curriculumData)
-  const [subjectId, setSubjectId] = useState<string>(curriculumData.normal.subjects[0]?.id ?? "")
+  const { curriculum, setCurriculum, level, setLevel, subjects, topics, maarifEmpty, levelEmpty } =
+    useCurriculumTopics(curriculumData, { levelFilter: true })
+  const [subjectId, setSubjectId] = useState<string>("")
   const [search, setSearch] = useState("")
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pending, start] = useTransition()
 
-  // Müfredat değişince dersi ve aramayı sıfırla (seçili konular id bazlı korunur).
+  // Seçili düzen+seviyedeki ders listesi `subjects`. Seçili ders bu listede
+  // yoksa (düzen/seviye değişti) ilk derse düş — manuel reset gerekmez.
+  const effectiveSubjectId = useMemo(
+    () => (subjects.some((s) => s.id === subjectId) ? subjectId : subjects[0]?.id ?? ""),
+    [subjects, subjectId]
+  )
+
+  // Düzen/seviye değişince aramayı sıfırla (seçili konular id bazlı korunur).
   function handleCurriculumChange(next: CurriculumKey) {
     setCurriculum(next)
     setSearch("")
-    const nextSubjects =
-      next === "maarif" ? curriculumData.maarif.subjects : curriculumData.normal.subjects
-    setSubjectId(nextSubjects[0]?.id ?? "")
+  }
+
+  function handleLevelChange(next: GradeLevel) {
+    setLevel(next)
+    setSearch("")
   }
 
   const assignedSet = useMemo(() => new Set(assignedTopicIds), [assignedTopicIds])
 
   const visibleTopics = useMemo(() => {
-    if (!subjectId) return []
+    if (!effectiveSubjectId) return []
     const q = search.trim().toLocaleLowerCase("tr")
     return topics
-      .filter((t) => t.subject_id === subjectId)
+      .filter((t) => t.subject_id === effectiveSubjectId)
       .filter((t) => (q ? t.name.toLocaleLowerCase("tr").includes(q) : true))
-  }, [topics, subjectId, search])
+  }, [topics, effectiveSubjectId, search])
 
   const visibleSelectableIds = useMemo(
     () => visibleTopics.filter((t) => !assignedSet.has(t.id)).map((t) => t.id),
@@ -130,12 +143,15 @@ export function AssignTopicsDialog({ studentId, curriculumData, assignedTopicIds
           </DialogDescription>
         </DialogHeader>
 
-        <CurriculumSwitch value={curriculum} onChange={handleCurriculumChange} />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <CurriculumSwitch value={curriculum} onChange={handleCurriculumChange} />
+          <GradeLevelSwitch value={level} onChange={handleLevelChange} />
+        </div>
 
         <div className="flex flex-col md:flex-row gap-4 flex-1 overflow-hidden">
           <div className="md:w-56 shrink-0 space-y-2">
             <Label>Ders</Label>
-            <Select value={subjectId} onValueChange={setSubjectId}>
+            <Select value={effectiveSubjectId} onValueChange={setSubjectId}>
               <SelectTrigger>
                 <SelectValue placeholder="Ders seç" />
               </SelectTrigger>
@@ -174,11 +190,13 @@ export function AssignTopicsDialog({ studentId, curriculumData, assignedTopicIds
             <div className="border border-zinc-200 rounded-lg overflow-y-auto flex-1 min-h-[300px]">
               {visibleTopics.length === 0 ? (
                 <div className="p-6 text-center text-sm text-zinc-500">
-                  {maarifEmpty
+                  {maarifEmpty && curriculum === "maarif"
                     ? "Henüz Maarif konusu eklenmedi."
-                    : subjectId
-                      ? "Bu derste konu bulunamadı."
-                      : "Bir ders seç."}
+                    : levelEmpty
+                      ? "Bu seviyede ders bulunamadı."
+                      : effectiveSubjectId
+                        ? "Bu derste konu bulunamadı."
+                        : "Bir ders seç."}
                 </div>
               ) : (
                 <ul className="divide-y divide-zinc-100">
