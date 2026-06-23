@@ -1,7 +1,6 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { redirect } from "next/navigation"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 
@@ -45,9 +44,6 @@ export async function createExamForStudentAction(studentId: string, input: unkno
     return { error: parsed.error.issues[0]?.message ?? "Form hatalı." }
   }
 
-  // PDF examSchema'nın dışında — ayrıca okunur (zod bilinmeyen anahtarları yok sayar)
-  const pdfFile = (input as { pdfFile?: File | null } | null)?.pdfFile ?? null
-
   const { name, exam_type, date, siralama, notes, results } = parsed.data
   const nonZero = results.filter((r) => r.correct + r.wrong + r.empty > 0)
   if (nonZero.length === 0) {
@@ -87,22 +83,14 @@ export async function createExamForStudentAction(studentId: string, input: unkno
     return { error: resErr.message }
   }
 
-  // PDF best-effort: yükleme hatası denemeyi silmez, sadece loglanır.
-  if (pdfFile && pdfFile.size > 0) {
-    const path = `${studentId}/${exam.id}.pdf`
-    const { error: upErr } = await auth.supabase.storage
-      .from("exam-pdfs")
-      .upload(path, pdfFile, { contentType: "application/pdf", upsert: true })
-    if (upErr) {
-      console.error("Deneme PDF yüklenemedi:", upErr.message)
-    } else {
-      await auth.supabase.from("exams").update({ pdf_path: path }).eq("id", exam.id)
-    }
-  }
-
   revalidatePath(`/koc/ogrenciler/${studentId}/denemeler`)
   revalidatePath(`/koc/ogrenciler/${studentId}`)
-  redirect(`/koc/ogrenciler/${studentId}/denemeler`)
+  // PDF (varsa) client tarafında storage'a yüklenir; yönlendirmeyi client yapar.
+  return {
+    examId: exam.id,
+    studentId,
+    redirectTo: `/koc/ogrenciler/${studentId}/denemeler`,
+  }
 }
 
 export async function deleteExamForStudentAction(studentId: string, examId: string) {

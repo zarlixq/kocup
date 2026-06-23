@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { isoDate } from "@/lib/format"
+import { createClient } from "@/lib/supabase/client"
+import { setExamPdfPath } from "@/lib/exams/pdf-actions"
 
 export type ExamFormSubject = { id: string; name: string; exam_type: string | null }
 export type ExamFormResult = { subject_id: string; correct: number; wrong: number; empty: number }
@@ -20,11 +22,17 @@ export type ExamFormInput = {
   siralama?: number | null
   notes?: string | null
   results: ExamFormResult[]
-  pdfFile?: File | null
 }
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024 // 10MB
-export type ExamFormSubmitResult = { error?: string }
+// Server Action gövdesinden PDF geçirmiyoruz; sunucu exam.id + yönlendirmeyi
+// döner, PDF doğrudan tarayıcıdan storage'a yüklenir.
+export type ExamFormSubmitResult = {
+  error?: string
+  examId?: string
+  studentId?: string
+  redirectTo?: string
+}
 
 type Row = { subject_id: string; correct: string; wrong: string; empty: string }
 
@@ -135,12 +143,33 @@ export function ExamForm({
         siralama: siralamaNum,
         notes: notes.trim() || null,
         results,
-        pdfFile,
       })
       if (res?.error) {
         setError(res.error)
         toast.error(res.error)
+        return
       }
+
+      // PDF best-effort: doğrudan tarayıcıdan storage'a yükle (Server Action
+      // gövdesinden geçmez → 1MB limiti devreye girmez). Hata olursa deneme
+      // silinmez, sadece toast gösterilir.
+      if (pdfFile && res?.examId && res?.studentId) {
+        const supabase = createClient()
+        const path = `${res.studentId}/${res.examId}.pdf`
+        const { error: upErr } = await supabase.storage
+          .from("exam-pdfs")
+          .upload(path, pdfFile, { contentType: "application/pdf", upsert: true })
+        if (upErr) {
+          toast.error(`Deneme kaydedildi ancak PDF yüklenemedi: ${upErr.message}`)
+        } else {
+          const saveRes = await setExamPdfPath(res.examId, path)
+          if (!saveRes.success) {
+            toast.error(saveRes.error ?? "PDF yüklendi ama denemeye bağlanamadı.")
+          }
+        }
+      }
+
+      if (res?.redirectTo) router.push(res.redirectTo)
     })
   }
 
