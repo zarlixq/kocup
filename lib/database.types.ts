@@ -385,6 +385,60 @@ export type Database = {
           },
         ]
       }
+      etut_schedule: {
+        Row: {
+          created_at: string | null
+          custom_title: string | null
+          day_of_week: number
+          end_time: string
+          id: string
+          notes: string | null
+          start_time: string
+          student_id: string
+          subject_id: string | null
+          term: number
+        }
+        Insert: {
+          created_at?: string | null
+          custom_title?: string | null
+          day_of_week: number
+          end_time: string
+          id?: string
+          notes?: string | null
+          start_time: string
+          student_id: string
+          subject_id?: string | null
+          term: number
+        }
+        Update: {
+          created_at?: string | null
+          custom_title?: string | null
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          notes?: string | null
+          start_time?: string
+          student_id?: string
+          subject_id?: string | null
+          term?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etut_schedule_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "etut_schedule_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       institution_inquiries: {
         Row: {
           coach_count: string | null
