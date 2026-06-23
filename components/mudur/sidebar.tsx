@@ -10,6 +10,7 @@ import {
   GraduationCap,
   BookOpen,
   BookText,
+  Library,
   Wallet,
   Calendar,
   Target,
@@ -45,6 +46,7 @@ const NAV: NavItem[] = [
   { href: "/mudur/randevular", label: "Randevular", icon: Calendar },
   { href: "/mudur/finans", label: "Finans", icon: Wallet },
   { href: "/mudur/mufredat", label: "Müfredat", icon: BookOpen },
+  { href: "/mudur/kaynaklar", label: "Kaynaklar", icon: Library },
   { href: "/mudur/blog", label: "Blog", icon: BookText },
   { href: "/mudur/ziyaretler", label: "Ziyaretler", icon: BarChart3 },
 ]

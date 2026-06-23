@@ -7,12 +7,24 @@ export const metadata = { title: "Soru Çözüm Ekle — KoçUp" }
 
 export default async function YeniSessionPage() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: subjects } = await supabase
-    .from("subjects")
-    .select("id, name, exam_type")
-    .order("exam_type")
-    .order("order")
+  const [{ data: subjects }, { data: studentResources }] = await Promise.all([
+    supabase
+      .from("subjects")
+      .select("id, name, exam_type")
+      .order("exam_type")
+      .order("order"),
+    supabase
+      .from("student_resources")
+      .select("resource_id, status, resources(name)")
+      .eq("student_id", user!.id)
+      .neq("status", "birakildi"),
+  ])
+
+  const resources = (studentResources ?? [])
+    .filter((r) => r.resources)
+    .map((r) => ({ id: r.resource_id, name: r.resources!.name }))
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -28,7 +40,7 @@ export default async function YeniSessionPage() {
       </div>
 
       <div className="bg-white border border-zinc-200 rounded-2xl p-6">
-        <SessionForm subjects={subjects ?? []} />
+        <SessionForm subjects={subjects ?? []} resources={resources} />
       </div>
     </div>
   )

@@ -286,6 +286,60 @@ export type Database = {
           },
         ]
       }
+      etut_schedule: {
+        Row: {
+          created_at: string | null
+          custom_title: string | null
+          day_of_week: number
+          end_time: string
+          id: string
+          notes: string | null
+          start_time: string
+          student_id: string
+          subject_id: string | null
+          term: number
+        }
+        Insert: {
+          created_at?: string | null
+          custom_title?: string | null
+          day_of_week: number
+          end_time: string
+          id?: string
+          notes?: string | null
+          start_time: string
+          student_id: string
+          subject_id?: string | null
+          term: number
+        }
+        Update: {
+          created_at?: string | null
+          custom_title?: string | null
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          notes?: string | null
+          start_time?: string
+          student_id?: string
+          subject_id?: string | null
+          term?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etut_schedule_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "etut_schedule_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_results: {
         Row: {
           correct: number
@@ -381,60 +435,6 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      etut_schedule: {
-        Row: {
-          created_at: string | null
-          custom_title: string | null
-          day_of_week: number
-          end_time: string
-          id: string
-          notes: string | null
-          start_time: string
-          student_id: string
-          subject_id: string | null
-          term: number
-        }
-        Insert: {
-          created_at?: string | null
-          custom_title?: string | null
-          day_of_week: number
-          end_time: string
-          id?: string
-          notes?: string | null
-          start_time: string
-          student_id: string
-          subject_id?: string | null
-          term: number
-        }
-        Update: {
-          created_at?: string | null
-          custom_title?: string | null
-          day_of_week?: number
-          end_time?: string
-          id?: string
-          notes?: string | null
-          start_time?: string
-          student_id?: string
-          subject_id?: string | null
-          term?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "etut_schedule_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "etut_schedule_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
         ]
@@ -722,6 +722,67 @@ export type Database = {
           },
         ]
       }
+      resources: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_custom: boolean
+          name: string
+          org_id: string | null
+          publisher: string | null
+          subject_id: string | null
+          total_questions: number | null
+          type: Database["public"]["Enums"]["resource_type"]
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_custom?: boolean
+          name: string
+          org_id?: string | null
+          publisher?: string | null
+          subject_id?: string | null
+          total_questions?: number | null
+          type?: Database["public"]["Enums"]["resource_type"]
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_custom?: boolean
+          name?: string
+          org_id?: string | null
+          publisher?: string | null
+          subject_id?: string | null
+          total_questions?: number | null
+          type?: Database["public"]["Enums"]["resource_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resources_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resources_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schedule: {
         Row: {
           created_at: string | null
@@ -772,6 +833,51 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_resources: {
+        Row: {
+          added_by: string
+          created_at: string | null
+          id: string
+          resource_id: string
+          started_at: string | null
+          status: string
+          student_id: string
+        }
+        Insert: {
+          added_by: string
+          created_at?: string | null
+          id?: string
+          resource_id: string
+          started_at?: string | null
+          status?: string
+          student_id: string
+        }
+        Update: {
+          added_by?: string
+          created_at?: string | null
+          id?: string
+          resource_id?: string
+          started_at?: string | null
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_resources_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_resources_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -926,6 +1032,7 @@ export type Database = {
           duration_minutes: number | null
           empty: number
           id: string
+          resource_id: string | null
           student_id: string
           subject_id: string
           total_questions: number
@@ -940,6 +1047,7 @@ export type Database = {
           duration_minutes?: number | null
           empty: number
           id?: string
+          resource_id?: string | null
           student_id: string
           subject_id: string
           total_questions: number
@@ -954,6 +1062,7 @@ export type Database = {
           duration_minutes?: number | null
           empty?: number
           id?: string
+          resource_id?: string | null
           student_id?: string
           subject_id?: string
           total_questions?: number
@@ -972,6 +1081,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_sessions_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
             referencedColumns: ["id"]
           },
           {
@@ -1227,6 +1343,7 @@ export type Database = {
       appointment_type: "tanitim" | "koc_gorusme" | "veli_gorusme" | "ozel"
       assignment_status: "aktif" | "tamamlandi" | "iptal"
       blog_post_status: "draft" | "published" | "archived"
+      resource_type: "soru_bankasi" | "konu_anlatimi" | "deneme" | "foy"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1358,6 +1475,7 @@ export const Constants = {
       appointment_type: ["tanitim", "koc_gorusme", "veli_gorusme", "ozel"],
       assignment_status: ["aktif", "tamamlandi", "iptal"],
       blog_post_status: ["draft", "published", "archived"],
+      resource_type: ["soru_bankasi", "konu_anlatimi", "deneme", "foy"],
     },
   },
 } as const
