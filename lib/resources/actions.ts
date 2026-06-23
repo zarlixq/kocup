@@ -69,6 +69,15 @@ export async function addCatalogResource(
     return { success: false, error: "Geçersiz kaynak." }
   }
 
+  // Kaynağın çağırana görünür (RLS) olduğunu doğrula — başka kuruma ait gizli
+  // bir kaynak UUID'si ile bağ kurulmasını engelle. RLS-kapsamlı client kullan.
+  const { data: visible } = await actor.supabase
+    .from("resources")
+    .select("id")
+    .eq("id", resourceId)
+    .maybeSingle()
+  if (!visible) return { success: false, error: "Kaynak bulunamadı." }
+
   const { error } = await actor.supabase.from("student_resources").insert({
     student_id: studentId,
     resource_id: resourceId,
@@ -108,35 +117,58 @@ export async function addCustomResource(
     return { success: false, error: parsed.error.issues[0]?.message ?? "Form hatalı." }
   }
 
-  // Katalog yazma RLS yok → custom kayıt service-role ile eklenir.
-  const admin = supabaseAdmin()
-  const { data: resource, error: resErr } = await admin
-    .from("resources")
-    .insert({
-      name: parsed.data.name,
-      publisher: parsed.data.publisher,
-      subject_id: parsed.data.subject_id,
-      type: parsed.data.type,
-      total_questions: parsed.data.total_questions ?? null,
-      org_id: actor.orgId,
-      is_custom: true,
-      created_by: actor.userId,
-    })
-    .select("id")
-    .single()
+  const name = parsed.data.name.trim()
+  const subjectId = parsed.data.subject_id
 
-  if (resErr || !resource) {
-    console.error("Custom kaynak ekleme hatası:", resErr)
-    return { success: false, error: "Kaynak oluşturulamadı." }
+  // Dedup: aynı ders + ad (trim, case-insensitive) ile görünür bir kaynak zaten
+  // varsa yenisini oluşturma, mevcudunu kullan (RLS-kapsamlı client → kullanıcının
+  // org'u + ortak katalog ile sınırlı). Katalog kirlenmesini önler.
+  let resourceId: string | null = null
+  {
+    let q = actor.supabase.from("resources").select("id, name")
+    q = subjectId ? q.eq("subject_id", subjectId) : q.is("subject_id", null)
+    const { data: candidates } = await q
+    const target = name.toLocaleLowerCase("tr")
+    resourceId =
+      (candidates ?? []).find((c) => c.name.trim().toLocaleLowerCase("tr") === target)?.id ?? null
+  }
+
+  if (!resourceId) {
+    // Katalog yazma RLS yok → custom kayıt service-role ile eklenir.
+    // org_id ve created_by oturumdan zorlanır; client'a güvenilmez.
+    const admin = supabaseAdmin()
+    const { data: resource, error: resErr } = await admin
+      .from("resources")
+      .insert({
+        name,
+        publisher: parsed.data.publisher,
+        subject_id: subjectId,
+        type: parsed.data.type,
+        total_questions: parsed.data.total_questions ?? null,
+        org_id: actor.orgId,
+        is_custom: true,
+        created_by: actor.userId,
+      })
+      .select("id")
+      .single()
+
+    if (resErr || !resource) {
+      console.error("Custom kaynak ekleme hatası:", resErr)
+      return { success: false, error: "Kaynak oluşturulamadı." }
+    }
+    resourceId = resource.id
   }
 
   const { error: linkErr } = await actor.supabase.from("student_resources").insert({
     student_id: studentId,
-    resource_id: resource.id,
+    resource_id: resourceId,
     added_by: actor.addedBy,
   })
 
   if (linkErr) {
+    if (linkErr.code === "23505") {
+      return { success: false, error: "Bu kaynak zaten ekli." }
+    }
     console.error("Custom kaynak atama hatası:", linkErr)
     return { success: false, error: "Kaynak eklendi ama öğrenciye atanamadı." }
   }
