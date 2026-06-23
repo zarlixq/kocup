@@ -20,7 +20,10 @@ export type ExamFormInput = {
   siralama?: number | null
   notes?: string | null
   results: ExamFormResult[]
+  pdfFile?: File | null
 }
+
+const MAX_PDF_BYTES = 10 * 1024 * 1024 // 10MB
 export type ExamFormSubmitResult = { error?: string }
 
 type Row = { subject_id: string; correct: string; wrong: string; empty: string }
@@ -54,6 +57,28 @@ export function ExamForm({
   const [rows, setRows] = useState<Record<string, Row>>({})
   const [siralama, setSiralama] = useState<string>("")
   const [notes, setNotes] = useState<string>("")
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
+
+  function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    if (!file) {
+      setPdfFile(null)
+      return
+    }
+    if (file.type !== "application/pdf") {
+      toast.error("Sadece PDF dosyası yükleyebilirsin.")
+      e.target.value = ""
+      setPdfFile(null)
+      return
+    }
+    if (file.size > MAX_PDF_BYTES) {
+      toast.error("PDF en fazla 10MB olabilir.")
+      e.target.value = ""
+      setPdfFile(null)
+      return
+    }
+    setPdfFile(file)
+  }
 
   function setCell(subjectId: string, key: "correct" | "wrong" | "empty", value: string) {
     setRows((prev) => ({
@@ -110,6 +135,7 @@ export function ExamForm({
         siralama: siralamaNum,
         notes: notes.trim() || null,
         results,
+        pdfFile,
       })
       if (res?.error) {
         setError(res.error)
@@ -271,6 +297,20 @@ export function ExamForm({
           rows={2}
           placeholder="Genel değerlendirme, hatalar, eksik konular..."
         />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="exam-pdf">Deneme PDF&apos;i (opsiyonel)</Label>
+        <Input
+          id="exam-pdf"
+          type="file"
+          accept="application/pdf"
+          onChange={handlePdfChange}
+          className="cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-1 file:text-sm"
+        />
+        <p className="text-xs text-zinc-500">
+          {pdfFile ? `Seçilen dosya: ${pdfFile.name}` : "Optik/kitapçık PDF'ini ekleyebilirsin. En fazla 10MB."}
+        </p>
       </div>
 
       <div className="flex items-center gap-3 pt-2">

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDate } from "@/lib/format"
 import { DeleteExamButton } from "@/components/ogrenci/delete-exam-button"
+import { ExamPdfButton } from "@/components/denemeler/exam-pdf-button"
 
 const examTypeLabel: Record<string, string> = {
   tyt: "TYT",
@@ -20,7 +21,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ id:
 
   const { data: exam } = await supabase
     .from("exams")
-    .select("id, name, exam_type, date, student_id, exam_results(id, correct, wrong, empty, net, subjects(name))")
+    .select("id, name, exam_type, date, student_id, pdf_path, exam_results(id, correct, wrong, empty, net, subjects(name))")
     .eq("id", id)
     .eq("student_id", user!.id)
     .maybeSingle()
@@ -49,7 +50,10 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ id:
             </h1>
             <p className="text-sm text-zinc-500 mt-1">{formatDate(exam.date)}</p>
           </div>
-          <DeleteExamButton examId={exam.id} />
+          <div className="flex items-center gap-2">
+            {exam.pdf_path && <ExamPdfButton examId={exam.id} />}
+            <DeleteExamButton examId={exam.id} />
+          </div>
         </div>
       </div>
 

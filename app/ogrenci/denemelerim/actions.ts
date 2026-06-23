@@ -33,6 +33,9 @@ export async function createExamAction(input: unknown) {
     return { error: parsed.error.issues[0]?.message ?? "Form hatalı." }
   }
 
+  // PDF examSchema'nın dışında — ayrıca okunur (zod bilinmeyen anahtarları yok sayar)
+  const pdfFile = (input as { pdfFile?: File | null } | null)?.pdfFile ?? null
+
   const { name, exam_type, date, siralama, notes, results } = parsed.data
 
   // Sıfır olan tüm satırları at — sadece girilen ders sonuçlarını sakla
@@ -73,6 +76,19 @@ export async function createExamAction(input: unknown) {
     // Rollback (best effort)
     await supabase.from("exams").delete().eq("id", exam.id)
     return { error: resErr.message }
+  }
+
+  // PDF best-effort: yükleme hatası denemeyi silmez, sadece loglanır.
+  if (pdfFile && pdfFile.size > 0) {
+    const path = `${user.id}/${exam.id}.pdf`
+    const { error: upErr } = await supabase.storage
+      .from("exam-pdfs")
+      .upload(path, pdfFile, { contentType: "application/pdf", upsert: true })
+    if (upErr) {
+      console.error("Deneme PDF yüklenemedi:", upErr.message)
+    } else {
+      await supabase.from("exams").update({ pdf_path: path }).eq("id", exam.id)
+    }
   }
 
   revalidatePath("/ogrenci/denemelerim")

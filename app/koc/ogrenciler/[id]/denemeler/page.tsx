@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Plus, FileText } from "lucide-react"
 import { formatDate } from "@/lib/format"
+import { ExamPdfButton } from "@/components/denemeler/exam-pdf-button"
 
 const examTypeLabel: Record<string, string> = {
   tyt: "TYT",
@@ -17,7 +18,7 @@ export default async function StudentDenemelerPage({ params }: { params: Promise
 
   const { data: exams } = await supabase
     .from("exams")
-    .select("id, name, exam_type, date, exam_results(net, subjects(name))")
+    .select("id, name, exam_type, date, pdf_path, exam_results(net, subjects(name))")
     .eq("student_id", id)
     .order("date", { ascending: false })
 
@@ -53,6 +54,7 @@ export default async function StudentDenemelerPage({ params }: { params: Promise
                 <TableHead>Deneme Adı</TableHead>
                 <TableHead>Tip</TableHead>
                 <TableHead className="text-right">Toplam Net</TableHead>
+                <TableHead className="text-right">PDF</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -64,6 +66,9 @@ export default async function StudentDenemelerPage({ params }: { params: Promise
                     <TableCell className="font-medium">{e.name}</TableCell>
                     <TableCell>{examTypeLabel[e.exam_type] ?? e.exam_type}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">{totalNet.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">
+                      {e.pdf_path ? <ExamPdfButton examId={e.id} variant="ghost" /> : <span className="text-zinc-300">—</span>}
+                    </TableCell>
                   </TableRow>
                 )
               })}

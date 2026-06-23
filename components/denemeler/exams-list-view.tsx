@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EXAM_TYPE_LABEL } from "@/lib/assignments/constants"
+import { ExamPdfButton } from "@/components/denemeler/exam-pdf-button"
 
 export type ExamListItem = {
   id: string
@@ -32,6 +33,7 @@ export type ExamListItem = {
   toplam_net: number
   siralama: number | null
   detail_href: string
+  pdf_path?: string | null
 }
 
 function formatDate(iso: string) {
@@ -169,12 +171,15 @@ export function ExamsListView({
                     {e.siralama ? e.siralama.toLocaleString("tr-TR") : "—"}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Link
-                      href={e.detail_href}
-                      className="inline-flex items-center gap-1 text-xs text-[#1B6B8A] hover:underline"
-                    >
-                      Detay <ExternalLink className="h-3 w-3" />
-                    </Link>
+                    <div className="inline-flex items-center justify-end gap-2">
+                      {e.pdf_path && <ExamPdfButton examId={e.id} variant="ghost" label="PDF" />}
+                      <Link
+                        href={e.detail_href}
+                        className="inline-flex items-center gap-1 text-xs text-[#1B6B8A] hover:underline"
+                      >
+                        Detay <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

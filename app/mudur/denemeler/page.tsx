@@ -10,7 +10,7 @@ export default async function MudurDenemelerPage() {
   // Müdür tüm denemeleri görür (RLS admin)
   const { data: exams } = await supabase
     .from("exams")
-    .select("id, name, exam_type, date, siralama, student_id, exam_results(net)")
+    .select("id, name, exam_type, date, siralama, student_id, pdf_path, exam_results(net)")
     .order("date", { ascending: false })
 
   const studentIds = Array.from(new Set((exams ?? []).map((e) => e.student_id)))
@@ -36,6 +36,7 @@ export default async function MudurDenemelerPage() {
       toplam_net: toplam,
       siralama: e.siralama ?? null,
       detail_href: `/mudur/ogrenciler/${e.student_id}/denemeler`,
+      pdf_path: e.pdf_path ?? null,
     }
   })
 
