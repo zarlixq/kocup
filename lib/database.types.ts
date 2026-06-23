@@ -439,6 +439,104 @@ export type Database = {
           },
         ]
       }
+      import_jobs: {
+        Row: {
+          created_at: string
+          created_by: string
+          failed: number
+          filename: string | null
+          id: string
+          organization_id: string | null
+          processed: number
+          status: string
+          succeeded: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          failed?: number
+          filename?: string | null
+          id?: string
+          organization_id?: string | null
+          processed?: number
+          status?: string
+          succeeded?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          failed?: number
+          filename?: string | null
+          id?: string
+          organization_id?: string | null
+          processed?: number
+          status?: string
+          succeeded?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_jobs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_jobs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_rows: {
+        Row: {
+          created_at: string
+          created_student_id: string | null
+          data: Json
+          error_message: string | null
+          id: string
+          job_id: string
+          row_index: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_student_id?: string | null
+          data: Json
+          error_message?: string | null
+          id?: string
+          job_id: string
+          row_index: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_student_id?: string | null
+          data?: Json
+          error_message?: string | null
+          id?: string
+          job_id?: string
+          row_index?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_rows_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       institution_inquiries: {
         Row: {
           coach_count: string | null

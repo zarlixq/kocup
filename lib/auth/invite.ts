@@ -14,6 +14,10 @@ type InviteStudentParams = {
   target_ranking?: number | null
   parent_name?: string | null
   parent_phone?: string | null
+  /** Kurum importu için: davet metadata'sına geçilir, handle_new_user trigger okur. */
+  organization_id?: string | null
+  /** Toplu importta her satırda listUsers maliyetini ve sayfa limitini önlemek için. */
+  skipGhostCleanup?: boolean
 }
 
 type InviteCoachParams = {
@@ -56,7 +60,7 @@ async function cleanupGhostUserIfAny(email: string): Promise<void> {
 }
 
 export async function inviteStudent(params: InviteStudentParams): Promise<User> {
-  await cleanupGhostUserIfAny(params.email)
+  if (!params.skipGhostCleanup) await cleanupGhostUserIfAny(params.email)
 
   const admin = supabaseAdmin()
   const siteUrl = getSiteUrl()
@@ -67,6 +71,7 @@ export async function inviteStudent(params: InviteStudentParams): Promise<User> 
       role: "student",
       full_name: params.full_name,
       phone: params.phone ?? undefined,
+      organization_id: params.organization_id ?? undefined,
     },
   })
 

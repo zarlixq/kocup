@@ -89,9 +89,11 @@ function truncate(s: string | null, n: number) {
 export function StudentsView({
   students,
   coaches,
+  headerAction,
 }: {
   students: StudentRow[]
   coaches: Coach[]
+  headerAction?: React.ReactNode
 }) {
   const [isPending, startTransition] = useTransition()
   const [query, setQuery] = useState("")
@@ -136,9 +138,12 @@ export function StudentsView({
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-900">Öğrenciler</h1>
-        <p className="text-sm text-zinc-500 mt-1">{students.length} kayıtlı öğrenci</p>
+      <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900">Öğrenciler</h1>
+          <p className="text-sm text-zinc-500 mt-1">{students.length} kayıtlı öğrenci</p>
+        </div>
+        {headerAction}
       </div>
 
       <div className="flex flex-col md:flex-row gap-2 mb-4">
