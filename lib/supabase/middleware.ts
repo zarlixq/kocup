@@ -60,7 +60,7 @@ export async function updateSession(request: NextRequest) {
   if (isPortalPath) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, must_change_password")
       .eq("id", user.id)
       .maybeSingle()
 
@@ -69,6 +69,12 @@ export async function updateSession(request: NextRequest) {
     // Profile yoksa giriş sayfasına gönder
     if (!role) {
       return redirect(request, "/giris/koc")
+    }
+
+    // Geçici şifreli kullanıcı (sadece flag=true): zorunlu şifre değiştirme.
+    // null/false (bireysel öğrenci, koç, müdür) hiç etkilenmez.
+    if (profile?.must_change_password === true) {
+      return redirect(request, "/sifre-degistir")
     }
 
     const roleToPath: Record<string, string> = {
