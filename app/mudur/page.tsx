@@ -15,6 +15,7 @@ import { SystemQuestionsTrend } from "@/components/charts/system-questions-trend
 import { CoachStudentsBar } from "@/components/charts/coach-students-bar"
 import { ApplicationStatusDonut } from "@/components/charts/application-status-donut"
 import { ActiveStudentsArea } from "@/components/charts/active-students-area"
+import { DashboardOrgFilter } from "@/components/mudur/dashboard-org-filter"
 
 export const metadata = { title: "Müdür Paneli — KoçUp" }
 
@@ -53,9 +54,28 @@ function formatDate(s: string) {
   })
 }
 
-export default async function MudurDashboard() {
+export default async function MudurDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ org?: string }>
+}) {
+  const sp = await searchParams
+  const orgParam = sp.org ?? "all" // "all" | "bireysel" | <uuid>
+  const isFiltered = orgParam !== "all"
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  const { data: orgList } = await supabase.from("organizations").select("id, name").order("name")
+
+  // study_sessions'da organization_id kolonu yok → o kurumun öğrenci id'leriyle süzülür
+  let orgStudentIds: string[] | null = null
+  if (isFiltered) {
+    let sidQ = supabase.from("students").select("id")
+    sidQ = orgParam === "bireysel" ? sidQ.is("organization_id", null) : sidQ.eq("organization_id", orgParam)
+    const { data: sids } = await sidQ
+    orgStudentIds = (sids ?? []).map((s) => s.id)
+  }
 
   const now = new Date()
   const sevenDaysAgo = new Date()
@@ -66,6 +86,34 @@ export default async function MudurDashboard() {
   const thirtyDaysAgoStr = isoDate(thirtyDaysAgo)
   const monthStartIso = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
   const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+
+  // Org-aware sorgu kurucuları (organization_id kolonu olanlar)
+  let coachCountQ = supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "coach")
+  let studentCountQ = supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "student")
+  let coachesQ = supabase.from("profiles").select("id, full_name").eq("role", "coach")
+  let activeStudentsQ = supabase.from("students").select("coach_id, is_active").eq("is_active", true)
+  let allStudentsQ = supabase.from("students").select("created_at, is_active")
+  if (orgParam === "bireysel") {
+    coachCountQ = coachCountQ.is("organization_id", null)
+    studentCountQ = studentCountQ.is("organization_id", null)
+    coachesQ = coachesQ.is("organization_id", null)
+    activeStudentsQ = activeStudentsQ.is("organization_id", null)
+    allStudentsQ = allStudentsQ.is("organization_id", null)
+  } else if (isFiltered) {
+    coachCountQ = coachCountQ.eq("organization_id", orgParam)
+    studentCountQ = studentCountQ.eq("organization_id", orgParam)
+    coachesQ = coachesQ.eq("organization_id", orgParam)
+    activeStudentsQ = activeStudentsQ.eq("organization_id", orgParam)
+    allStudentsQ = allStudentsQ.eq("organization_id", orgParam)
+  }
+
+  // study_sessions: org öğrenci id'leriyle süzme (filtre yoksa global)
+  let weekSessionsQ = supabase.from("study_sessions").select("total_questions").gte("date", sevenDaysAgoStr)
+  let trendSessionsQ = supabase.from("study_sessions").select("date, total_questions").gte("date", thirtyDaysAgoStr)
+  if (orgStudentIds) {
+    weekSessionsQ = weekSessionsQ.in("student_id", orgStudentIds)
+    trendSessionsQ = trendSessionsQ.in("student_id", orgStudentIds)
+  }
 
   const [
     { data: profile },
@@ -81,26 +129,24 @@ export default async function MudurDashboard() {
     { data: allStudents },
   ] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", user!.id).maybeSingle(),
-    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "coach"),
-    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "student"),
+    coachCountQ,
+    studentCountQ,
+    // Başvurular B2C lead hunisidir (kurum kolonu yok) → her zaman platform geneli
     supabase.from("applications").select("*", { count: "exact", head: true }).eq("status", "pending"),
-    supabase.from("study_sessions").select("total_questions").gte("date", sevenDaysAgoStr),
+    weekSessionsQ,
     supabase
       .from("applications")
       .select("id, full_name, email, created_at, status")
       .order("created_at", { ascending: false })
       .limit(5),
-    supabase
-      .from("study_sessions")
-      .select("date, total_questions")
-      .gte("date", thirtyDaysAgoStr),
-    supabase.from("profiles").select("id, full_name").eq("role", "coach"),
-    supabase.from("students").select("coach_id, is_active").eq("is_active", true),
+    trendSessionsQ,
+    coachesQ,
+    activeStudentsQ,
     supabase
       .from("applications")
       .select("status")
       .gte("created_at", monthStartIso),
-    supabase.from("students").select("created_at, is_active"),
+    allStudentsQ,
   ])
 
   const weekTotal = (weekSessions ?? []).reduce((sum, row) => sum + (row.total_questions ?? 0), 0)
@@ -160,12 +206,21 @@ export default async function MudurDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-900">
-          Merhaba, {profile?.full_name}
-        </h1>
-        <p className="text-zinc-500 text-sm mt-1">Yönetim paneline hoş geldiniz.</p>
+      <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900">
+            Merhaba, {profile?.full_name}
+          </h1>
+          <p className="text-zinc-500 text-sm mt-1">Yönetim paneline hoş geldiniz.</p>
+        </div>
+        <DashboardOrgFilter current={orgParam} orgs={orgList ?? []} />
       </header>
+
+      {isFiltered && (
+        <p className="-mt-2 mb-6 text-xs text-zinc-500">
+          Kurum filtresi uygulandı. Başvuru metrikleri (bekleyen / son başvurular) tüm platform genelindedir.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
