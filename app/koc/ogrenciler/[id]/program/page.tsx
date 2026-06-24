@@ -30,7 +30,7 @@ export default async function StudentProgramPage({
       .order("start_time"),
     supabase
       .from("subjects")
-      .select("id, name, exam_type, order")
+      .select("id, name, exam_type, grade, order")
       .order("exam_type", { ascending: true, nullsFirst: true })
       .order("order"),
     supabase.from("students").select("grade").eq("id", id).maybeSingle(),
