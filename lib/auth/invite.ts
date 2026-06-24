@@ -81,6 +81,40 @@ export async function inviteStudent(params: InviteStudentParams): Promise<User> 
   return data.user
 }
 
+type CreateStudentWithPasswordParams = {
+  email: string
+  password: string
+  full_name: string
+  phone?: string | null
+  organization_id?: string | null
+}
+
+/**
+ * Kurum importu için: MAIL GÖNDERMEDEN geçici şifreyle öğrenci hesabı oluşturur.
+ * email_confirm:true → öğrenci doğrudan signInWithPassword ile girebilir.
+ * handle_new_user trigger user_metadata.role'den profiles satırını oluşturur;
+ * students kaydı ve must_change_password çağıran tarafından set edilir.
+ */
+export async function createStudentWithPassword(
+  params: CreateStudentWithPasswordParams,
+): Promise<User> {
+  const admin = supabaseAdmin()
+  const { data, error } = await admin.auth.admin.createUser({
+    email: params.email,
+    password: params.password,
+    email_confirm: true,
+    user_metadata: {
+      role: "student",
+      full_name: params.full_name,
+      phone: params.phone ?? undefined,
+      organization_id: params.organization_id ?? undefined,
+    },
+  })
+  if (error) throw error
+  if (!data.user) throw new Error("Hesap oluşturuldu ama kullanıcı bilgisi alınamadı.")
+  return data.user
+}
+
 export async function inviteCoach(params: InviteCoachParams): Promise<User> {
   await cleanupGhostUserIfAny(params.email)
 

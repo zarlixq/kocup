@@ -1,10 +1,11 @@
 "use server"
 
+import { randomBytes } from "crypto"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
-import { inviteStudent } from "@/lib/auth/invite"
+import { inviteStudent, createStudentWithPassword } from "@/lib/auth/invite"
 import type { ImportRowData } from "@/lib/import/csv"
 
 type Importer =
@@ -25,6 +26,15 @@ type ChunkResult =
   | { ok: false; error: string }
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms))
+
+// Karışıklık yaratan karakterler (0/O, 1/l/I) çıkarılmış güçlü geçici şifre
+function generatePassword(len = 12): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
+  const bytes = randomBytes(len)
+  let out = ""
+  for (let i = 0; i < len; i++) out += chars[bytes[i] % chars.length]
+  return out
+}
 
 async function getImporter(): Promise<Importer> {
   const supabase = await createClient()
@@ -67,10 +77,19 @@ const rowDataSchema = z.object({
   school: z.string().nullable(),
 })
 
-/** Doğrulanmış satırlarla yeni import işi oluşturur. */
+/**
+ * Doğrulanmış satırlarla yeni import işi oluşturur.
+ * mode='invite' (varsayılan): mevcut mail-davetli akış (B2C/kurum org_admin).
+ * mode='password': müdür kurum-içi geçici şifreli akış — targetOrgId + coachId
+ * server-side doğrulanır; her satıra geçici şifre (Mod A ortak / Mod B rastgele) yazılır.
+ */
 export async function createImportJob(input: {
   filename: string
   rows: ImportRowData[]
+  mode?: "invite" | "password"
+  targetOrgId?: string | null
+  coachId?: string | null
+  commonPassword?: string | null
 }): Promise<{ ok: true; jobId: string; total: number } | { ok: false; error: string }> {
   const importer = await getImporter()
   if (!importer.ok) return { ok: false, error: importer.error }
@@ -80,12 +99,54 @@ export async function createImportJob(input: {
     return { ok: false, error: "Geçerli kayıt bulunamadı (en fazla 1000)." }
   }
 
+  const mode = input.mode ?? "invite"
   const admin = supabaseAdmin()
+
+  // Job parametreleri — varsayılan: mevcut davet akışı
+  let jobOrgId: string | null = importer.orgId
+  let jobCoachId: string | null = null
+  let passwordFor: (i: number) => string | null = () => null
+
+  if (mode === "password") {
+    // Geçici şifreli import yalnızca platform müdürü (admin) tarafından, kurum içinden
+    if (importer.role !== "admin") return { ok: false, error: "Bu işlem için yetkiniz yok." }
+    if (!input.targetOrgId) return { ok: false, error: "Kurum seçilmedi." }
+    if (!input.coachId) return { ok: false, error: "Koç seçilmedi." }
+
+    const { data: org } = await admin
+      .from("organizations")
+      .select("id")
+      .eq("id", input.targetOrgId)
+      .maybeSingle()
+    if (!org) return { ok: false, error: "Kurum bulunamadı." }
+
+    const { data: coach } = await admin
+      .from("profiles")
+      .select("id, role, organization_id")
+      .eq("id", input.coachId)
+      .maybeSingle()
+    if (!coach || coach.role !== "coach" || coach.organization_id !== input.targetOrgId) {
+      return { ok: false, error: "Seçilen koç bu kuruma ait değil." }
+    }
+
+    const common = (input.commonPassword ?? "").trim()
+    if (common && common.length < 6) {
+      return { ok: false, error: "Ortak şifre en az 6 karakter olmalı." }
+    }
+
+    jobOrgId = input.targetOrgId
+    jobCoachId = input.coachId
+    // Mod A: ortak şifre; Mod B: satır başına rastgele
+    passwordFor = common ? () => common : () => generatePassword()
+  }
+
   const { data: job, error: jobErr } = await admin
     .from("import_jobs")
     .insert({
       created_by: importer.userId,
-      organization_id: importer.orgId,
+      organization_id: jobOrgId,
+      coach_id: jobCoachId,
+      mode,
       filename: input.filename.slice(0, 200),
       total: rows.data.length,
       status: "pending",
@@ -99,7 +160,13 @@ export async function createImportJob(input: {
   }
 
   const { error: rowsErr } = await admin.from("import_rows").insert(
-    rows.data.map((d, i) => ({ job_id: job.id, row_index: i, data: d, status: "pending" })),
+    rows.data.map((d, i) => ({
+      job_id: job.id,
+      row_index: i,
+      data: d,
+      status: "pending",
+      generated_password: passwordFor(i),
+    })),
   )
   if (rowsErr) {
     console.error("Import satırları yazma hatası:", rowsErr)
@@ -118,7 +185,7 @@ export async function processNextChunk(jobId: string): Promise<ChunkResult> {
   const admin = supabaseAdmin()
   const { data: job } = await admin
     .from("import_jobs")
-    .select("id, created_by, organization_id, total, processed, succeeded, failed, status")
+    .select("id, created_by, organization_id, coach_id, mode, total, processed, succeeded, failed, status")
     .eq("id", jobId)
     .maybeSingle()
 
@@ -138,7 +205,7 @@ export async function processNextChunk(jobId: string): Promise<ChunkResult> {
 
   const { data: rows } = await admin
     .from("import_rows")
-    .select("id, row_index, data")
+    .select("id, row_index, data, generated_password")
     .eq("job_id", jobId)
     .eq("status", "pending")
     .order("row_index")
@@ -159,8 +226,8 @@ export async function processNextChunk(jobId: string): Promise<ChunkResult> {
     }
   }
 
-  // Supabase mail rate-limit'ine takılmamak için throttle
-  await sleep(1000)
+  // Throttle yalnızca mail-davetli modda gerekir (rate-limit). Şifre modunda mail yok.
+  if (job.mode !== "password") await sleep(1000)
 
   const d = row.data as ImportRowData
   let rowStatus: "success" | "error" = "success"
@@ -168,30 +235,49 @@ export async function processNextChunk(jobId: string): Promise<ChunkResult> {
   let createdStudentId: string | null = null
 
   try {
-    const invited = await inviteStudent({
-      email: d.email,
-      full_name: d.full_name,
-      phone: d.phone,
-      grade: d.grade ?? undefined,
-      parent_name: d.parent_name,
-      parent_phone: d.parent_phone,
-      organization_id: importer.orgId,
-      skipGhostCleanup: true,
-    })
+    let userId: string
+
+    if (job.mode === "password") {
+      // Geçici şifreyle hesap oluştur (mail YOK)
+      if (!row.generated_password) throw new Error("Geçici şifre üretilemedi.")
+      const created = await createStudentWithPassword({
+        email: d.email,
+        password: row.generated_password,
+        full_name: d.full_name,
+        phone: d.phone,
+        organization_id: job.organization_id,
+      })
+      userId = created.id
+      // İlk girişte zorunlu şifre değiştirme bayrağı (trigger profili oluşturdu)
+      await admin.from("profiles").update({ must_change_password: true }).eq("id", userId)
+    } else {
+      // Mevcut mail-davetli akış (değişmedi)
+      const invited = await inviteStudent({
+        email: d.email,
+        full_name: d.full_name,
+        phone: d.phone,
+        grade: d.grade ?? undefined,
+        parent_name: d.parent_name,
+        parent_phone: d.parent_phone,
+        organization_id: importer.orgId,
+        skipGhostCleanup: true,
+      })
+      userId = invited.id
+    }
 
     const { error: stuErr } = await admin.from("students").insert({
-      id: invited.id,
-      coach_id: null,
-      kayit_kaynagi: "koc_ekledi",
+      id: userId,
+      coach_id: job.mode === "password" ? job.coach_id : null,
+      kayit_kaynagi: job.mode === "password" ? "kurum_import" : "koc_ekledi",
       grade: d.grade,
       school: d.school,
       parent_name: d.parent_name,
       parent_phone: d.parent_phone,
-      organization_id: importer.orgId,
+      organization_id: job.organization_id,
       is_active: true,
     })
     if (stuErr) throw new Error(stuErr.message)
-    createdStudentId = invited.id
+    createdStudentId = userId
   } catch (err) {
     rowStatus = "error"
     errorMessage = err instanceof Error ? err.message : "Bilinmeyen hata"
@@ -223,6 +309,7 @@ export async function processNextChunk(jobId: string): Promise<ChunkResult> {
   if (done) {
     revalidatePath("/mudur/ogrenciler")
     revalidatePath("/kurum/ogrenciler")
+    if (job.organization_id) revalidatePath(`/mudur/kurumlar/${job.organization_id}`)
   }
 
   return {
@@ -262,6 +349,43 @@ export async function getImportJob(jobId: string): Promise<
   }))
 
   return { ok: true, progress: job, errors }
+}
+
+export type ImportPasswordRow = { full_name: string; email: string; password: string }
+
+/**
+ * Geçici şifreli import işinin başarılı satırları için ad/email/şifre listesi.
+ * Sadece işi yapan müdür (canAccess) çekebilir — Mod B indirme listesi için.
+ */
+export async function getImportPasswordList(
+  jobId: string,
+): Promise<{ ok: true; rows: ImportPasswordRow[] } | { ok: false; error: string }> {
+  const importer = await getImporter()
+  if (!importer.ok) return { ok: false, error: importer.error }
+
+  const admin = supabaseAdmin()
+  const { data: job } = await admin
+    .from("import_jobs")
+    .select("id, created_by, organization_id, mode")
+    .eq("id", jobId)
+    .maybeSingle()
+  if (!job) return { ok: false, error: "İş bulunamadı." }
+  if (!canAccess(importer, job)) return { ok: false, error: "Bu işe erişiminiz yok." }
+  if (job.mode !== "password") return { ok: false, error: "Bu iş şifre listesi içermiyor." }
+
+  const { data: rows } = await admin
+    .from("import_rows")
+    .select("data, generated_password")
+    .eq("job_id", jobId)
+    .eq("status", "success")
+    .order("row_index")
+
+  const out: ImportPasswordRow[] = (rows ?? []).map((r) => ({
+    full_name: (r.data as ImportRowData)?.full_name ?? "",
+    email: (r.data as ImportRowData)?.email ?? "",
+    password: r.generated_password ?? "",
+  }))
+  return { ok: true, rows: out }
 }
 
 /** Devam eden (tamamlanmamış) son işi getirir — sayfa yeniden açılınca sürdürmek için. */

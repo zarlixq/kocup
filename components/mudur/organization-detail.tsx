@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { inviteCoachToOrganization } from "@/app/mudur/kurumlar/actions"
+import { BulkImportButton } from "@/components/import/bulk-import-button"
 
 export type DetailCoach = {
   id: string
@@ -135,7 +136,15 @@ export function OrganizationDetail({
 
       {/* Öğrenciler */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-zinc-900">Öğrenciler ({students.length})</h2>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="text-base font-semibold text-zinc-900">Öğrenciler ({students.length})</h2>
+          <BulkImportButton
+            passwordImport={{
+              orgId,
+              coaches: coaches.map((c) => ({ id: c.id, full_name: c.full_name })),
+            }}
+          />
+        </div>
 
         <div className="flex flex-col md:flex-row gap-2">
           <div className="relative flex-1">
