@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server"
 import { Calendar } from "lucide-react"
-import { WeeklyScheduleGrid, type ScheduleEntryWithSubject } from "@/components/schedule/weekly-grid"
+import { WeeklyEtutGrid, type EtutEntryWithSubject } from "@/components/etut/weekly-grid"
 import { ProgramTermSwitch } from "@/components/schedule/term-switch"
 
 type SearchParams = { donem?: string }
 
-export default async function StudentProgramPage({
+export default async function StudentEtutPage({
   params,
   searchParams,
 }: {
@@ -20,7 +20,7 @@ export default async function StudentProgramPage({
 
   const [{ data: schedule }, { data: subjects }, { data: student }] = await Promise.all([
     supabase
-      .from("schedule")
+      .from("etut_schedule")
       .select(
         "id, term, day_of_week, start_time, end_time, subject_id, custom_title, notes, subjects(id, name, color)",
       )
@@ -36,7 +36,7 @@ export default async function StudentProgramPage({
     supabase.from("students").select("grade").eq("id", id).maybeSingle(),
   ])
 
-  const entries: ScheduleEntryWithSubject[] = (schedule ?? []).map((r) => ({
+  const entries: EtutEntryWithSubject[] = (schedule ?? []).map((r) => ({
     id: r.id,
     term: r.term,
     day_of_week: r.day_of_week,
@@ -65,12 +65,12 @@ export default async function StudentProgramPage({
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-base font-semibold text-zinc-900">Haftalık Ders Programı</h2>
+          <h2 className="text-base font-semibold text-zinc-900">Haftalık Etüt Programı</h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            {totalThisTerm} ders bu dönemde
+            {totalThisTerm} etüt bu dönemde
           </p>
         </div>
-        <ProgramTermSwitch baseHref={`/koc/ogrenciler/${id}/program`} current={term} />
+        <ProgramTermSwitch baseHref={`/koc/ogrenciler/${id}/etut`} current={term} />
       </div>
 
       {totalThisTerm === 0 ? (
@@ -80,13 +80,13 @@ export default async function StudentProgramPage({
               <Calendar className="h-6 w-6 text-zinc-500" />
             </div>
             <h3 className="text-base font-semibold text-zinc-900 mb-1">
-              {term}. dönem programı boş
+              {term}. dönem etüt programı boş
             </h3>
             <p className="text-sm text-zinc-500">
-              Aşağıdan bir güne ders ekleyerek başla.
+              Aşağıdan bir güne etüt ekleyerek başla.
             </p>
           </div>
-          <WeeklyScheduleGrid
+          <WeeklyEtutGrid
             entries={[]}
             subjects={filteredSubjects}
             editable
@@ -95,7 +95,7 @@ export default async function StudentProgramPage({
           />
         </div>
       ) : (
-        <WeeklyScheduleGrid
+        <WeeklyEtutGrid
           entries={entries}
           subjects={filteredSubjects}
           editable

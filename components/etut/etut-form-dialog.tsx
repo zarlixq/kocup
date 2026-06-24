@@ -26,11 +26,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  createScheduleEntry,
-  updateScheduleEntry,
-} from "@/app/koc/ogrenciler/[id]/program/actions"
+  createEtutEntry,
+  updateEtutEntry,
+} from "@/app/koc/ogrenciler/[id]/etut/actions"
 
-export type ScheduleEntry = {
+export type EtutEntry = {
   id?: string
   term: number
   day_of_week: number
@@ -78,7 +78,7 @@ function groupSubjects(subjects: SubjectOption[]) {
 type Props = {
   studentId: string
   subjects: SubjectOption[]
-  initial?: ScheduleEntry
+  initial?: EtutEntry
   /** Yeni kayıt için pre-fill (open=true ile birlikte verilirse uygulanır). */
   initialDefaults?: { term?: number; day_of_week?: number; start_time?: string }
   trigger?: React.ReactNode
@@ -103,7 +103,7 @@ function normalizeTime(t: string) {
   return t.length >= 5 ? t.slice(0, 5) : t
 }
 
-export function ScheduleFormDialog({
+export function EtutFormDialog({
   studentId,
   subjects,
   initial,
@@ -182,11 +182,11 @@ export function ScheduleFormDialog({
 
     startTransition(async () => {
       const res = isEdit && initial?.id
-        ? await updateScheduleEntry(studentId, initial.id, payload)
-        : await createScheduleEntry(studentId, payload)
+        ? await updateEtutEntry(studentId, initial.id, payload)
+        : await createEtutEntry(studentId, payload)
 
       if (res.success) {
-        toast.success(isEdit ? "Ders güncellendi." : "Ders eklendi.")
+        toast.success(isEdit ? "Etüt güncellendi." : "Etüt eklendi.")
         reset()
         setOpen(false)
       } else {
@@ -210,18 +210,18 @@ export function ScheduleFormDialog({
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Dersi Düzenle" : "Yeni Ders"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Etüdü Düzenle" : "Yeni Etüt"}</DialogTitle>
           <DialogDescription>
-            Öğrencinin haftalık programına ders ekle veya düzenle.
+            Öğrencinin haftalık etüt programına etüt ekle veya düzenle.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="term">Dönem</Label>
+              <Label htmlFor="etut-term">Dönem</Label>
               <Select value={term} onValueChange={setTerm}>
-                <SelectTrigger id="term">
+                <SelectTrigger id="etut-term">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -232,9 +232,9 @@ export function ScheduleFormDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="day">Gün</Label>
+              <Label htmlFor="etut-day">Gün</Label>
               <Select value={day} onValueChange={setDay}>
-                <SelectTrigger id="day">
+                <SelectTrigger id="etut-day">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -250,9 +250,9 @@ export function ScheduleFormDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="start_time">Başlangıç</Label>
+              <Label htmlFor="etut-start_time">Başlangıç</Label>
               <Input
-                id="start_time"
+                id="etut-start_time"
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
@@ -260,9 +260,9 @@ export function ScheduleFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="end_time">Bitiş</Label>
+              <Label htmlFor="etut-end_time">Bitiş</Label>
               <Input
-                id="end_time"
+                id="etut-end_time"
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
@@ -272,9 +272,9 @@ export function ScheduleFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="subject">Ders</Label>
+            <Label htmlFor="etut-subject">Ders</Label>
             <Select value={subjectMode} onValueChange={setSubjectMode}>
-              <SelectTrigger id="subject">
+              <SelectTrigger id="etut-subject">
                 <SelectValue placeholder="Ders seç" />
               </SelectTrigger>
               <SelectContent className="max-h-72">
@@ -307,9 +307,9 @@ export function ScheduleFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="notes">Not (opsiyonel)</Label>
+            <Label htmlFor="etut-notes">Not (opsiyonel)</Label>
             <Textarea
-              id="notes"
+              id="etut-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}

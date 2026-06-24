@@ -13,8 +13,10 @@ export function StudentDetailNav({ studentId }: { studentId: string }) {
     { href: `${base}/konular`, label: "Konular" },
     { href: `${base}/konu-analizi`, label: "Konu Analizi" },
     { href: `${base}/program`, label: "Program" },
+    { href: `${base}/etut`, label: "Etüt" },
     { href: `${base}/denemeler`, label: "Denemeler" },
     { href: `${base}/soru-cozum`, label: "Soru Çözüm" },
+    { href: `${base}/kaynaklar`, label: "Kaynaklar" },
     { href: `${base}/takip`, label: "Takip" },
     { href: `${base}/odemeler`, label: "Ödemeler" },
   ]

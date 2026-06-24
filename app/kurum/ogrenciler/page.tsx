@@ -12,6 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { getCurrentProfile } from "@/lib/auth/current-user"
+import { BulkImportButton } from "@/components/import/bulk-import-button"
+import { getActiveImportJob } from "@/lib/import/actions"
 
 export const metadata = { title: "Öğrenciler — Kurum" }
 
@@ -62,13 +64,18 @@ export default async function KurumOgrencilerPage() {
   const profileById = new Map((studentProfiles ?? []).map((p) => [p.id, p]))
   const coachById = new Map((coachProfiles ?? []).map((c) => [c.id, c.full_name]))
 
+  const activeJob = await getActiveImportJob()
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-900">Öğrenciler</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          {(students ?? []).length} kayıtlı öğrenci
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900">Öğrenciler</h1>
+          <p className="text-sm text-zinc-500 mt-1">
+            {(students ?? []).length} kayıtlı öğrenci
+          </p>
+        </div>
+        <BulkImportButton activeJob={activeJob} />
       </div>
 
       {(students ?? []).length === 0 ? (

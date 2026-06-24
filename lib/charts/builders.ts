@@ -143,6 +143,40 @@ export async function buildSubjectComparisonData(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Kaynak bazlı toplam vs doğru (horizontal bar) — resource_id'li oturumlar
+// (serbest çözüm = resource_id null atlanır)
+// ─────────────────────────────────────────────────────────────────────────
+export async function buildResourceComparisonData(
+  supabase: Client,
+  studentId: string,
+): Promise<SubjectComparisonDatum[]> {
+  const { data: rows } = await supabase
+    .from("study_sessions")
+    .select("resource_id, total_questions, correct, resources(name)")
+    .eq("student_id", studentId)
+    .not("resource_id", "is", null)
+
+  if (!rows || rows.length === 0) return []
+
+  const agg = new Map<string, { name: string; total: number; correct: number }>()
+  for (const r of rows) {
+    if (!r.resource_id) continue
+    const resource = r.resources
+    if (!resource) continue
+    const cur = agg.get(r.resource_id) ?? { name: resource.name, total: 0, correct: 0 }
+    cur.total += r.total_questions ?? 0
+    cur.correct += r.correct ?? 0
+    agg.set(r.resource_id, cur)
+  }
+
+  return Array.from(agg.values())
+    .filter((v) => v.total > 0)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10)
+    .map((v) => ({ subject: v.name, total: v.total, correct: v.correct }))
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // Deneme net seyri (line) — TYT + AYT ayrı
 // ─────────────────────────────────────────────────────────────────────────
 export async function buildExamTrendData(

@@ -12,6 +12,7 @@ const sessionSchema = z.object({
   wrong: z.number().int().min(0),
   empty: z.number().int().min(0),
   duration_minutes: z.number().int().min(0).nullable().optional(),
+  resource_id: z.string().uuid().nullable().optional(),
 })
 
 function n(v: FormDataEntryValue | null) {
@@ -26,6 +27,7 @@ export async function createSessionAction(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Oturum bulunamadı." }
 
+  const resourceRaw = String(formData.get("resource_id") ?? "").trim()
   const parsed = sessionSchema.safeParse({
     subject_id: String(formData.get("subject_id") ?? "").trim(),
     date: String(formData.get("date") ?? "").trim(),
@@ -33,6 +35,7 @@ export async function createSessionAction(formData: FormData) {
     wrong: n(formData.get("wrong")) ?? 0,
     empty: n(formData.get("empty")) ?? 0,
     duration_minutes: n(formData.get("duration_minutes")),
+    resource_id: resourceRaw === "" ? null : resourceRaw,
   })
 
   if (!parsed.success) {
@@ -53,6 +56,7 @@ export async function createSessionAction(formData: FormData) {
     empty: data.empty,
     total_questions: total,
     duration_minutes: data.duration_minutes ?? null,
+    resource_id: data.resource_id ?? null,
   })
 
   if (error) return { error: error.message }

@@ -1,7 +1,6 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { redirect } from "next/navigation"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 
@@ -86,7 +85,12 @@ export async function createExamForStudentAction(studentId: string, input: unkno
 
   revalidatePath(`/koc/ogrenciler/${studentId}/denemeler`)
   revalidatePath(`/koc/ogrenciler/${studentId}`)
-  redirect(`/koc/ogrenciler/${studentId}/denemeler`)
+  // PDF (varsa) client tarafında storage'a yüklenir; yönlendirmeyi client yapar.
+  return {
+    examId: exam.id,
+    studentId,
+    redirectTo: `/koc/ogrenciler/${studentId}/denemeler`,
+  }
 }
 
 export async function deleteExamForStudentAction(studentId: string, examId: string) {

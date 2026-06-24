@@ -12,10 +12,20 @@ import { isoDate } from "@/lib/format"
 import { createSessionAction } from "@/app/ogrenci/soru-cozum/actions"
 
 type Subject = { id: string; name: string; exam_type: string | null }
+type ResourceOption = { id: string; name: string }
 
-export function SessionForm({ subjects }: { subjects: Subject[] }) {
+const NO_RESOURCE = "__none__"
+
+export function SessionForm({
+  subjects,
+  resources = [],
+}: {
+  subjects: Subject[]
+  resources?: ResourceOption[]
+}) {
   const router = useRouter()
   const [subjectId, setSubjectId] = useState("")
+  const [resourceId, setResourceId] = useState<string>(NO_RESOURCE)
   const [correct, setCorrect] = useState("")
   const [wrong, setWrong] = useState("")
   const [empty, setEmpty] = useState("")
@@ -43,6 +53,7 @@ export function SessionForm({ subjects }: { subjects: Subject[] }) {
           return
         }
         fd.set("subject_id", subjectId)
+        fd.set("resource_id", resourceId === NO_RESOURCE ? "" : resourceId)
         start(async () => {
           const res = await createSessionAction(fd)
           if (res?.error) {
@@ -129,9 +140,29 @@ export function SessionForm({ subjects }: { subjects: Subject[] }) {
         <span className="text-xl font-bold text-zinc-900 tabular-nums">{total}</span>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="duration_minutes">Süre (dakika, opsiyonel)</Label>
-        <Input id="duration_minutes" name="duration_minutes" type="number" min="0" placeholder="ör. 45" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="duration_minutes">Süre (dakika, opsiyonel)</Label>
+          <Input id="duration_minutes" name="duration_minutes" type="number" min="0" placeholder="ör. 45" />
+        </div>
+        {resources.length > 0 && (
+          <div className="space-y-1.5">
+            <Label>Kaynak (opsiyonel)</Label>
+            <Select value={resourceId} onValueChange={setResourceId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value={NO_RESOURCE}>Kaynak seçme</SelectItem>
+                {resources.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3 pt-2">

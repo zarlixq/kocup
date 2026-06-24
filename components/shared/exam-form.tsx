@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { isoDate } from "@/lib/format"
+import { createClient } from "@/lib/supabase/client"
+import { setExamPdfPath } from "@/lib/exams/pdf-actions"
 
 export type ExamFormSubject = { id: string; name: string; exam_type: string | null }
 export type ExamFormResult = { subject_id: string; correct: number; wrong: number; empty: number }
@@ -21,7 +23,16 @@ export type ExamFormInput = {
   notes?: string | null
   results: ExamFormResult[]
 }
-export type ExamFormSubmitResult = { error?: string }
+
+const MAX_PDF_BYTES = 10 * 1024 * 1024 // 10MB
+// Server Action gövdesinden PDF geçirmiyoruz; sunucu exam.id + yönlendirmeyi
+// döner, PDF doğrudan tarayıcıdan storage'a yüklenir.
+export type ExamFormSubmitResult = {
+  error?: string
+  examId?: string
+  studentId?: string
+  redirectTo?: string
+}
 
 type Row = { subject_id: string; correct: string; wrong: string; empty: string }
 
@@ -54,6 +65,28 @@ export function ExamForm({
   const [rows, setRows] = useState<Record<string, Row>>({})
   const [siralama, setSiralama] = useState<string>("")
   const [notes, setNotes] = useState<string>("")
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
+
+  function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    if (!file) {
+      setPdfFile(null)
+      return
+    }
+    if (file.type !== "application/pdf") {
+      toast.error("Sadece PDF dosyası yükleyebilirsin.")
+      e.target.value = ""
+      setPdfFile(null)
+      return
+    }
+    if (file.size > MAX_PDF_BYTES) {
+      toast.error("PDF en fazla 10MB olabilir.")
+      e.target.value = ""
+      setPdfFile(null)
+      return
+    }
+    setPdfFile(file)
+  }
 
   function setCell(subjectId: string, key: "correct" | "wrong" | "empty", value: string) {
     setRows((prev) => ({
@@ -114,7 +147,29 @@ export function ExamForm({
       if (res?.error) {
         setError(res.error)
         toast.error(res.error)
+        return
       }
+
+      // PDF best-effort: doğrudan tarayıcıdan storage'a yükle (Server Action
+      // gövdesinden geçmez → 1MB limiti devreye girmez). Hata olursa deneme
+      // silinmez, sadece toast gösterilir.
+      if (pdfFile && res?.examId && res?.studentId) {
+        const supabase = createClient()
+        const path = `${res.studentId}/${res.examId}.pdf`
+        const { error: upErr } = await supabase.storage
+          .from("exam-pdfs")
+          .upload(path, pdfFile, { contentType: "application/pdf", upsert: true })
+        if (upErr) {
+          toast.error(`Deneme kaydedildi ancak PDF yüklenemedi: ${upErr.message}`)
+        } else {
+          const saveRes = await setExamPdfPath(res.examId, path)
+          if (!saveRes.success) {
+            toast.error(saveRes.error ?? "PDF yüklendi ama denemeye bağlanamadı.")
+          }
+        }
+      }
+
+      if (res?.redirectTo) router.push(res.redirectTo)
     })
   }
 
@@ -271,6 +326,20 @@ export function ExamForm({
           rows={2}
           placeholder="Genel değerlendirme, hatalar, eksik konular..."
         />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="exam-pdf">Deneme PDF&apos;i (opsiyonel)</Label>
+        <Input
+          id="exam-pdf"
+          type="file"
+          accept="application/pdf"
+          onChange={handlePdfChange}
+          className="cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-1 file:text-sm"
+        />
+        <p className="text-xs text-zinc-500">
+          {pdfFile ? `Seçilen dosya: ${pdfFile.name}` : "Optik/kitapçık PDF'ini ekleyebilirsin. En fazla 10MB."}
+        </p>
       </div>
 
       <div className="flex items-center gap-3 pt-2">

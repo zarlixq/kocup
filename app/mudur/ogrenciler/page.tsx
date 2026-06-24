@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { StudentsView, type StudentRow } from "@/components/mudur/students-view"
+import { BulkImportButton } from "@/components/import/bulk-import-button"
+import { getActiveImportJob } from "@/lib/import/actions"
 
 export const metadata = { title: "Öğrenciler — KoçUp" }
 
@@ -66,9 +68,15 @@ export default async function OgrencilerPage() {
     }
   })
 
+  const activeJob = await getActiveImportJob()
+
   return (
     <div className="max-w-6xl mx-auto">
-      <StudentsView students={students} coaches={coaches ?? []} />
+      <StudentsView
+        students={students}
+        coaches={coaches ?? []}
+        headerAction={<BulkImportButton activeJob={activeJob} />}
+      />
     </div>
   )
 }

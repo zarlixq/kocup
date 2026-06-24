@@ -77,7 +77,12 @@ export async function createExamAction(input: unknown) {
 
   revalidatePath("/ogrenci/denemelerim")
   revalidatePath("/ogrenci")
-  redirect(`/ogrenci/denemelerim/${exam.id}`)
+  // PDF (varsa) client tarafında storage'a yüklenir; yönlendirmeyi client yapar.
+  return {
+    examId: exam.id,
+    studentId: user.id,
+    redirectTo: `/ogrenci/denemelerim/${exam.id}`,
+  }
 }
 
 export async function deleteExamAction(examId: string) {
