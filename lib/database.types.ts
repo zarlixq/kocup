@@ -441,11 +441,13 @@ export type Database = {
       }
       import_jobs: {
         Row: {
+          coach_id: string | null
           created_at: string
           created_by: string
           failed: number
           filename: string | null
           id: string
+          mode: string
           organization_id: string | null
           processed: number
           status: string
@@ -454,11 +456,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          coach_id?: string | null
           created_at?: string
           created_by: string
           failed?: number
           filename?: string | null
           id?: string
+          mode?: string
           organization_id?: string | null
           processed?: number
           status?: string
@@ -467,11 +471,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          coach_id?: string | null
           created_at?: string
           created_by?: string
           failed?: number
           filename?: string | null
           id?: string
+          mode?: string
           organization_id?: string | null
           processed?: number
           status?: string
@@ -480,6 +486,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "import_jobs_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "import_jobs_created_by_fkey"
             columns: ["created_by"]
@@ -502,6 +515,7 @@ export type Database = {
           created_student_id: string | null
           data: Json
           error_message: string | null
+          generated_password: string | null
           id: string
           job_id: string
           row_index: number
@@ -512,6 +526,7 @@ export type Database = {
           created_student_id?: string | null
           data: Json
           error_message?: string | null
+          generated_password?: string | null
           id?: string
           job_id: string
           row_index: number
@@ -522,6 +537,7 @@ export type Database = {
           created_student_id?: string | null
           data?: Json
           error_message?: string | null
+          generated_password?: string | null
           id?: string
           job_id?: string
           row_index?: number
@@ -767,6 +783,7 @@ export type Database = {
           full_name: string
           id: string
           last_invitation_sent_at: string | null
+          must_change_password: boolean
           notification_preferences: Json
           organization_id: string | null
           phone: string | null
@@ -785,6 +802,7 @@ export type Database = {
           full_name: string
           id: string
           last_invitation_sent_at?: string | null
+          must_change_password?: boolean
           notification_preferences?: Json
           organization_id?: string | null
           phone?: string | null
@@ -803,6 +821,7 @@ export type Database = {
           full_name?: string
           id?: string
           last_invitation_sent_at?: string | null
+          must_change_password?: boolean
           notification_preferences?: Json
           organization_id?: string | null
           phone?: string | null
