@@ -27,6 +27,26 @@ type ChunkResult =
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
+// Import satırı hatalarını kullanıcıya gösterilecek anlaşılır Türkçe mesaja çevirir.
+// Özellikle: önceden kayıtlı e-posta (Supabase createUser/inviteUserByEmail raw
+// "...already been registered" döndürür) → net bir mesaj.
+function friendlyImportError(err: unknown): string {
+  if (!(err instanceof Error)) return "Bilinmeyen hata"
+  const msg = err.message
+  const code = (err as { code?: unknown }).code
+  const lower = msg.toLowerCase()
+  if (
+    code === "email_exists" ||
+    code === "user_already_exists" ||
+    lower.includes("already been registered") ||
+    lower.includes("already registered") ||
+    lower.includes("already exists")
+  ) {
+    return "Bu e-posta adresi zaten kayıtlı."
+  }
+  return msg
+}
+
 // Karışıklık yaratan karakterler (0/O, 1/l/I) çıkarılmış güçlü geçici şifre
 function generatePassword(len = 12): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
@@ -280,7 +300,7 @@ export async function processNextChunk(jobId: string): Promise<ChunkResult> {
     createdStudentId = userId
   } catch (err) {
     rowStatus = "error"
-    errorMessage = err instanceof Error ? err.message : "Bilinmeyen hata"
+    errorMessage = friendlyImportError(err)
   }
 
   await admin
