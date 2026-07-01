@@ -6,7 +6,6 @@ import Hero from "@/blocks/Hero"
 import { StatsBar } from "@/blocks/StatsBar"
 import HowItWorks from "@/blocks/HowItWorks"
 import Features from "@/blocks/Features"
-import ExpertCoaches from "@/blocks/ExpertCoaches"
 import IndependentCoachesCTA from "@/blocks/IndependentCoachesCTA"
 import Pricing from "@/blocks/Pricing"
 import FAQ from "@/blocks/FAQ"
@@ -17,7 +16,6 @@ import {
   organizationSchema,
   websiteSchema,
   faqPageSchema,
-  expertCoachPersonSchema,
 } from "@/lib/seo/schemas"
 // FAQ bloğundaki sorularla aynı — zengin sonuç (FAQPage) için
 const FAQ_FOR_SCHEMA = [
@@ -68,14 +66,6 @@ const FAQ_FOR_SCHEMA = [
   },
 ]
 
-// ExpertCoaches bloğundaki uzmanlarla aynı
-const COACHES_FOR_SCHEMA = [
-  { name: "Ferda Tuna", title: "MYK Belgeli Öğrenci Koçu" },
-  { name: "Süheyla Dalhançer", title: "MYK Belgeli Öğrenci Koçu" },
-  { name: "Serap Fırış", title: "MYK Belgeli Öğrenci Koçu" },
-  { name: "Ferah Tahtabaşı", title: "MYK Belgeli Öğrenci Koçu" },
-]
-
 export const metadata: Metadata = {
   title: "KoçUp Akademi — YKS & LGS Birebir Eğitim Koçluğu",
   description:
@@ -107,7 +97,6 @@ export default async function Home() {
     organizationSchema(),
     websiteSchema(),
     faqPageSchema(FAQ_FOR_SCHEMA),
-    ...COACHES_FOR_SCHEMA.map(expertCoachPersonSchema),
   ]
 
   return (
@@ -119,7 +108,6 @@ export default async function Home() {
         <StatsBar />
         <HowItWorks />
         <Features />
-        <ExpertCoaches />
         <IndependentCoachesCTA />
         <Pricing />
         <FAQ />

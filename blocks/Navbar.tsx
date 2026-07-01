@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 const NAV_LINKS = [
   { href: "/#nasil-calisir", label: "Nasıl Çalışır" },
   { href: "/#hizmetler", label: "Hizmetler" },
-  { href: "/#koclarimiz", label: "Koçlar" },
   { href: "/#fiyatlar", label: "Koçluk" },
   { href: "/araclar", label: "Araçlar" },
   { href: "/kurumlar", label: "Kurumlar" },

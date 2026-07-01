@@ -148,27 +148,3 @@ export function faqPageSchema(items: readonly FaqItem[]) {
     })),
   }
 }
-
-export type ExpertCoachInput = {
-  name: string
-  title: string
-  image?: string
-}
-
-export function expertCoachPersonSchema(c: ExpertCoachInput) {
-  const id = c.name.toLowerCase().replace(/\s+/g, "-")
-  return {
-    "@context": "https://schema.org",
-    "@type": "Person",
-    "@id": `${SITE.url}#person-${id}`,
-    name: c.name,
-    jobTitle: c.title,
-    image: c.image,
-    worksFor: { "@id": `${SITE.url}#organization` },
-    hasCredential: {
-      "@type": "EducationalOccupationalCredential",
-      credentialCategory: "Mesleki Yeterlilik Belgesi",
-      name: "MYK Onaylı Eğitim Koçluğu Sertifikası",
-    },
-  }
-}
