@@ -900,6 +900,63 @@ export type Database = {
           },
         ]
       }
+      sales_leads: {
+        Row: {
+          created_at: string | null
+          durum: string
+          id: string
+          il: string | null
+          ilce: string | null
+          iletisim_kisisi: string | null
+          kurum_adi: string
+          kurum_tipi: string
+          notlar: string | null
+          ogrenci_sayisi: number | null
+          son_temas_tarihi: string | null
+          sonraki_adim: string | null
+          sonraki_adim_tarihi: string | null
+          telefon: string | null
+          updated_at: string | null
+          verilen_fiyat: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          durum?: string
+          id?: string
+          il?: string | null
+          ilce?: string | null
+          iletisim_kisisi?: string | null
+          kurum_adi: string
+          kurum_tipi: string
+          notlar?: string | null
+          ogrenci_sayisi?: number | null
+          son_temas_tarihi?: string | null
+          sonraki_adim?: string | null
+          sonraki_adim_tarihi?: string | null
+          telefon?: string | null
+          updated_at?: string | null
+          verilen_fiyat?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          durum?: string
+          id?: string
+          il?: string | null
+          ilce?: string | null
+          iletisim_kisisi?: string | null
+          kurum_adi?: string
+          kurum_tipi?: string
+          notlar?: string | null
+          ogrenci_sayisi?: number | null
+          son_temas_tarihi?: string | null
+          sonraki_adim?: string | null
+          sonraki_adim_tarihi?: string | null
+          telefon?: string | null
+          updated_at?: string | null
+          verilen_fiyat?: string | null
+        }
+        Relationships: []
+      }
       schedule: {
         Row: {
           created_at: string | null
