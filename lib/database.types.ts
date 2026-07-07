@@ -1422,6 +1422,109 @@ export type Database = {
           },
         ]
       }
+      weekly_program_items: {
+        Row: {
+          aciklama: string | null
+          baslik: string | null
+          carried_from_item_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          day_of_week: number
+          id: string
+          is_completed: boolean
+          order_index: number
+          program_id: string
+          subject_id: string | null
+        }
+        Insert: {
+          aciklama?: string | null
+          baslik?: string | null
+          carried_from_item_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          day_of_week: number
+          id?: string
+          is_completed?: boolean
+          order_index?: number
+          program_id: string
+          subject_id?: string | null
+        }
+        Update: {
+          aciklama?: string | null
+          baslik?: string | null
+          carried_from_item_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          day_of_week?: number
+          id?: string
+          is_completed?: boolean
+          order_index?: number
+          program_id?: string
+          subject_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_program_items_carried_from_item_id_fkey"
+            columns: ["carried_from_item_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_program_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_program_items_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_program_items_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_programs: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          student_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          student_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          student_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_programs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_programs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
