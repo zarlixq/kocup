@@ -6,8 +6,8 @@ import { getCurrentProfile } from "@/lib/auth/current-user"
 
 export default async function KurumLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile()
-  if (!profile || profile.role !== "org_admin") redirect("/giris/koc")
-  if (!profile.organization_id) redirect("/giris/koc")
+  if (!profile || profile.role !== "org_admin") redirect("/giris/kurum")
+  if (!profile.organization_id) redirect("/giris/kurum")
 
   const supabase = await createClient()
   const { data: organization } = await supabase

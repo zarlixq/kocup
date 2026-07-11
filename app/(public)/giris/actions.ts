@@ -13,7 +13,7 @@ type LoginResult = { success: false; error: string }
 
 async function loginWithRole(
   formData: FormData,
-  expectedRole: "student" | "coach" | "admin",
+  expectedRole: "student" | "coach" | "admin" | "org_admin",
   redirectTo: string
 ): Promise<LoginResult> {
   const parsed = LoginSchema.safeParse({
@@ -66,4 +66,11 @@ export async function loginMudur(
   formData: FormData
 ): Promise<LoginResult> {
   return loginWithRole(formData, "admin", "/mudur")
+}
+
+export async function loginKurum(
+  _prev: unknown,
+  formData: FormData
+): Promise<LoginResult> {
+  return loginWithRole(formData, "org_admin", "/kurum")
 }

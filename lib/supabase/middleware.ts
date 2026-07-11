@@ -50,7 +50,7 @@ export async function updateSession(request: NextRequest) {
     if (isOgrenciPath) return redirect(request, "/giris/ogrenci")
     if (isKocPath) return redirect(request, "/giris/koc")
     if (isMudurPath) return redirect(request, "/giris/mudur")
-    if (isKurumPath) return redirect(request, "/giris/koc")
+    if (isKurumPath) return redirect(request, "/giris/kurum")
     return supabaseResponse
   }
 
