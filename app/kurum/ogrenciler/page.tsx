@@ -14,6 +14,7 @@ import {
 import { getCurrentProfile } from "@/lib/auth/current-user"
 import { BulkImportButton } from "@/components/import/bulk-import-button"
 import { getActiveImportJob } from "@/lib/import/actions"
+import { AddStudentDialog } from "@/components/kurum/add-student-dialog"
 
 export const metadata = { title: "Öğrenciler — Kurum" }
 
@@ -64,6 +65,15 @@ export default async function KurumOgrencilerPage() {
   const profileById = new Map((studentProfiles ?? []).map((p) => [p.id, p]))
   const coachById = new Map((coachProfiles ?? []).map((c) => [c.id, c.full_name]))
 
+  // Kurumun tüm koçları (öğrenci ekleme + toplu import koç seçimi için)
+  const { data: orgCoaches } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .eq("organization_id", orgId)
+    .eq("role", "coach")
+    .order("full_name")
+  const coachOptions = (orgCoaches ?? []).map((c) => ({ id: c.id, full_name: c.full_name }))
+
   const activeJob = await getActiveImportJob()
 
   return (
@@ -75,7 +85,13 @@ export default async function KurumOgrencilerPage() {
             {(students ?? []).length} kayıtlı öğrenci
           </p>
         </div>
-        <BulkImportButton activeJob={activeJob} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <AddStudentDialog coaches={coachOptions} />
+          <BulkImportButton
+            activeJob={activeJob}
+            passwordImport={{ orgId, coaches: coachOptions }}
+          />
+        </div>
       </div>
 
       {(students ?? []).length === 0 ? (

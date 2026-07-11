@@ -8,6 +8,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin"
 import {
   inviteCoach as inviteCoachAuth,
   createCoachWithPassword,
+  createStudentWithPassword,
 } from "@/lib/auth/invite"
 import { generateTempPassword } from "@/lib/auth/temp-password"
 import { resendInvitationServer, type ResendResult } from "@/lib/auth/resend"
@@ -183,6 +184,99 @@ export async function removeCoachFromOrg(coachId: string): Promise<ActionResult>
 
 export async function resendCoachInvitationKurum(coachId: string): Promise<ResendResult> {
   return resendInvitationServer(coachId, { caller: "org_admin" })
+}
+
+const addStudentSchema = z.object({
+  full_name: z.string().trim().min(3, "Ad soyad en az 3 karakter olmalı."),
+  email: z.string().trim().email("Geçerli bir email girin."),
+  phone: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  grade: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  school: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  coach_id: z
+    .string()
+    .uuid()
+    .optional()
+    .nullable()
+    .or(z.literal(""))
+    .transform((v) => (v ? v : null)),
+})
+
+/**
+ * org_admin kendi kurumuna TEKİL öğrenciyi geçici şifreyle ekler (mail yok).
+ * Hedef org oturumdan türetilir; seçilen koç (varsa) bu org'a ait mi doğrulanır.
+ * kayit_kaynagi='kurum_import', must_change_password=true → ilk girişte şifre değişir.
+ */
+export async function createStudentWithPasswordOrg(
+  input: unknown,
+): Promise<ActionResult<{ email: string; password: string }>> {
+  const auth = await requireOrgAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const parsed = addStudentSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Form hatalı." }
+  }
+
+  const admin = supabaseAdmin()
+
+  // Seçilen koç zorunlu değil; verildiyse org_admin'in kendi kurumuna ait olmalı.
+  if (parsed.data.coach_id) {
+    const { data: coach } = await admin
+      .from("profiles")
+      .select("id, role, organization_id")
+      .eq("id", parsed.data.coach_id)
+      .maybeSingle()
+    if (!coach || coach.role !== "coach" || coach.organization_id !== auth.orgId) {
+      return { success: false, error: "Seçilen koç kurumunuza ait değil." }
+    }
+  }
+
+  const password = generateTempPassword()
+
+  try {
+    const created = await createStudentWithPassword({
+      email: parsed.data.email,
+      password,
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+      organization_id: auth.orgId,
+    })
+    await admin.from("profiles").update({ must_change_password: true }).eq("id", created.id)
+
+    const { error: stuErr } = await admin.from("students").insert({
+      id: created.id,
+      coach_id: parsed.data.coach_id,
+      kayit_kaynagi: "kurum_import",
+      grade: parsed.data.grade,
+      school: parsed.data.school,
+      organization_id: auth.orgId,
+      is_active: true,
+    })
+    if (stuErr) throw new Error(stuErr.message)
+  } catch (err) {
+    console.error("Kurum öğrenci oluşturma hatası:", err)
+    const message = err instanceof Error ? err.message : "Öğrenci oluşturulamadı."
+    return { success: false, error: message }
+  }
+
+  revalidatePath("/kurum/ogrenciler")
+  revalidatePath("/kurum")
+  return { success: true, data: { email: parsed.data.email, password } }
 }
 
 export async function updateOrgBranding(input: unknown): Promise<ActionResult> {

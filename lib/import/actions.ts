@@ -1,11 +1,11 @@
 "use server"
 
-import { randomBytes } from "crypto"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { inviteStudent, createStudentWithPassword } from "@/lib/auth/invite"
+import { generateTempPassword } from "@/lib/auth/temp-password"
 import type { ImportRowData } from "@/lib/import/csv"
 
 type Importer =
@@ -45,15 +45,6 @@ function friendlyImportError(err: unknown): string {
     return "Bu e-posta adresi zaten kayıtlı."
   }
   return msg
-}
-
-// Karışıklık yaratan karakterler (0/O, 1/l/I) çıkarılmış güçlü geçici şifre
-function generatePassword(len = 12): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
-  const bytes = randomBytes(len)
-  let out = ""
-  for (let i = 0; i < len; i++) out += chars[bytes[i] % chars.length]
-  return out
 }
 
 async function getImporter(): Promise<Importer> {
@@ -128,15 +119,28 @@ export async function createImportJob(input: {
   let passwordFor: (i: number) => string | null = () => null
 
   if (mode === "password") {
-    // Geçici şifreli import yalnızca platform müdürü (admin) tarafından, kurum içinden
-    if (importer.role !== "admin") return { ok: false, error: "Bu işlem için yetkiniz yok." }
-    if (!input.targetOrgId) return { ok: false, error: "Kurum seçilmedi." }
+    // Geçici şifreli import: müdür (admin) herhangi bir kurum için; org_admin YALNIZ
+    // kendi kurumu için. Hedef org org_admin'de client'tan ALINMAZ — oturumdan türetilir.
+    if (importer.role !== "admin" && importer.role !== "org_admin") {
+      return { ok: false, error: "Bu işlem için yetkiniz yok." }
+    }
+
+    const targetOrgId = importer.role === "admin" ? input.targetOrgId : importer.orgId
+    if (!targetOrgId) return { ok: false, error: "Kurum seçilmedi." }
+    // org_admin başka kuruma import yapamaz (client farklı org gönderse bile).
+    if (
+      importer.role === "org_admin" &&
+      input.targetOrgId &&
+      input.targetOrgId !== importer.orgId
+    ) {
+      return { ok: false, error: "Başka kuruma öğrenci aktaramazsınız." }
+    }
     if (!input.coachId) return { ok: false, error: "Koç seçilmedi." }
 
     const { data: org } = await admin
       .from("organizations")
       .select("id")
-      .eq("id", input.targetOrgId)
+      .eq("id", targetOrgId)
       .maybeSingle()
     if (!org) return { ok: false, error: "Kurum bulunamadı." }
 
@@ -145,7 +149,7 @@ export async function createImportJob(input: {
       .select("id, role, organization_id")
       .eq("id", input.coachId)
       .maybeSingle()
-    if (!coach || coach.role !== "coach" || coach.organization_id !== input.targetOrgId) {
+    if (!coach || coach.role !== "coach" || coach.organization_id !== targetOrgId) {
       return { ok: false, error: "Seçilen koç bu kuruma ait değil." }
     }
 
@@ -154,10 +158,10 @@ export async function createImportJob(input: {
       return { ok: false, error: "Ortak şifre en az 6 karakter olmalı." }
     }
 
-    jobOrgId = input.targetOrgId
+    jobOrgId = targetOrgId
     jobCoachId = input.coachId
     // Mod A: ortak şifre; Mod B: satır başına rastgele
-    passwordFor = common ? () => common : () => generatePassword()
+    passwordFor = common ? () => common : () => generateTempPassword()
   }
 
   const { data: job, error: jobErr } = await admin
