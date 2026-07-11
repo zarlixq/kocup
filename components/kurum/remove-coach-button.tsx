@@ -21,12 +21,14 @@ type Props = {
   coachId: string
   coachName: string
   studentCount: number
+  activeStudentCount: number
 }
 
-export function RemoveCoachButton({ coachId, coachName, studentCount }: Props) {
+export function RemoveCoachButton({ coachId, coachName, studentCount, activeStudentCount }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
+  const blocked = activeStudentCount > 0
 
   function handleConfirm() {
     startTransition(async () => {
@@ -60,14 +62,18 @@ export function RemoveCoachButton({ coachId, coachName, studentCount }: Props) {
             <AlertDialogDescription>
               <span className="font-medium">{coachName}</span> kurumunuzla bağlantısı kesilecek.
               Hesabı silinmez; sistemde bireysel koç olarak kalmaya devam eder.
-              {studentCount > 0 && (
-                <>
-                  {" "}
+              {blocked ? (
+                <span className="block mt-2 text-red-700 font-medium">
+                  Bu koçun {activeStudentCount} aktif öğrencisi var. Kurumdan çıkarmadan önce
+                  öğrencileri başka bir koça devredin.
+                </span>
+              ) : (
+                studentCount > 0 && (
                   <span className="block mt-2 text-amber-700 font-medium">
-                    Uyarı: Bu koça {studentCount} öğrenci atanmış. Öğrenciler koçta kalmaya
-                    devam eder ama kurum panelinde görünmez olur.
+                    Bu koça atanmış {studentCount} pasif öğrenci kaydı kurum panelinde
+                    görünmez olacak.
                   </span>
-                </>
+                )
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -75,7 +81,7 @@ export function RemoveCoachButton({ coachId, coachName, studentCount }: Props) {
             <AlertDialogCancel disabled={pending}>Vazgeç</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirm}
-              disabled={pending}
+              disabled={pending || blocked}
               className="bg-red-600 hover:bg-red-700"
             >
               {pending ? "Çıkarılıyor..." : "Evet, kurumdan çıkar"}

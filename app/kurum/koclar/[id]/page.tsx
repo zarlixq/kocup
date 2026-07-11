@@ -147,6 +147,7 @@ export default async function KurumCoachDetailPage({
               coachId={profile.id}
               coachName={profile.full_name}
               studentCount={studentCount}
+              activeStudentCount={activeStudentCount}
             />
           </div>
         </div>

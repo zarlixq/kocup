@@ -167,6 +167,22 @@ export async function removeCoachFromOrg(coachId: string): Promise<ActionResult>
     return { success: false, error: "Bu koç kurumunuza ait değil." }
   }
 
+  // Orphan öğrenci riski: aktif öğrencisi olan koç kurumdan çıkarılamaz.
+  // Önce öğrenciler başka koça devredilmeli.
+  const { count: activeStudents } = await admin
+    .from("students")
+    .select("*", { count: "exact", head: true })
+    .eq("coach_id", coachId)
+    .eq("organization_id", auth.orgId)
+    .eq("is_active", true)
+
+  if ((activeStudents ?? 0) > 0) {
+    return {
+      success: false,
+      error: `Bu koçun ${activeStudents} aktif öğrencisi var. Önce öğrencileri başka koça devredin.`,
+    }
+  }
+
   const { error } = await admin
     .from("profiles")
     .update({ organization_id: null })
