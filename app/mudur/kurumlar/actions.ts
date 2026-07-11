@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import {
   inviteCoach,
+  createCoachWithPassword,
   inviteOrgAdmin as inviteOrgAdminAuth,
   createOrgAdminWithPassword as createOrgAdminWithPasswordAuth,
 } from "@/lib/auth/invite"
@@ -207,6 +208,50 @@ export async function inviteCoachToOrganization(
 
   revalidatePath(`/mudur/kurumlar/${orgId}`)
   return { success: true }
+}
+
+/**
+ * Bir kuruma koçu MANUEL oluştur (mail yok, geçici şifre). Şifre yanıtta döner;
+ * müdür ekranda gösterir. İlk girişte /sifre-degistir zorlanır.
+ */
+export async function createCoachWithPasswordForOrg(
+  orgId: string,
+  input: unknown,
+): Promise<ActionResult<{ email: string; password: string }>> {
+  const auth = await requireAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const parsed = coachInviteSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Form hatalı." }
+  }
+
+  const admin = supabaseAdmin()
+  const { data: org } = await admin
+    .from("organizations")
+    .select("id")
+    .eq("id", orgId)
+    .maybeSingle()
+  if (!org) return { success: false, error: "Kurum bulunamadı." }
+
+  const password = generateTempPassword()
+
+  try {
+    const created = await createCoachWithPassword({
+      email: parsed.data.email,
+      password,
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+      organization_id: orgId,
+    })
+    await admin.from("profiles").update({ must_change_password: true }).eq("id", created.id)
+  } catch (err) {
+    console.error("Kurum koç oluşturma hatası:", err)
+    return { success: false, error: err instanceof Error ? err.message : "Hesap oluşturulamadı." }
+  }
+
+  revalidatePath(`/mudur/kurumlar/${orgId}`)
+  return { success: true, data: { email: parsed.data.email, password } }
 }
 
 const orgAdminInviteSchema = z.object({

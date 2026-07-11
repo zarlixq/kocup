@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
-import { inviteCoach as inviteCoachAuth } from "@/lib/auth/invite"
+import {
+  inviteCoach as inviteCoachAuth,
+  createCoachWithPassword,
+} from "@/lib/auth/invite"
+import { generateTempPassword } from "@/lib/auth/temp-password"
 import { resendInvitationServer, type ResendResult } from "@/lib/auth/resend"
 
 type ActionResult<T = unknown> = { success: boolean; error?: string; data?: T }
@@ -54,19 +58,12 @@ export async function inviteCoachToOrg(input: unknown): Promise<ActionResult> {
   }
 
   try {
-    const invited = await inviteCoachAuth({
+    // organization_id davet metadata'sına doğrudan yazılır; trigger profile'ı
+    // org_admin'in kendi kurumu ile oluşturur (sonradan-patch yok).
+    await inviteCoachAuth({
       ...parsed.data,
-      // raw_user_meta_data'ya organization_id eklemek için inviteCoachAuth'a
-      // direkt erişim yok — trigger metadata'dan okur. Şimdilik profile sonradan
-      // güncellenir; bu MVP için kabul edilebilir.
+      organization_id: auth.orgId,
     })
-
-    // Profile satırı trigger ile oluştu, organization_id set et
-    const admin = supabaseAdmin()
-    await admin
-      .from("profiles")
-      .update({ organization_id: auth.orgId })
-      .eq("id", invited.id)
   } catch (err) {
     console.error("Kurum koç davet hatası:", err)
     const message = err instanceof Error ? err.message : "Davet gönderilemedi."
@@ -76,6 +73,46 @@ export async function inviteCoachToOrg(input: unknown): Promise<ActionResult> {
   revalidatePath("/kurum/koclar")
   revalidatePath("/kurum")
   return { success: true }
+}
+
+/**
+ * org_admin kendi kurumuna koçu MANUEL oluşturur (mail yok, geçici şifre).
+ * Hedef org client'tan ALINMAZ — oturumdaki org_admin'in kendi org'undan türetilir.
+ * İlk girişte /sifre-degistir zorlanır.
+ */
+export async function createCoachWithPasswordOrg(
+  input: unknown,
+): Promise<ActionResult<{ email: string; password: string }>> {
+  const auth = await requireOrgAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const parsed = inviteSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Form hatalı." }
+  }
+
+  const password = generateTempPassword()
+
+  try {
+    const created = await createCoachWithPassword({
+      email: parsed.data.email,
+      password,
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+      organization_id: auth.orgId,
+    })
+    await supabaseAdmin()
+      .from("profiles")
+      .update({ must_change_password: true })
+      .eq("id", created.id)
+  } catch (err) {
+    console.error("Kurum koç oluşturma hatası:", err)
+    return { success: false, error: err instanceof Error ? err.message : "Hesap oluşturulamadı." }
+  }
+
+  revalidatePath("/kurum/koclar")
+  revalidatePath("/kurum")
+  return { success: true, data: { email: parsed.data.email, password } }
 }
 
 const brandingSchema = z.object({

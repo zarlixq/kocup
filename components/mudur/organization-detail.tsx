@@ -1,20 +1,10 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useMemo, useState } from "react"
 import { Plus, Search, X, UserCog } from "lucide-react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -30,8 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { inviteCoachToOrganization } from "@/app/mudur/kurumlar/actions"
+import {
+  inviteCoachToOrganization,
+  createCoachWithPasswordForOrg,
+} from "@/app/mudur/kurumlar/actions"
 import { BulkImportButton } from "@/components/import/bulk-import-button"
+import { MemberAddDialog } from "@/components/shared/member-add-dialog"
 
 export type DetailCoach = {
   id: string
@@ -256,88 +250,16 @@ export function OrganizationDetail({
         )}
       </section>
 
-      <CoachInviteDialog orgId={orgId} open={coachDialogOpen} onOpenChange={setCoachDialogOpen} />
+      <MemberAddDialog
+        open={coachDialogOpen}
+        onOpenChange={setCoachDialogOpen}
+        title="Kuruma Koç Ekle"
+        description="Davet ile e-posta linki gönderilir; manuel ile geçici şifreli hesap hemen oluşturulur."
+        inviteAction={(p) => inviteCoachToOrganization(orgId, p)}
+        passwordAction={(p) => createCoachWithPasswordForOrg(orgId, p)}
+        invitedMessage="Koç davet edildi."
+        createdMessage="Koç hesabı oluşturuldu."
+      />
     </div>
-  )
-}
-
-function CoachInviteDialog({
-  orgId,
-  open,
-  onOpenChange,
-}: {
-  orgId: string
-  open: boolean
-  onOpenChange: (o: boolean) => void
-}) {
-  const [pending, start] = useTransition()
-  const [fullName, setFullName] = useState("")
-  const [email, setEmail] = useState("")
-  const [phone, setPhone] = useState("")
-
-  function reset() {
-    setFullName("")
-    setEmail("")
-    setPhone("")
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    start(async () => {
-      const res = await inviteCoachToOrganization(orgId, {
-        full_name: fullName.trim(),
-        email: email.trim(),
-        phone: phone.trim() || null,
-      })
-      if (res.success) {
-        toast.success("Koç davet edildi.")
-        reset()
-        onOpenChange(false)
-      } else {
-        toast.error(res.error ?? "Davet gönderilemedi.")
-      }
-    })
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (pending) return
-        onOpenChange(o)
-        if (!o) reset()
-      }}
-    >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Kuruma Koç Ekle</DialogTitle>
-          <DialogDescription>
-            Koç e-posta davetiyle eklenir ve bu kuruma bağlanır.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="coach-name">Ad Soyad *</Label>
-            <Input id="coach-name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="coach-email">E-posta *</Label>
-            <Input id="coach-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="coach-phone">Telefon (ops.)</Label>
-            <Input id="coach-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-              Vazgeç
-            </Button>
-            <Button type="submit" variant="accent" disabled={pending}>
-              {pending ? "Gönderiliyor..." : "Davet Et"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }
