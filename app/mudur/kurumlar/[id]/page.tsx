@@ -7,6 +7,7 @@ import {
   type DetailCoach,
   type DetailStudent,
 } from "@/components/mudur/organization-detail"
+import { OrgAdminSection, type OrgAdminRow } from "@/components/mudur/org-admin-section"
 
 export const metadata = { title: "Kurum Detayı — Müdür" }
 
@@ -25,15 +26,29 @@ export default async function MudurKurumDetailPage({
     .maybeSingle()
   if (!org) notFound()
 
-  const [{ data: coachProfiles }, { data: studentRows }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("id, full_name, email, first_login_at")
-      .eq("role", "coach")
-      .eq("organization_id", id)
-      .order("full_name"),
-    supabase.from("students").select("id, coach_id, grade").eq("organization_id", id),
-  ])
+  const [{ data: coachProfiles }, { data: studentRows }, { data: adminProfiles }] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, full_name, email, first_login_at")
+        .eq("role", "coach")
+        .eq("organization_id", id)
+        .order("full_name"),
+      supabase.from("students").select("id, coach_id, grade").eq("organization_id", id),
+      supabase
+        .from("profiles")
+        .select("id, full_name, email, first_login_at")
+        .eq("role", "org_admin")
+        .eq("organization_id", id)
+        .order("full_name"),
+    ])
+
+  const admins: OrgAdminRow[] = (adminProfiles ?? []).map((a) => ({
+    id: a.id,
+    full_name: a.full_name,
+    email: a.email,
+    status: a.first_login_at ? "aktif" : "beklemede",
+  }))
 
   const studentIds = (studentRows ?? []).map((s) => s.id)
   const { data: studentProfiles } = studentIds.length
@@ -87,6 +102,8 @@ export default async function MudurKurumDetailPage({
           {coaches.length} koç · {students.length} öğrenci · {org.is_active ? "Aktif" : "Pasif"}
         </p>
       </div>
+
+      <OrgAdminSection orgId={org.id} admins={admins} />
 
       <OrganizationDetail orgId={org.id} coaches={coaches} students={students} />
     </div>

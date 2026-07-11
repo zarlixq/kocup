@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
-import { inviteCoach } from "@/lib/auth/invite"
+import {
+  inviteCoach,
+  inviteOrgAdmin as inviteOrgAdminAuth,
+  createOrgAdminWithPassword as createOrgAdminWithPasswordAuth,
+} from "@/lib/auth/invite"
+import { generateTempPassword } from "@/lib/auth/temp-password"
 import { slugify } from "@/lib/slug"
 
 type ActionResult<T = unknown> = { success: boolean; error?: string; data?: T }
@@ -187,13 +192,14 @@ export async function inviteCoachToOrganization(
   if (!org) return { success: false, error: "Kurum bulunamadı." }
 
   try {
-    const invited = await inviteCoach({
+    // organization_id davet metadata'sına doğrudan yazılır; trigger profile'ı bu
+    // kurum ile oluşturur (sonradan-patch gereksiz).
+    await inviteCoach({
       email: parsed.data.email,
       full_name: parsed.data.full_name,
       phone: parsed.data.phone,
+      organization_id: orgId,
     })
-    // profiles satırı trigger ile oluştu; organization_id'yi server-side set et
-    await admin.from("profiles").update({ organization_id: orgId }).eq("id", invited.id)
   } catch (err) {
     console.error("Kurum koç davet hatası:", err)
     return { success: false, error: err instanceof Error ? err.message : "Davet gönderilemedi." }
@@ -201,4 +207,89 @@ export async function inviteCoachToOrganization(
 
   revalidatePath(`/mudur/kurumlar/${orgId}`)
   return { success: true }
+}
+
+const orgAdminInviteSchema = z.object({
+  full_name: z.string().trim().min(3, "Ad soyad en az 3 karakter olmalı."),
+  email: z.string().trim().email("Geçerli bir e-posta girin."),
+  phone: optionalText,
+})
+
+/** Bir kuruma org_admin (kurum yöneticisi) davet et — mail davetiyle. */
+export async function inviteOrgAdmin(orgId: string, input: unknown): Promise<ActionResult> {
+  const auth = await requireAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const parsed = orgAdminInviteSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Form hatalı." }
+  }
+
+  const admin = supabaseAdmin()
+  const { data: org } = await admin
+    .from("organizations")
+    .select("id")
+    .eq("id", orgId)
+    .maybeSingle()
+  if (!org) return { success: false, error: "Kurum bulunamadı." }
+
+  try {
+    await inviteOrgAdminAuth({
+      email: parsed.data.email,
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+      organization_id: orgId,
+    })
+  } catch (err) {
+    console.error("Kurum yöneticisi davet hatası:", err)
+    return { success: false, error: err instanceof Error ? err.message : "Davet gönderilemedi." }
+  }
+
+  revalidatePath(`/mudur/kurumlar/${orgId}`)
+  return { success: true }
+}
+
+/**
+ * Bir kuruma org_admin'i MANUEL oluştur (mail yok, geçici şifre). Şifre yanıtta
+ * döner; müdür ekranda gösterir/kopyalar. İlk girişte /sifre-degistir zorlanır.
+ */
+export async function createOrgAdminWithPassword(
+  orgId: string,
+  input: unknown,
+): Promise<ActionResult<{ email: string; password: string }>> {
+  const auth = await requireAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const parsed = orgAdminInviteSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Form hatalı." }
+  }
+
+  const admin = supabaseAdmin()
+  const { data: org } = await admin
+    .from("organizations")
+    .select("id")
+    .eq("id", orgId)
+    .maybeSingle()
+  if (!org) return { success: false, error: "Kurum bulunamadı." }
+
+  const password = generateTempPassword()
+
+  try {
+    const created = await createOrgAdminWithPasswordAuth({
+      email: parsed.data.email,
+      password,
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+      organization_id: orgId,
+    })
+    // İlk girişte zorunlu şifre değiştirme (trigger profile'ı oluşturdu)
+    await admin.from("profiles").update({ must_change_password: true }).eq("id", created.id)
+  } catch (err) {
+    console.error("Kurum yöneticisi oluşturma hatası:", err)
+    return { success: false, error: err instanceof Error ? err.message : "Hesap oluşturulamadı." }
+  }
+
+  revalidatePath(`/mudur/kurumlar/${orgId}`)
+  return { success: true, data: { email: parsed.data.email, password } }
 }
