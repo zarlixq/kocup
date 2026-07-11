@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -119,7 +120,10 @@ export default async function KurumOgrencilerPage() {
                 return (
                   <TableRow key={s.id}>
                     <TableCell>
-                      <div className="flex items-center gap-3">
+                      <Link
+                        href={`/kurum/ogrenciler/${s.id}`}
+                        className="flex items-center gap-3 hover:opacity-80"
+                      >
                         <Avatar className="h-9 w-9">
                           <AvatarFallback className="bg-[#1B6B8A] text-white text-xs">
                             {initials(p?.full_name ?? "—")}
@@ -131,7 +135,7 @@ export default async function KurumOgrencilerPage() {
                           </div>
                           <div className="text-xs text-zinc-500 truncate">{p?.email}</div>
                         </div>
-                      </div>
+                      </Link>
                     </TableCell>
                     <TableCell>
                       {s.grade ? (

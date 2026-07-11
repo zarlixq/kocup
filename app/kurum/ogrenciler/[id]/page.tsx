@@ -1,6 +1,8 @@
 import { StudentOverview } from "@/components/student/student-overview"
 
-export default async function MudurStudentOverviewPage({
+export const metadata = { title: "Öğrenci Detayı — Kurum" }
+
+export default async function KurumStudentOverviewPage({
   params,
 }: {
   params: Promise<{ id: string }>
@@ -10,8 +12,8 @@ export default async function MudurStudentOverviewPage({
     <StudentOverview
       studentId={id}
       variant="readonly"
-      appointmentsHref="/mudur/randevular"
-      coachHrefPrefix="/mudur/koclar"
+      appointmentsHref="/kurum"
+      coachHrefPrefix="/kurum/koclar"
     />
   )
 }
