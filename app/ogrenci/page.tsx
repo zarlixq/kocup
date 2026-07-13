@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDate } from "@/lib/format"
+import { istanbulDateStr, istanbulDaysAgoStr } from "@/lib/tz"
 import { WeeklyQuestionsChart } from "@/components/ogrenci/weekly-questions-chart"
 import { SubjectRadarChart } from "@/components/charts/subject-radar-chart"
 import { ExamTrendChart } from "@/components/charts/exam-trend-chart"
@@ -24,10 +25,6 @@ function initials(name: string) {
 }
 
 export const metadata = { title: "Dashboard — KoçUp" }
-
-function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10)
-}
 
 export default async function OgrenciDashboard() {
   const supabase = await createClient()
@@ -54,14 +51,10 @@ export default async function OgrenciDashboard() {
         .maybeSingle()
     : { data: null }
 
+  // Tarih sınırları — Istanbul takvimine göre (sunucu UTC olsa da doğru gün).
   const now = new Date()
-  const fourteenAgo = new Date(now)
-  fourteenAgo.setDate(now.getDate() - 13)
-  const fromIso = isoDate(fourteenAgo)
-
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const monthStartIso = isoDate(monthStart)
-
+  const fromIso = istanbulDaysAgoStr(13, now) // son 14 gün (bugün dahil)
+  const monthStartIso = istanbulDateStr(now).slice(0, 7) + "-01"
   const nowIso = now.toISOString()
 
   const [
@@ -167,10 +160,8 @@ export default async function OgrenciDashboard() {
   const totalTopics = (topics ?? []).length
 
   const byDay: Record<string, { total: number; correct: number; wrong: number }> = {}
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(fourteenAgo)
-    d.setDate(fourteenAgo.getDate() + i)
-    byDay[isoDate(d)] = { total: 0, correct: 0, wrong: 0 }
+  for (let i = 13; i >= 0; i--) {
+    byDay[istanbulDaysAgoStr(i, now)] = { total: 0, correct: 0, wrong: 0 }
   }
   for (const s of sessions14 ?? []) {
     const k = s.date

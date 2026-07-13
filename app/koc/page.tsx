@@ -8,12 +8,9 @@ import {
   StudentCardGrid,
   type StudentCardRow,
 } from "@/components/koc/student-card-grid"
+import { istanbulDayRange, istanbulWeekStartStr } from "@/lib/tz"
 
 export const metadata = { title: "Dashboard — KoçUp" }
-
-function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10)
-}
 
 function maxIso(a: string | null, b: string | null): string | null {
   if (!a) return b
@@ -25,18 +22,11 @@ export default async function KocDashboard() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Tarih sınırları
-  const today = new Date()
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  const todayEnd = new Date(todayStart)
-  todayEnd.setDate(todayEnd.getDate() + 1)
+  // Tarih sınırları — Istanbul takvimine göre (sunucu UTC olsa da doğru gün).
+  const { start: todayStart, end: todayEnd } = istanbulDayRange()
 
-  // Bu hafta (Pzt - Paz)
-  const weekStart = new Date(todayStart)
-  const day = weekStart.getDay()
-  const diff = day === 0 ? -6 : 1 - day
-  weekStart.setDate(weekStart.getDate() + diff)
-  const weekStartIso = isoDate(weekStart)
+  // Bu hafta (Pzt - Paz), Istanbul takvimi
+  const weekStartIso = istanbulWeekStartStr()
 
   const [
     { data: students },
@@ -127,9 +117,8 @@ export default async function KocDashboard() {
     .filter((s) => studentIdSet.has(s.student_id))
     .reduce((sum, s) => sum + (s.total_questions ?? 0), 0)
 
-  // Yaklaşan randevu sayısı (bugün + sonraki 24 saat)
-  const upcomingEnd = new Date(todayStart)
-  upcomingEnd.setDate(upcomingEnd.getDate() + 2)
+  // Yaklaşan randevu sayısı (bugün + yarın)
+  const upcomingEnd = new Date(todayStart.getTime() + 2 * 24 * 60 * 60 * 1000)
   const { count: upcomingCount } = await supabase
     .from("appointments")
     .select("*", { count: "exact", head: true })
