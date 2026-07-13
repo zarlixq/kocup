@@ -80,7 +80,7 @@ function NavList({ pathname, pendingCount, onClick }: {
   onClick?: () => void
 }) {
   return (
-    <nav className="flex-1 px-3 py-4 space-y-1">
+    <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-1">
       {NAV.map((item) => {
         const Icon = item.icon
         const isActive = item.href === "/mudur"
