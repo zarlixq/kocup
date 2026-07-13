@@ -29,7 +29,6 @@ import { cn } from "@/lib/utils"
 import {
   type KurumBasvuru,
   type KocBasvuru,
-  type OgrenciBasvuru,
   type KurumStatus,
   type BasvuruStatus,
   KURUM_STATUS_OPTIONS,
@@ -37,19 +36,14 @@ import {
   BASVURU_STATUS_OPTIONS,
   BASVURU_STATUS_COLORS,
 } from "@/lib/basvurular"
-import {
-  updateKurumStatus,
-  updateKocStatus,
-  updateOgrenciStatus,
-} from "@/app/mudur/talepler/actions"
+import { updateKurumStatus, updateKocStatus } from "@/app/mudur/talepler/actions"
 
 type Props = {
   kurumBasvurular: KurumBasvuru[]
   kocBasvurular: KocBasvuru[]
-  ogrenciBasvurular: OgrenciBasvuru[]
 }
 
-type TabValue = "kurum" | "koc" | "ogrenci"
+type TabValue = "kurum" | "koc"
 
 function formatDate(s: string | null) {
   if (!s) return "—"
@@ -122,28 +116,21 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-// ── Detay dialog union ──────────────────────────────────────────────────────
 type DetailState =
   | { kind: "kurum"; row: KurumBasvuru }
   | { kind: "koc"; row: KocBasvuru }
-  | { kind: "ogrenci"; row: OgrenciBasvuru }
   | null
 
-function TabCountBadge({ count, tone }: { count: number; tone: "yeni" | "total" }) {
+function TabCountBadge({ count }: { count: number }) {
   if (count <= 0) return null
   return (
-    <span
-      className={cn(
-        "inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full text-[11px] font-semibold",
-        tone === "yeni" ? "bg-orange-500 text-white" : "bg-zinc-200 text-zinc-700",
-      )}
-    >
+    <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full text-[11px] font-semibold bg-orange-500 text-white">
       {count}
     </span>
   )
 }
 
-export function TaleplerView({ kurumBasvurular, kocBasvurular, ogrenciBasvurular }: Props) {
+export function TaleplerView({ kurumBasvurular, kocBasvurular }: Props) {
   const [tab, setTab] = useState<TabValue>("kurum")
   const [detail, setDetail] = useState<DetailState>(null)
 
@@ -151,9 +138,8 @@ export function TaleplerView({ kurumBasvurular, kocBasvurular, ogrenciBasvurular
     () => ({
       kurum: kurumBasvurular.filter((r) => r.status === "yeni").length,
       koc: kocBasvurular.filter((r) => r.status === "yeni").length,
-      ogrenci: ogrenciBasvurular.filter((r) => r.status === "yeni").length,
     }),
-    [kurumBasvurular, kocBasvurular, ogrenciBasvurular],
+    [kurumBasvurular, kocBasvurular],
   )
 
   async function handleStatus(
@@ -175,15 +161,11 @@ export function TaleplerView({ kurumBasvurular, kocBasvurular, ogrenciBasvurular
         <TabsList className="mb-4">
           <TabsTrigger value="kurum" className="gap-2">
             Kurum Başvuruları
-            <TabCountBadge count={yeniCounts.kurum} tone="yeni" />
+            <TabCountBadge count={yeniCounts.kurum} />
           </TabsTrigger>
           <TabsTrigger value="koc" className="gap-2">
             Koç Başvuruları
-            <TabCountBadge count={yeniCounts.koc} tone="yeni" />
-          </TabsTrigger>
-          <TabsTrigger value="ogrenci" className="gap-2">
-            Öğrenci Başvuruları
-            <TabCountBadge count={yeniCounts.ogrenci} tone="yeni" />
+            <TabCountBadge count={yeniCounts.koc} />
           </TabsTrigger>
         </TabsList>
 
@@ -292,56 +274,6 @@ export function TaleplerView({ kurumBasvurular, kocBasvurular, ogrenciBasvurular
             )}
           </div>
         </TabsContent>
-
-        {/* ── ÖĞRENCİ ───────────────────────────────────────────────────── */}
-        <TabsContent value="ogrenci" className="m-0">
-          <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
-            {ogrenciBasvurular.length === 0 ? (
-              <div className="p-12 text-center text-sm text-zinc-500">
-                Henüz öğrenci başvurusu yok.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Öğrenci</TableHead>
-                    <TableHead>Veli</TableHead>
-                    <TableHead>Sınıf</TableHead>
-                    <TableHead>Hedef</TableHead>
-                    <TableHead>Tarih</TableHead>
-                    <TableHead>Durum</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ogrenciBasvurular.map((r) => (
-                    <TableRow
-                      key={r.id}
-                      onClick={() => setDetail({ kind: "ogrenci", row: r })}
-                      className={cn(
-                        "cursor-pointer",
-                        r.status === "yeni" && "bg-orange-50/40",
-                      )}
-                    >
-                      <TableCell className="font-medium text-zinc-900">{r.ogrenci_ad}</TableCell>
-                      <TableCell className="text-zinc-600">{r.veli_ad ?? "—"}</TableCell>
-                      <TableCell className="text-zinc-600">{r.sinif ?? "—"}</TableCell>
-                      <TableCell className="text-zinc-600">{r.hedef ?? "—"}</TableCell>
-                      <TableCell className="text-zinc-600">{formatDate(r.created_at)}</TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <StatusSelect<BasvuruStatus>
-                          value={(r.status as BasvuruStatus) ?? "yeni"}
-                          options={BASVURU_STATUS_OPTIONS}
-                          colors={BASVURU_STATUS_COLORS}
-                          onChange={(v) => handleStatus(updateOgrenciStatus, r.id, v)}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-        </TabsContent>
       </Tabs>
 
       {/* ── Detay Dialog ────────────────────────────────────────────────── */}
@@ -393,23 +325,6 @@ export function TaleplerView({ kurumBasvurular, kocBasvurular, ogrenciBasvurular
                     }
                   />
                 )}
-                <Separator />
-                <Row label="Mesaj" value={detail.row.mesaj} />
-                <Separator />
-                <Row label="Başvuru Tarihi" value={formatDateTime(detail.row.created_at)} />
-              </div>
-            </>
-          )}
-          {detail?.kind === "ogrenci" && (
-            <>
-              <DialogHeader>
-                <DialogTitle>{detail.row.ogrenci_ad}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3 py-2">
-                <Row label="Veli" value={detail.row.veli_ad} />
-                <Row label="Telefon" value={detail.row.telefon} />
-                <Row label="Sınıf" value={detail.row.sinif} />
-                <Row label="Hedef" value={detail.row.hedef} />
                 <Separator />
                 <Row label="Mesaj" value={detail.row.mesaj} />
                 <Separator />

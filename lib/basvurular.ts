@@ -3,7 +3,6 @@ import type { Tables } from "@/lib/database.types"
 // ── Tipler ────────────────────────────────────────────────────────────────
 export type KurumBasvuru = Tables<"institution_inquiries">
 export type KocBasvuru = Tables<"koc_applications">
-export type OgrenciBasvuru = Tables<"ogrenci_applications">
 
 // ── Kurum (demo/institution) durumları ──────────────────────────────────────
 export const KURUM_STATUS_VALUES = ["yeni", "incelendi", "gorusuldu", "kapandi"] as const
@@ -47,5 +46,5 @@ export const BASVURU_STATUS_COLORS: Record<BasvuruStatus, string> = {
 }
 
 // Panel sekme anahtarları
-export const BASVURU_KINDS = ["kurum", "koc", "ogrenci"] as const
+export const BASVURU_KINDS = ["kurum", "koc"] as const
 export type BasvuruKind = (typeof BASVURU_KINDS)[number]

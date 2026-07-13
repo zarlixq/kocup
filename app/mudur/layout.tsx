@@ -9,12 +9,7 @@ export default async function MudurLayout({ children }: { children: React.ReactN
   if (!profile || profile.role !== "admin") redirect("/giris/mudur")
 
   const supabase = await createClient()
-  const [
-    { count: pendingCount },
-    { count: kurumYeni },
-    { count: kocYeni },
-    { count: ogrenciYeni },
-  ] = await Promise.all([
+  const [{ count: pendingCount }, { count: kurumYeni }, { count: kocYeni }] = await Promise.all([
     supabase
       .from("applications")
       .select("*", { count: "exact", head: true })
@@ -27,13 +22,9 @@ export default async function MudurLayout({ children }: { children: React.ReactN
       .from("koc_applications")
       .select("*", { count: "exact", head: true })
       .eq("status", "yeni"),
-    supabase
-      .from("ogrenci_applications")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "yeni"),
   ])
 
-  const talepYeniCount = (kurumYeni ?? 0) + (kocYeni ?? 0) + (ogrenciYeni ?? 0)
+  const talepYeniCount = (kurumYeni ?? 0) + (kocYeni ?? 0)
 
   return (
     <div className="min-h-screen bg-zinc-50">

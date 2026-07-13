@@ -1,7 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useRef } from "react"
-import { BarChart3, CalendarCheck, Wallet, Mail } from "lucide-react"
+import { ArrowRight, BarChart3, CalendarCheck, Wallet, Mail } from "lucide-react"
 
 function WhatsAppIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -98,6 +99,13 @@ export default function IndependentCoachesCTA() {
             </p>
 
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:justify-start justify-center">
+              <Link
+                href="/koc-basvuru"
+                className="inline-flex items-center justify-center gap-2 bg-[#F97316] hover:bg-[#ea6c10] text-white font-semibold text-base px-6 py-3.5 rounded-full shadow-lg shadow-orange-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
+              >
+                Başvuru Formu
+                <ArrowRight className="w-4 h-4" />
+              </Link>
               <a
                 href={WA_URL}
                 target="_blank"
@@ -107,9 +115,6 @@ export default function IndependentCoachesCTA() {
                 <WhatsAppIcon className="w-5 h-5" />
                 WhatsApp ile İletişime Geç
               </a>
-              <span className="text-xs text-gray-400 sm:max-w-[220px] text-center sm:text-left">
-                Detaylar için bizimle iletişime geç — sana özel anlatalım.
-              </span>
             </div>
           </div>
 

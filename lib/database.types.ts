@@ -631,42 +631,6 @@ export type Database = {
         }
         Relationships: []
       }
-      ogrenci_applications: {
-        Row: {
-          created_at: string
-          hedef: string | null
-          id: string
-          mesaj: string | null
-          ogrenci_ad: string
-          sinif: string | null
-          status: string
-          telefon: string
-          veli_ad: string | null
-        }
-        Insert: {
-          created_at?: string
-          hedef?: string | null
-          id?: string
-          mesaj?: string | null
-          ogrenci_ad: string
-          sinif?: string | null
-          status?: string
-          telefon: string
-          veli_ad?: string | null
-        }
-        Update: {
-          created_at?: string
-          hedef?: string | null
-          id?: string
-          mesaj?: string | null
-          ogrenci_ad?: string
-          sinif?: string | null
-          status?: string
-          telefon?: string
-          veli_ad?: string | null
-        }
-        Relationships: []
-      }
       organizations: {
         Row: {
           accent_color: string | null

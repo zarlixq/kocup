@@ -74,28 +74,3 @@ export async function updateKocStatus(id: string, status: string): Promise<Actio
   revalidatePath("/mudur/talepler")
   return { success: true }
 }
-
-export async function updateOgrenciStatus(id: string, status: string): Promise<ActionResult> {
-  const auth = await requireAdmin()
-  if (!auth.ok) return { success: false, error: auth.error }
-
-  const parsedId = idSchema.safeParse(id)
-  const parsedStatus = z.enum(BASVURU_STATUS_VALUES).safeParse(status)
-  if (!parsedId.success || !parsedStatus.success) {
-    return { success: false, error: "Geçersiz veri." }
-  }
-
-  const admin = supabaseAdmin()
-  const { error } = await admin
-    .from("ogrenci_applications")
-    .update({ status: parsedStatus.data })
-    .eq("id", parsedId.data)
-
-  if (error) {
-    console.error("Öğrenci başvuru durum güncelleme hatası:", error)
-    return { success: false, error: "Durum güncellenemedi." }
-  }
-
-  revalidatePath("/mudur/talepler")
-  return { success: true }
-}
