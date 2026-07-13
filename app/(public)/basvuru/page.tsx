@@ -245,6 +245,26 @@ export default function BasvuruPage() {
               </div>
             </fieldset>
 
+            <label className="flex items-start gap-2.5 text-sm text-zinc-600">
+              <input
+                type="checkbox"
+                name="kvkk"
+                required
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 accent-[#1B6B8A]"
+              />
+              <span>
+                <Link href="/kvkk" target="_blank" className="text-[#1B6B8A] underline">
+                  KVKK Aydınlatma Metni
+                </Link>{" "}
+                ve{" "}
+                <Link href="/gizlilik" target="_blank" className="text-[#1B6B8A] underline">
+                  Gizlilik Politikası
+                </Link>
+                &apos;nı okudum; öğrenciye ait bilgilerin işlenmesini kabul ediyorum. Öğrenci 18
+                yaşından küçükse veli/vasi olarak açık rıza veriyorum.
+              </span>
+            </label>
+
             {state?.error && (
               <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{state.error}</p>
             )}

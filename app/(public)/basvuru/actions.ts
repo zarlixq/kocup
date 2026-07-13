@@ -21,6 +21,7 @@ const BasvuruSchema = z
     target_ranking: z.coerce.number().int().positive().optional().or(z.literal("")),
     parent_name: z.string().min(2, "Veli adı en az 2 karakter olmalı"),
     parent_phone: z.string().min(10, "Geçerli bir veli telefonu girin"),
+    kvkk: z.literal("on", { message: "Devam etmek için KVKK açık rıza onayı gerekli." }),
   })
   .superRefine((data, ctx) => {
     // Segment seçildiyse sınıf o segmente uygun olmalı (defansif sunucu kontrolü).
@@ -55,6 +56,7 @@ export async function submitBasvuru(
     target_ranking: formData.get("target_ranking") || undefined,
     parent_name: formData.get("parent_name"),
     parent_phone: formData.get("parent_phone"),
+    kvkk: formData.get("kvkk") ?? "",
   }
 
   const parsed = BasvuruSchema.safeParse(raw)
@@ -62,7 +64,8 @@ export async function submitBasvuru(
     return { success: false, error: parsed.error.issues[0].message }
   }
 
-  const { target_ranking, segment, ...rest } = parsed.data
+  // kvkk yalnızca onay kutusudur; applications tablosunda kolonu yok, insert'e dahil edilmez.
+  const { target_ranking, segment, kvkk: _kvkk, ...rest } = parsed.data
 
   const supabase = await createClient()
   const { error } = await supabase.from("applications").insert({

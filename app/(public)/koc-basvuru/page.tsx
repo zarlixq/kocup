@@ -93,7 +93,16 @@ export default function KocBasvuruPage() {
                     required
                     className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 accent-[#1B6B8A]"
                   />
-                  <span>İletişim kurulması için verilerimin işlenmesini kabul ediyorum.</span>
+                  <span>
+                    <Link href="/kvkk" target="_blank" className="text-[#1B6B8A] underline">
+                      KVKK Aydınlatma Metni
+                    </Link>{" "}
+                    ve{" "}
+                    <Link href="/gizlilik" target="_blank" className="text-[#1B6B8A] underline">
+                      Gizlilik Politikası
+                    </Link>{" "}
+                    kapsamında verilerimin işlenmesini kabul ediyorum.
+                  </span>
                 </label>
 
                 {state?.error && (

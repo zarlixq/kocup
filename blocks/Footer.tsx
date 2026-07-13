@@ -37,9 +37,9 @@ const QUICK_LINKS = [
 ]
 
 const LEGAL_LINKS = [
-  { href: "#", label: "Gizlilik Politikası" },
-  { href: "#", label: "KVKK Aydınlatma Metni" },
-  { href: "#", label: "Kullanım Şartları" },
+  { href: "/gizlilik", label: "Gizlilik Politikası" },
+  { href: "/kvkk", label: "KVKK Aydınlatma Metni" },
+  { href: "/kullanim-kosullari", label: "Kullanım Koşulları" },
   { href: "#", label: "Çerez Politikası" },
 ]
 
@@ -64,19 +64,23 @@ export default function Footer() {
             </p>
             <div className="flex items-center gap-2">
               {[
-                { Icon: InstagramIcon, href: "#", label: "Instagram" },
+                { Icon: InstagramIcon, href: "https://instagram.com/kocupkocluk", label: "Instagram" },
                 { Icon: TwitterIcon, href: "#", label: "Twitter" },
                 { Icon: LinkedinIcon, href: "#", label: "LinkedIn" },
-              ].map(({ Icon, href, label }) => (
-                <a
-                  key={label}
-                  href={href}
-                  aria-label={label}
-                  className="w-9 h-9 rounded-lg bg-white/5 hover:bg-[#F97316] flex items-center justify-center transition-colors"
-                >
-                  <Icon className="w-4 h-4" />
-                </a>
-              ))}
+              ].map(({ Icon, href, label }) => {
+                const isExternal = href.startsWith("http")
+                return (
+                  <a
+                    key={label}
+                    href={href}
+                    aria-label={label}
+                    {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                    className="w-9 h-9 rounded-lg bg-white/5 hover:bg-[#F97316] flex items-center justify-center transition-colors"
+                  >
+                    <Icon className="w-4 h-4" />
+                  </a>
+                )
+              })}
             </div>
           </div>
 
@@ -101,16 +105,27 @@ export default function Footer() {
           <div>
             <h4 className="text-sm font-bold text-white mb-4">Yasal</h4>
             <ul className="space-y-2.5">
-              {LEGAL_LINKS.map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-sm text-zinc-400 hover:text-white transition-colors"
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
+              {LEGAL_LINKS.map((link) =>
+                link.href.startsWith("/") ? (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-zinc-400 hover:text-white transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ) : (
+                  <li key={link.label}>
+                    <a
+                      href={link.href}
+                      className="text-sm text-zinc-400 hover:text-white transition-colors"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ),
+              )}
             </ul>
           </div>
 

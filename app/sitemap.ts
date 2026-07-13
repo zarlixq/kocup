@@ -24,6 +24,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/araclar`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${baseUrl}/kurumlar`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${baseUrl}/koc-basvuru`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${baseUrl}/gizlilik`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${baseUrl}/kvkk`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${baseUrl}/kullanim-kosullari`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     ...TOOLS.map((t) => ({
       url: `${baseUrl}${t.publicPath}`,
       lastModified: now,
