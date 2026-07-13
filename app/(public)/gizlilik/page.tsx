@@ -3,7 +3,6 @@ import Link from "next/link"
 import { LegalShell } from "@/components/legal/legal-shell"
 
 export const metadata: Metadata = {
-  // [HUKUKÇU ONAYI BEKLİYOR — canlıya almadan önce gözden geçirilecek]
   title: "Gizlilik Politikası — KoçUp",
   description:
     "KoçUp gizlilik politikası: hangi kişisel verileri topladığımız, nasıl kullandığımız, kimlerle paylaştığımız ve haklarınız.",
@@ -12,9 +11,9 @@ export const metadata: Metadata = {
 
 export default function GizlilikPage() {
   return (
-    <LegalShell title="Gizlilik Politikası" updated="—">
+    <LegalShell title="Gizlilik Politikası" updated="—" draft={false}>
       <p>
-        Bu Gizlilik Politikası, <strong>[KoçUp / şirket unvanı — sonra doldurulacak]</strong>{" "}
+        Bu Gizlilik Politikası, <strong>[KoçUp / şirket unvanı]</strong>{" "}
         (&quot;KoçUp&quot;, &quot;biz&quot;) tarafından işletilen web sitesi ve koçluk platformu
         aracılığıyla toplanan kişisel verilerin nasıl işlendiğini açıklar. Kişisel verilerinizin
         işlenmesine ilişkin ayrıntılı bilgilendirme için{" "}

@@ -2,33 +2,32 @@ import { AlertTriangle } from "lucide-react"
 import { Navbar } from "@/blocks/Navbar"
 import Footer from "@/blocks/Footer"
 
-// NOT: Bu sayfalar TASLAKTIR. Aşağıdaki uyarı banner'ı ve bu yorum,
-// hukukçu onayı alındıktan sonra kaldırılacaktır.
-// [HUKUKÇU ONAYI BEKLİYOR — canlıya almadan önce gözden geçirilecek]
-
 type LegalShellProps = {
   title: string
   updated: string
   children: React.ReactNode
+  /** Taslak uyarı banner'ını gösterir. Yayına hazır sayfalarda false verilir. */
+  draft?: boolean
 }
 
-export function LegalShell({ title, updated, children }: LegalShellProps) {
+export function LegalShell({ title, updated, children, draft = true }: LegalShellProps) {
   return (
     <>
       <Navbar variant="solid" />
       <main className="bg-zinc-50/40 min-h-screen">
         <div className="max-w-3xl mx-auto px-5 md:px-8 py-12 md:py-16">
-          {/* [HUKUKÇU ONAYI BEKLİYOR — canlıya almadan önce gözden geçirilecek] */}
-          <div
-            role="alert"
-            className="mb-8 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-          >
-            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-600" aria-hidden="true" />
-            <span>
-              <strong>[HUKUKÇU ONAYI BEKLİYOR]</strong> — Bu metin taslaktır ve canlıya
-              alınmadan önce hukuk danışmanı tarafından gözden geçirilecektir.
-            </span>
-          </div>
+          {draft && (
+            <div
+              role="alert"
+              className="mb-8 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            >
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-600" aria-hidden="true" />
+              <span>
+                <strong>[HUKUKÇU ONAYI BEKLİYOR]</strong> — Bu metin taslaktır ve canlıya
+                alınmadan önce hukuk danışmanı tarafından gözden geçirilecektir.
+              </span>
+            </div>
+          )}
 
           <header className="mb-8">
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-900">

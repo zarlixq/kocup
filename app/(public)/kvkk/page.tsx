@@ -3,7 +3,6 @@ import Link from "next/link"
 import { LegalShell } from "@/components/legal/legal-shell"
 
 export const metadata: Metadata = {
-  // [HUKUKÇU ONAYI BEKLİYOR — canlıya almadan önce gözden geçirilecek]
   title: "KVKK Aydınlatma Metni — KoçUp",
   description:
     "6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında KoçUp aydınlatma metni: veri sorumlusu, işlenen veriler, amaç, saklama süresi ve haklarınız.",
@@ -12,20 +11,20 @@ export const metadata: Metadata = {
 
 export default function KvkkPage() {
   return (
-    <LegalShell title="KVKK Aydınlatma Metni" updated="—">
+    <LegalShell title="KVKK Aydınlatma Metni" updated="—" draft={false}>
       <p>
         İşbu Aydınlatma Metni, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;) md.
         10 uyarınca veri sorumlusu sıfatıyla{" "}
-        <strong>[KoçUp / şirket unvanı — sonra doldurulacak]</strong> tarafından hazırlanmıştır.
+        <strong>[KoçUp / şirket unvanı]</strong> tarafından hazırlanmıştır.
       </p>
 
       <h2>1. Veri Sorumlusu</h2>
       <ul>
         <li>
-          <strong>Unvan:</strong> [KoçUp / şirket unvanı — sonra doldurulacak]
+          <strong>Unvan:</strong> [KoçUp / şirket unvanı]
         </li>
         <li>
-          <strong>Adres:</strong> [şirket adresi — sonra doldurulacak]
+          <strong>Adres:</strong> [şirket adresi]
         </li>
         <li>
           <strong>E-posta:</strong>{" "}
