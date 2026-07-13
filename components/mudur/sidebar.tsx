@@ -6,6 +6,7 @@ import { useState } from "react"
 import {
   LayoutDashboard,
   FileText,
+  Inbox,
   UserCog,
   GraduationCap,
   Building2,
@@ -35,12 +36,13 @@ type NavItem = {
   href: string
   label: string
   icon: typeof LayoutDashboard
-  badgeKey?: "pending"
+  badgeKey?: "pending" | "talepYeni"
 }
 
 const NAV: NavItem[] = [
   { href: "/mudur", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/mudur/basvurular", label: "Başvurular", icon: FileText, badgeKey: "pending" },
+  { href: "/mudur/talepler", label: "Başvurular", icon: Inbox, badgeKey: "talepYeni" },
+  { href: "/mudur/basvurular", label: "Bireysel Başvurular", icon: FileText, badgeKey: "pending" },
   { href: "/mudur/koclar", label: "Koçlar", icon: UserCog },
   { href: "/mudur/ogrenciler", label: "Öğrenciler", icon: GraduationCap },
   { href: "/mudur/kurumlar", label: "Kurumlar", icon: Building2 },
@@ -63,6 +65,7 @@ const ACCOUNT_NAV: NavItem[] = [
 type SidebarProps = {
   user: { full_name: string; email: string }
   pendingCount: number
+  talepYeniCount: number
 }
 
 function initials(name: string) {
@@ -74,9 +77,10 @@ function initials(name: string) {
     .toUpperCase()
 }
 
-function NavList({ pathname, pendingCount, onClick }: {
+function NavList({ pathname, pendingCount, talepYeniCount, onClick }: {
   pathname: string
   pendingCount: number
+  talepYeniCount: number
   onClick?: () => void
 }) {
   return (
@@ -86,7 +90,12 @@ function NavList({ pathname, pendingCount, onClick }: {
         const isActive = item.href === "/mudur"
           ? pathname === "/mudur"
           : pathname.startsWith(item.href)
-        const badgeNum = item.badgeKey === "pending" ? pendingCount : 0
+        const badgeNum =
+          item.badgeKey === "pending"
+            ? pendingCount
+            : item.badgeKey === "talepYeni"
+              ? talepYeniCount
+              : 0
 
         return (
           <Link
@@ -114,7 +123,7 @@ function NavList({ pathname, pendingCount, onClick }: {
   )
 }
 
-function SidebarBody({ user, pendingCount, onNavigate }: SidebarProps & { onNavigate?: () => void }) {
+function SidebarBody({ user, pendingCount, talepYeniCount, onNavigate }: SidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname()
 
   return (
@@ -127,7 +136,12 @@ function SidebarBody({ user, pendingCount, onNavigate }: SidebarProps & { onNavi
         </div>
       </div>
 
-      <NavList pathname={pathname} pendingCount={pendingCount} onClick={onNavigate} />
+      <NavList
+        pathname={pathname}
+        pendingCount={pendingCount}
+        talepYeniCount={talepYeniCount}
+        onClick={onNavigate}
+      />
 
       <Separator />
       <nav className="px-3 py-3 space-y-1">
@@ -181,14 +195,14 @@ function SidebarBody({ user, pendingCount, onNavigate }: SidebarProps & { onNavi
   )
 }
 
-export function Sidebar({ user, pendingCount }: SidebarProps) {
+export function Sidebar({ user, pendingCount, talepYeniCount }: SidebarProps) {
   const [open, setOpen] = useState(false)
 
   return (
     <>
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col fixed inset-y-0 left-0 w-64 bg-white border-r border-zinc-200 z-30">
-        <SidebarBody user={user} pendingCount={pendingCount} />
+        <SidebarBody user={user} pendingCount={pendingCount} talepYeniCount={talepYeniCount} />
       </aside>
 
       {/* Mobile topbar */}
@@ -207,6 +221,7 @@ export function Sidebar({ user, pendingCount }: SidebarProps) {
             <SidebarBody
               user={user}
               pendingCount={pendingCount}
+              talepYeniCount={talepYeniCount}
               onNavigate={() => setOpen(false)}
             />
           </SheetContent>

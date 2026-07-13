@@ -9,16 +9,38 @@ export default async function MudurLayout({ children }: { children: React.ReactN
   if (!profile || profile.role !== "admin") redirect("/giris/mudur")
 
   const supabase = await createClient()
-  const { count: pendingCount } = await supabase
-    .from("applications")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "pending")
+  const [
+    { count: pendingCount },
+    { count: kurumYeni },
+    { count: kocYeni },
+    { count: ogrenciYeni },
+  ] = await Promise.all([
+    supabase
+      .from("applications")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("institution_inquiries")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "yeni"),
+    supabase
+      .from("koc_applications")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "yeni"),
+    supabase
+      .from("ogrenci_applications")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "yeni"),
+  ])
+
+  const talepYeniCount = (kurumYeni ?? 0) + (kocYeni ?? 0) + (ogrenciYeni ?? 0)
 
   return (
     <div className="min-h-screen bg-zinc-50">
       <Sidebar
         user={{ full_name: profile.full_name, email: profile.email }}
         pendingCount={pendingCount ?? 0}
+        talepYeniCount={talepYeniCount}
       />
       <main className="md:pl-64">
         <div className="p-6 md:p-8 animate-in fade-in duration-300 motion-reduce:animate-none">

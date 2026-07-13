@@ -592,6 +592,81 @@ export type Database = {
         }
         Relationships: []
       }
+      koc_applications: {
+        Row: {
+          ad_soyad: string
+          brans: string | null
+          created_at: string
+          cv_url: string | null
+          deneyim_yili: number | null
+          email: string | null
+          id: string
+          mesaj: string | null
+          status: string
+          telefon: string
+        }
+        Insert: {
+          ad_soyad: string
+          brans?: string | null
+          created_at?: string
+          cv_url?: string | null
+          deneyim_yili?: number | null
+          email?: string | null
+          id?: string
+          mesaj?: string | null
+          status?: string
+          telefon: string
+        }
+        Update: {
+          ad_soyad?: string
+          brans?: string | null
+          created_at?: string
+          cv_url?: string | null
+          deneyim_yili?: number | null
+          email?: string | null
+          id?: string
+          mesaj?: string | null
+          status?: string
+          telefon?: string
+        }
+        Relationships: []
+      }
+      ogrenci_applications: {
+        Row: {
+          created_at: string
+          hedef: string | null
+          id: string
+          mesaj: string | null
+          ogrenci_ad: string
+          sinif: string | null
+          status: string
+          telefon: string
+          veli_ad: string | null
+        }
+        Insert: {
+          created_at?: string
+          hedef?: string | null
+          id?: string
+          mesaj?: string | null
+          ogrenci_ad: string
+          sinif?: string | null
+          status?: string
+          telefon: string
+          veli_ad?: string | null
+        }
+        Update: {
+          created_at?: string
+          hedef?: string | null
+          id?: string
+          mesaj?: string | null
+          ogrenci_ad?: string
+          sinif?: string | null
+          status?: string
+          telefon?: string
+          veli_ad?: string | null
+        }
+        Relationships: []
+      }
       organizations: {
         Row: {
           accent_color: string | null
@@ -1614,6 +1689,10 @@ export type Database = {
       is_coach_of: { Args: { student_id: string }; Returns: boolean }
       is_org_admin_of: { Args: { target_org_id: string }; Returns: boolean }
       my_coach_id: { Args: never; Returns: string }
+      weekly_program_student: {
+        Args: { p_program_id: string }
+        Returns: string
+      }
     }
     Enums: {
       appointment_status: "planlandi" | "tamamlandi" | "iptal" | "gelmedi"
