@@ -389,6 +389,31 @@ export async function setDemoAppointmentSetter(
   return { success: true }
 }
 
+// Lead durumunu tek alanla değiştir (ör. takip listesinden "Kaybedildi işaretle").
+export async function setLeadDurum(id: string, durum: string): Promise<ActionResult> {
+  const auth = await requireAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+  if (!id) return { success: false, error: "Kurum bulunamadı." }
+
+  const parsedDurum = z.enum(DURUM_VALUES).safeParse(durum)
+  if (!parsedDurum.success) return { success: false, error: "Geçersiz durum." }
+
+  const admin = supabaseAdmin()
+  const { error } = await admin
+    .from("sales_leads")
+    .update({ durum: parsedDurum.data })
+    .eq("id", id)
+
+  if (error) {
+    console.error("Lead durum güncelleme hatası:", error)
+    return { success: false, error: "Durum güncellenemedi." }
+  }
+
+  revalidatePath("/mudur/satis-takibi")
+  revalidatePath(`/mudur/satis-takibi/${id}`)
+  return { success: true }
+}
+
 export async function deleteLead(id: string): Promise<ActionResult> {
   const auth = await requireAdmin()
   if (!auth.ok) return { success: false, error: auth.error }

@@ -12,7 +12,6 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -42,7 +41,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { DemoStatusBadge } from "@/components/mudur/satis-takibi/demo-status-badge"
 import { SetterSelect, type SetterOption } from "@/components/mudur/satis-takibi/setter-select"
-import { istanbulDateStr } from "@/lib/tz"
+import { DemoScheduleDialog } from "@/components/mudur/satis-takibi/demo-schedule-dialog"
 import {
   formatDemoDateTime,
   embeddedName,
@@ -53,10 +52,8 @@ import {
   type DemoOutcome,
 } from "@/lib/satis-takibi"
 import {
-  createDemoAppointment,
   markDemoResult,
   updateDemoNotes,
-  rescheduleDemoAppointment,
   cancelDemoAppointment,
   setDemoAppointmentSetter,
 } from "@/app/mudur/satis-takibi/actions"
@@ -119,10 +116,17 @@ export function DemoAppointmentsPanel({
       )}
 
       {scheduleFor && (
-        <ScheduleDialog
-          leadId={leadId}
+        <DemoScheduleDialog
+          target={
+            scheduleFor.mode === "reschedule"
+              ? {
+                  mode: "reschedule",
+                  appointmentId: scheduleFor.from.id,
+                  defaultSetterId: scheduleFor.from.set_by_id,
+                }
+              : { mode: "create", leadId }
+          }
           setters={setters}
-          reschedule={scheduleFor.mode === "reschedule" ? scheduleFor.from : null}
           onClose={() => setScheduleFor(null)}
         />
       )}
@@ -295,92 +299,6 @@ function DemoCard({
         )}
       </div>
     </li>
-  )
-}
-
-// ── Randevu oluştur / yeniden randevu dialog ─────────────────────────────
-function ScheduleDialog({
-  leadId,
-  setters,
-  reschedule,
-  onClose,
-}: {
-  leadId: string
-  setters: SetterOption[]
-  reschedule: DemoAppointmentWithSetter | null
-  onClose: () => void
-}) {
-  const [isPending, startTransition] = useTransition()
-  const [date, setDate] = useState(istanbulDateStr())
-  const [time, setTime] = useState("10:00")
-  const [notes, setNotes] = useState("")
-  // Yeniden randevuda önceki ayarlayanı varsayılan getir
-  const [setById, setSetById] = useState<string | null>(reschedule?.set_by_id ?? null)
-
-  function submit() {
-    startTransition(async () => {
-      const input = { date, time, notes, set_by_id: setById }
-      const res = reschedule
-        ? await rescheduleDemoAppointment(reschedule.id, input)
-        : await createDemoAppointment(leadId, input)
-      if (res.success) {
-        toast.success(reschedule ? "Yeni randevu oluşturuldu." : "Demo randevusu oluşturuldu.")
-        onClose()
-      } else {
-        toast.error(res.error ?? "İşlem başarısız.")
-      }
-    })
-  }
-
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{reschedule ? "Yeni Randevu Belirle" : "Demo Randevusu Oluştur"}</DialogTitle>
-          <DialogDescription>
-            {reschedule
-              ? "Gelmeyen randevu geçmişte kalır, yeni randevu ona bağlanır."
-              : "Demo için tarih ve saat belirleyin (Istanbul saati)."}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="demo-date">Tarih</Label>
-              <Input id="demo-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="demo-time">Saat</Label>
-              <Input id="demo-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Kim ayarladı? (opsiyonel)</Label>
-            <SetterSelect setters={setters} value={setById} onChange={(id) => setSetById(id)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="demo-notes">Not (opsiyonel)</Label>
-            <Textarea
-              id="demo-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Örn. yönetici ile toplantı, adres..."
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={isPending}>
-            Vazgeç
-          </Button>
-          <Button className="bg-[#1B6B8A] hover:bg-[#155a75]" onClick={submit} disabled={isPending}>
-            {isPending ? "Kaydediliyor..." : reschedule ? "Yeni Randevu Oluştur" : "Oluştur"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }
 

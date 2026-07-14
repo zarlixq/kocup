@@ -8,7 +8,6 @@ import {
   Search,
   X,
   CalendarClock,
-  ChevronRight,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -50,6 +49,8 @@ import { formatDate, isoDate } from "@/lib/format"
 import { EmptyState } from "@/components/shared/empty-state"
 import { DurumBadge } from "@/components/mudur/satis-takibi/durum-badge"
 import { LeadFormDialog } from "@/components/mudur/satis-takibi/lead-form-dialog"
+import { SetterSelect } from "@/components/mudur/satis-takibi/setter-select"
+import { FollowUpList, type FollowUpItem } from "@/components/mudur/satis-takibi/follow-up-list"
 import {
   DURUM_COLORS,
   DURUM_LABEL,
@@ -57,24 +58,27 @@ import {
   DURUM_VALUES,
   KAPALI_DURUMLAR,
   KURUM_TIPI_LABEL,
+  DEMO_DISPLAY,
   formatDemoDateTime,
   type Durum,
   type SalesLead,
+  type RowDemo,
 } from "@/lib/satis-takibi"
-import { deleteLead } from "@/app/mudur/satis-takibi/actions"
+import { deleteLead, setDemoAppointmentSetter } from "@/app/mudur/satis-takibi/actions"
 
 const ALL = "__all__"
 
-type NextDemo = { scheduled_at: string; setterId: string | null; setterName: string | null }
 type SetterOption = { id: string; name: string; count: number }
 
 export function SatisTakibiView({
   leads,
-  nextDemoByLead = {},
+  rowDemoByLead = {},
+  followUpItems = [],
   setterOptions = [],
 }: {
   leads: SalesLead[]
-  nextDemoByLead?: Record<string, NextDemo>
+  rowDemoByLead?: Record<string, RowDemo>
+  followUpItems?: FollowUpItem[]
   setterOptions?: SetterOption[]
 }) {
   const [isPending, startTransition] = useTransition()
@@ -99,20 +103,6 @@ export function SatisTakibiView({
     return counts
   }, [leads])
 
-  // Takip edilmesi gerekenler: sonraki adım tarihi bugün/geçmiş, kapanmamış.
-  const followUps = useMemo(() => {
-    return leads
-      .filter(
-        (l) =>
-          l.sonraki_adim_tarihi != null &&
-          l.sonraki_adim_tarihi <= todayIso &&
-          !KAPALI_DURUMLAR.includes(l.durum as Durum),
-      )
-      .sort((a, b) =>
-        (a.sonraki_adim_tarihi ?? "").localeCompare(b.sonraki_adim_tarihi ?? ""),
-      )
-  }, [leads, todayIso])
-
   // İl filtresi için mevcut iller.
   const iller = useMemo(() => {
     const set = new Set<string>()
@@ -126,11 +116,26 @@ export function SatisTakibiView({
       if (q && !l.kurum_adi.toLowerCase().includes(q)) return false
       if (durumFilter !== ALL && l.durum !== durumFilter) return false
       if (ilFilter !== ALL && l.il !== ilFilter) return false
-      // Ayarlayan filtresi: yaklaşan demosunu bu kişi ayarlamış kurumlar
-      if (setterFilter !== ALL && nextDemoByLead[l.id]?.setterId !== setterFilter) return false
+      // Ayarlayan filtresi: satır demosunu bu kişi ayarlamış kurumlar
+      if (setterFilter !== ALL && rowDemoByLead[l.id]?.setById !== setterFilter) return false
       return true
     })
-  }, [leads, query, durumFilter, ilFilter, setterFilter, nextDemoByLead])
+  }, [leads, query, durumFilter, ilFilter, setterFilter, rowDemoByLead])
+
+  // SetterSelect için sade {id,name} listesi (count alanı olmadan)
+  const setterSelectOptions = useMemo(
+    () => setterOptions.map((s) => ({ id: s.id, name: s.name })),
+    [setterOptions],
+  )
+
+  // Satır demosunun ayarlayanını inline değiştir (o satırın aktif/en güncel demosu)
+  function handleRowSetter(demoId: string, setterId: string | null) {
+    startTransition(async () => {
+      const res = await setDemoAppointmentSetter(demoId, setterId)
+      if (res.success) toast.success("Ayarlayan güncellendi.")
+      else toast.error(res.error ?? "Güncellenemedi.")
+    })
+  }
 
   function openNew() {
     setEditTarget(null)
@@ -196,46 +201,8 @@ export function SatisTakibiView({
         ))}
       </div>
 
-      {/* Takip edilmesi gerekenler */}
-      {followUps.length > 0 && (
-        <div className="mb-6 rounded-2xl border border-[#F97316]/30 bg-[#F97316]/5 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <CalendarClock className="w-5 h-5 text-[#F97316]" />
-            <h2 className="font-semibold text-zinc-900">
-              Takip edilmesi gerekenler
-            </h2>
-            <span className="text-xs font-semibold text-[#F97316] bg-[#F97316]/10 rounded-full px-2 py-0.5">
-              {followUps.length}
-            </span>
-          </div>
-          <div className="space-y-1.5">
-            {followUps.map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                onClick={() => openEdit(l)}
-                className="w-full flex items-center gap-3 text-left rounded-lg bg-white border border-zinc-200 px-3 py-2 hover:border-[#F97316]/50 hover:shadow-sm transition-all"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-zinc-900 truncate">{l.kurum_adi}</span>
-                    <DurumBadge durum={l.durum as Durum} />
-                  </div>
-                  {l.sonraki_adim && (
-                    <div className="text-xs text-zinc-500 truncate mt-0.5">
-                      {l.sonraki_adim}
-                    </div>
-                  )}
-                </div>
-                <div className="text-xs font-medium text-[#F97316] whitespace-nowrap">
-                  {formatDate(l.sonraki_adim_tarihi, "dd.MM.yyyy")}
-                </div>
-                <ChevronRight className="w-4 h-4 text-zinc-300 shrink-0" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Takip edilmesi gerekenler — demo yaşam döngüsüne göre */}
+      <FollowUpList items={followUpItems} setters={setterOptions} />
 
       {/* Filtreler */}
       <div className="flex flex-col md:flex-row gap-2 mb-4">
@@ -323,7 +290,7 @@ export function SatisTakibiView({
                 <TableHead>Tip</TableHead>
                 <TableHead>İl</TableHead>
                 <TableHead>Durum</TableHead>
-                <TableHead>Yaklaşan Demo</TableHead>
+                <TableHead>Demo / Ayarlayan</TableHead>
                 <TableHead className="text-right">Öğrenci</TableHead>
                 <TableHead>Son Temas</TableHead>
                 <TableHead>Sonraki Adım</TableHead>
@@ -355,22 +322,55 @@ export function SatisTakibiView({
                     <TableCell>
                       <DurumBadge durum={l.durum as Durum} />
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {nextDemoByLead[l.id] ? (
-                        <div>
-                          <span className="inline-flex items-center gap-1 text-sm font-medium text-indigo-700">
-                            <CalendarClock className="w-3.5 h-3.5" />
-                            {formatDemoDateTime(nextDemoByLead[l.id].scheduled_at)}
-                          </span>
-                          {nextDemoByLead[l.id].setterName && (
-                            <div className="text-xs text-zinc-500 mt-0.5">
-                              Ayarlayan: {nextDemoByLead[l.id].setterName}
+                    <TableCell
+                      className="whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {(() => {
+                        const rd = rowDemoByLead[l.id]
+                        if (!rd) {
+                          return (
+                            <Link
+                              href={`/mudur/satis-takibi/${l.id}`}
+                              className="text-xs font-medium text-[#1B6B8A] hover:underline"
+                            >
+                              + Demo ekle
+                            </Link>
+                          )
+                        }
+                        const disp = DEMO_DISPLAY[rd.displayKey]
+                        // Ayarlayan soft-inactive olsa bile adı seçicide görünsün
+                        const rowSetters =
+                          rd.setById && rd.setterName && !setterSelectOptions.some((s) => s.id === rd.setById)
+                            ? [...setterSelectOptions, { id: rd.setById, name: rd.setterName }]
+                            : setterSelectOptions
+                        return (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={cn(
+                                  "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold",
+                                  disp.color,
+                                )}
+                              >
+                                {disp.label}
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-xs text-zinc-500">
+                                <CalendarClock className="w-3 h-3" />
+                                {formatDemoDateTime(rd.scheduledAt)}
+                              </span>
                             </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-zinc-400 text-sm">—</span>
-                      )}
+                            <div className="w-44">
+                              <SetterSelect
+                                setters={rowSetters}
+                                value={rd.setById}
+                                onChange={(id) => handleRowSetter(rd.id, id)}
+                                size="sm"
+                              />
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </TableCell>
                     <TableCell className="text-right text-zinc-600 tabular-nums">
                       {l.ogrenci_sayisi ?? "—"}

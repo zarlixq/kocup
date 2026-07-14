@@ -69,6 +69,55 @@ export const DEMO_OUTCOME_LABEL: Record<DemoOutcome, string> = DEMO_OUTCOME_OPTI
   {} as Record<DemoOutcome, string>,
 )
 
+// ── Türetilmiş demo durumu (yaşam döngüsü rozeti) ────────────────────────
+// Ham status + scheduled_at'ten kullanıcıya gösterilecek durumu türetir.
+// 'scheduled' geçmişse "Sonuç bekliyor", gelecekse "Yaklaşıyor" olur.
+// Hydration güvenli olması için key SUNUCUDA hesaplanır, client DEMO_DISPLAY'den render eder.
+export type DemoDisplayKey =
+  | "upcoming"
+  | "awaiting"
+  | "completed"
+  | "no_show"
+  | "rescheduled"
+  | "cancelled"
+
+export const DEMO_DISPLAY: Record<DemoDisplayKey, { label: string; color: string }> = {
+  upcoming: { label: "Yaklaşıyor", color: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+  awaiting: { label: "Sonuç bekliyor", color: "bg-orange-100 text-orange-800 border-orange-200" },
+  completed: { label: "Geldi", color: "bg-green-100 text-green-800 border-green-200" },
+  no_show: { label: "Gelmedi", color: "bg-red-100 text-red-800 border-red-200" },
+  rescheduled: { label: "Ertelendi", color: "bg-amber-100 text-amber-800 border-amber-200" },
+  cancelled: { label: "İptal", color: "bg-zinc-100 text-zinc-600 border-zinc-200" },
+}
+
+// Satış CRM listesinde bir kurum satırının "aktif demosu" (özet gösterim).
+export type RowDemo = {
+  id: string
+  scheduledAt: string
+  displayKey: DemoDisplayKey
+  setById: string | null
+  setterName: string | null
+}
+
+export function computeDemoDisplayKey(
+  status: string,
+  scheduledAt: string,
+  nowMs: number,
+): DemoDisplayKey {
+  if (status === "scheduled") {
+    return new Date(scheduledAt).getTime() < nowMs ? "awaiting" : "upcoming"
+  }
+  if (
+    status === "completed" ||
+    status === "no_show" ||
+    status === "rescheduled" ||
+    status === "cancelled"
+  ) {
+    return status
+  }
+  return "cancelled"
+}
+
 // scheduled_at (timestamptz ISO) → Istanbul takviminde "dd.MM.yyyy HH:mm".
 // lib/tz.ts ile aynı yaklaşım: Intl + timeZone Europe/Istanbul (yeni tz helper yok).
 export function formatDemoDateTime(iso: string | null | undefined): string {
