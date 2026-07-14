@@ -8,6 +8,8 @@ import { currentPeriodMonthISO, getPaymentStatus, statusLabel } from "@/lib/paym
 import { StudentSearch } from "@/components/koc/student-search"
 import { UserStatusBadge } from "@/components/shared/user-status-badge"
 import { getUserStatus } from "@/lib/user-status"
+import { getWeeklyComplianceMap } from "@/lib/analytics/compliance"
+import { ComplianceBadge } from "@/components/analytics/compliance-badge"
 
 export const metadata = { title: "Öğrencilerim — KoçUp" }
 
@@ -66,6 +68,9 @@ export default async function OgrencilerPage({ searchParams }: { searchParams: P
 
   const periodIso = currentPeriodMonthISO()
 
+  // Haftalık program uyumu — koç RLS'i yalnız kendi öğrencilerini kapsar
+  const complianceMap = await getWeeklyComplianceMap(supabase)
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -111,6 +116,7 @@ export default async function OgrencilerPage({ searchParams }: { searchParams: P
                 <TableHead>Ad Soyad</TableHead>
                 <TableHead>Sınıf</TableHead>
                 <TableHead>Okul</TableHead>
+                <TableHead>Uyum</TableHead>
                 <TableHead>Kaynak</TableHead>
                 <TableHead>Aktif Paket</TableHead>
                 <TableHead>Bu Ay</TableHead>
@@ -141,6 +147,18 @@ export default async function OgrencilerPage({ searchParams }: { searchParams: P
                     </TableCell>
                     <TableCell>{s.grade ?? "-"}</TableCell>
                     <TableCell>{s.school ?? "-"}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const c = complianceMap.get(s.id)
+                        return (
+                          <ComplianceBadge
+                            percent={c?.percent ?? null}
+                            totalItems={c?.totalItems}
+                            doneItems={c?.doneItems}
+                          />
+                        )
+                      })()}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={s.kayit_kaynagi === "koc_ekledi" ? "default" : "outline"}>
                         {s.kayit_kaynagi === "koc_ekledi" ? "Koç Ekledi" : "Başvuru"}

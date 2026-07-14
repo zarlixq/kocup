@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { UserCog, GraduationCap, Clock, BookOpenCheck } from "lucide-react"
+import { UserCog, GraduationCap, Clock, BookOpenCheck, CalendarClock } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { StatsCard } from "@/components/mudur/stats-card"
 import {
@@ -16,6 +16,13 @@ import { CoachStudentsBar } from "@/components/charts/coach-students-bar"
 import { ApplicationStatusDonut } from "@/components/charts/application-status-donut"
 import { ActiveStudentsArea } from "@/components/charts/active-students-area"
 import { DashboardOrgFilter } from "@/components/mudur/dashboard-org-filter"
+import { StudentLeaderboard, type LeaderboardRow } from "@/components/mudur/student-leaderboard"
+import { getScoreboardStats } from "@/lib/analytics/scoreboard"
+import { getWeeklyComplianceMap } from "@/lib/analytics/compliance"
+import { mergeDashboardPrefs } from "@/lib/analytics/ui-preferences"
+import { getUiPreference } from "@/lib/analytics/ui-preferences-actions"
+import { istanbulWeekStartStr } from "@/lib/tz"
+import { formatDemoDateTime } from "@/lib/satis-takibi"
 
 export const metadata = { title: "Müdür Paneli — KoçUp" }
 
@@ -151,6 +158,59 @@ export default async function MudurDashboard({
 
   const weekTotal = (weekSessions ?? []).reduce((sum, row) => sum + (row.total_questions ?? 0), 0)
 
+  // ── Öğrenci sıralaması (leaderboard) verisi — kapsam RLS ile tüm platform ──
+  const dashPrefs = mergeDashboardPrefs(await getUiPreference("mudur_dashboard"))
+  const [scoreStats, complianceMap, { data: leaderStudents }, { data: leaderNames }, { data: leaderCoaches }] =
+    await Promise.all([
+      getScoreboardStats(supabase),
+      getWeeklyComplianceMap(supabase),
+      supabase.from("students").select("id, grade, coach_id, is_active"),
+      supabase.from("profiles").select("id, full_name").eq("role", "student"),
+      supabase.from("profiles").select("id, full_name").eq("role", "coach"),
+    ])
+
+  const nameById = new Map((leaderNames ?? []).map((p) => [p.id, p.full_name]))
+  const coachNameById = new Map((leaderCoaches ?? []).map((c) => [c.id, c.full_name]))
+  const studentMetaById = new Map(
+    (leaderStudents ?? []).map((s) => [s.id, s]),
+  )
+  // Bu haftaki planlı demolar (satış CRM) — zamana göre sıralı
+  const weekStartStr = istanbulWeekStartStr()
+  const weekEndIso = new Date(
+    new Date(`${weekStartStr}T00:00:00+03:00`).getTime() + 7 * 24 * 60 * 60 * 1000,
+  ).toISOString()
+  const { data: weekDemos } = await supabase
+    .from("demo_appointments")
+    .select("id, scheduled_at, lead_id, sales_leads(kurum_adi)")
+    .eq("status", "scheduled")
+    .gte("scheduled_at", now.toISOString())
+    .lt("scheduled_at", weekEndIso)
+    .order("scheduled_at", { ascending: true })
+    .limit(8)
+
+  // Org filtresi uygulandıysa yalnız o kapsamdaki öğrencileri sırala
+  const scopeSet = orgStudentIds ? new Set(orgStudentIds) : null
+  const leaderboardRows: LeaderboardRow[] = scoreStats
+    .filter((s) => {
+      const meta = studentMetaById.get(s.student_id)
+      if (!meta || meta.is_active === false) return false
+      if (scopeSet && !scopeSet.has(s.student_id)) return false
+      return true
+    })
+    .map((s) => {
+      const meta = studentMetaById.get(s.student_id)
+      const comp = complianceMap.get(s.student_id)
+      return {
+        ...s,
+        name: nameById.get(s.student_id) ?? "—",
+        grade: meta?.grade ?? null,
+        coachName: meta?.coach_id ? coachNameById.get(meta.coach_id) ?? null : null,
+        compliance: comp
+          ? { percent: comp.percent, totalItems: comp.totalItems, doneItems: comp.doneItems }
+          : null,
+      }
+    })
+
   // System questions trend (30 gün)
   const trendByDay: Record<string, number> = {}
   for (let i = 0; i < 30; i++) {
@@ -253,6 +313,45 @@ export default async function MudurDashboard({
           subtitle="Son 7 gün"
         />
       </div>
+
+      <div className="mb-8">
+        <StudentLeaderboard rows={leaderboardRows} initialPrefs={dashPrefs} />
+      </div>
+
+      {(weekDemos ?? []).length > 0 && (
+        <section className="bg-white border border-zinc-200 rounded-2xl mb-8">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+            <div className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                <CalendarClock className="h-4 w-4" />
+              </span>
+              <h2 className="font-semibold text-zinc-900">Bu Hafta Demolar</h2>
+            </div>
+            <Link href="/mudur/satis-takibi" className="text-sm font-medium text-[#1B6B8A] hover:underline">
+              Satış Takibi →
+            </Link>
+          </div>
+          <ul className="divide-y divide-zinc-100">
+            {(weekDemos ?? []).map((d) => {
+              const rel = d.sales_leads as { kurum_adi: string } | { kurum_adi: string }[] | null
+              const kurumAdi = Array.isArray(rel) ? rel[0]?.kurum_adi : rel?.kurum_adi
+              return (
+                <li key={d.id}>
+                  <Link
+                    href={`/mudur/satis-takibi/${d.lead_id}`}
+                    className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50 transition-colors"
+                  >
+                    <span className="font-medium text-zinc-900 truncate">{kurumAdi ?? "Kurum"}</span>
+                    <span className="text-sm font-medium text-indigo-700 whitespace-nowrap tabular-nums">
+                      {formatDemoDateTime(d.scheduled_at)}
+                    </span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <SystemQuestionsTrend data={systemTrendData} />

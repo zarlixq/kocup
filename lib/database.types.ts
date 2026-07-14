@@ -286,6 +286,97 @@ export type Database = {
           },
         ]
       }
+      demo_appointments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          lead_id: string
+          notes: string | null
+          outcome: string | null
+          rescheduled_from_id: string | null
+          scheduled_at: string
+          set_by_id: string | null
+          showed_up: boolean | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id: string
+          notes?: string | null
+          outcome?: string | null
+          rescheduled_from_id?: string | null
+          scheduled_at: string
+          set_by_id?: string | null
+          showed_up?: boolean | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          outcome?: string | null
+          rescheduled_from_id?: string | null
+          scheduled_at?: string
+          set_by_id?: string | null
+          showed_up?: boolean | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demo_appointments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "sales_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demo_appointments_rescheduled_from_id_fkey"
+            columns: ["rescheduled_from_id"]
+            isOneToOne: false
+            referencedRelation: "demo_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demo_appointments_set_by_id_fkey"
+            columns: ["set_by_id"]
+            isOneToOne: false
+            referencedRelation: "demo_setters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demo_setters: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       etut_schedule: {
         Row: {
           created_at: string | null
@@ -1461,6 +1552,27 @@ export type Database = {
           },
         ]
       }
+      user_ui_preferences: {
+        Row: {
+          scope: string
+          settings: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          scope: string
+          settings?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          scope?: string
+          settings?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       weekly_program_items: {
         Row: {
           aciklama: string | null
@@ -1653,6 +1765,24 @@ export type Database = {
       is_coach_of: { Args: { student_id: string }; Returns: boolean }
       is_org_admin_of: { Args: { target_org_id: string }; Returns: boolean }
       my_coach_id: { Args: never; Returns: string }
+      student_scoreboard_stats: {
+        Args: { p_since: string }
+        Returns: {
+          active_days: number
+          correct: number
+          last_exam_net: number
+          questions: number
+          student_id: string
+        }[]
+      }
+      weekly_program_compliance: {
+        Args: { p_student_id?: string; p_week_start: string }
+        Returns: {
+          done_items: number
+          student_id: string
+          total_items: number
+        }[]
+      }
       weekly_program_student: {
         Args: { p_program_id: string }
         Returns: string

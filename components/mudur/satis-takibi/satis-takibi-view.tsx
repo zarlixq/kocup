@@ -44,6 +44,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { formatDate, isoDate } from "@/lib/format"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -56,6 +57,7 @@ import {
   DURUM_VALUES,
   KAPALI_DURUMLAR,
   KURUM_TIPI_LABEL,
+  formatDemoDateTime,
   type Durum,
   type SalesLead,
 } from "@/lib/satis-takibi"
@@ -63,11 +65,23 @@ import { deleteLead } from "@/app/mudur/satis-takibi/actions"
 
 const ALL = "__all__"
 
-export function SatisTakibiView({ leads }: { leads: SalesLead[] }) {
+type NextDemo = { scheduled_at: string; setterId: string | null; setterName: string | null }
+type SetterOption = { id: string; name: string; count: number }
+
+export function SatisTakibiView({
+  leads,
+  nextDemoByLead = {},
+  setterOptions = [],
+}: {
+  leads: SalesLead[]
+  nextDemoByLead?: Record<string, NextDemo>
+  setterOptions?: SetterOption[]
+}) {
   const [isPending, startTransition] = useTransition()
   const [query, setQuery] = useState("")
   const [durumFilter, setDurumFilter] = useState<string>(ALL)
   const [ilFilter, setIlFilter] = useState<string>(ALL)
+  const [setterFilter, setSetterFilter] = useState<string>(ALL)
   const [formOpen, setFormOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<SalesLead | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<SalesLead | null>(null)
@@ -112,9 +126,11 @@ export function SatisTakibiView({ leads }: { leads: SalesLead[] }) {
       if (q && !l.kurum_adi.toLowerCase().includes(q)) return false
       if (durumFilter !== ALL && l.durum !== durumFilter) return false
       if (ilFilter !== ALL && l.il !== ilFilter) return false
+      // Ayarlayan filtresi: yaklaşan demosunu bu kişi ayarlamış kurumlar
+      if (setterFilter !== ALL && nextDemoByLead[l.id]?.setterId !== setterFilter) return false
       return true
     })
-  }, [leads, query, durumFilter, ilFilter])
+  }, [leads, query, durumFilter, ilFilter, setterFilter, nextDemoByLead])
 
   function openNew() {
     setEditTarget(null)
@@ -269,6 +285,22 @@ export function SatisTakibiView({ leads }: { leads: SalesLead[] }) {
             ))}
           </SelectContent>
         </Select>
+
+        {setterOptions.length > 0 && (
+          <Select value={setterFilter} onValueChange={setSetterFilter}>
+            <SelectTrigger className="md:w-48">
+              <SelectValue placeholder="Ayarlayan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Tüm ayarlayanlar</SelectItem>
+              {setterOptions.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name} ({s.count})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {leads.length === 0 ? (
@@ -291,6 +323,7 @@ export function SatisTakibiView({ leads }: { leads: SalesLead[] }) {
                 <TableHead>Tip</TableHead>
                 <TableHead>İl</TableHead>
                 <TableHead>Durum</TableHead>
+                <TableHead>Yaklaşan Demo</TableHead>
                 <TableHead className="text-right">Öğrenci</TableHead>
                 <TableHead>Son Temas</TableHead>
                 <TableHead>Sonraki Adım</TableHead>
@@ -321,6 +354,23 @@ export function SatisTakibiView({ leads }: { leads: SalesLead[] }) {
                     <TableCell className="text-zinc-600">{l.il ?? "—"}</TableCell>
                     <TableCell>
                       <DurumBadge durum={l.durum as Durum} />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {nextDemoByLead[l.id] ? (
+                        <div>
+                          <span className="inline-flex items-center gap-1 text-sm font-medium text-indigo-700">
+                            <CalendarClock className="w-3.5 h-3.5" />
+                            {formatDemoDateTime(nextDemoByLead[l.id].scheduled_at)}
+                          </span>
+                          {nextDemoByLead[l.id].setterName && (
+                            <div className="text-xs text-zinc-500 mt-0.5">
+                              Ayarlayan: {nextDemoByLead[l.id].setterName}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-zinc-400 text-sm">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right text-zinc-600 tabular-nums">
                       {l.ogrenci_sayisi ?? "—"}
@@ -353,6 +403,9 @@ export function SatisTakibiView({ leads }: { leads: SalesLead[] }) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/mudur/satis-takibi/${l.id}`}>Demo Randevuları</Link>
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(l)}>
                             Düzenle
                           </DropdownMenuItem>

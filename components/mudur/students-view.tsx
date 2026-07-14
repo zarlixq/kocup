@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
-import { MoreHorizontal, GraduationCap, Search, X } from "lucide-react"
+import { MoreHorizontal, GraduationCap, Search, X, SlidersHorizontal } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -25,8 +25,11 @@ import {
 } from "@/components/ui/table"
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -44,6 +47,13 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { UserStatusBadge } from "@/components/shared/user-status-badge"
 import { getUserStatus } from "@/lib/user-status"
 import { deleteStudent } from "@/app/mudur/ogrenciler/actions"
+import { ComplianceBadge } from "@/components/analytics/compliance-badge"
+import {
+  STUDENT_LIST_DEFAULTS,
+  type StudentListPrefs,
+  type StudentListColumns,
+} from "@/lib/analytics/ui-preferences"
+import { saveUiPreference } from "@/lib/analytics/ui-preferences-actions"
 
 export type StudentRow = {
   id: string
@@ -57,9 +67,26 @@ export type StudentRow = {
   is_active: boolean
   first_login_at: string | null
   created_at: string | null
+  compliance: { percent: number | null; totalItems: number; doneItems: number } | null
 }
 
 type Coach = { id: string; full_name: string }
+
+const COLUMN_LABELS: { key: keyof StudentListColumns; label: string }[] = [
+  { key: "grade", label: "Sınıf" },
+  { key: "coach", label: "Koç" },
+  { key: "compliance", label: "Haftalık Uyum" },
+  { key: "target", label: "Hedef Bölüm" },
+  { key: "parentPhone", label: "Veli Telefon" },
+  { key: "created", label: "Kayıt" },
+]
+
+const COMPLIANCE_FILTERS = [
+  { value: "__all__", label: "Tüm uyum" },
+  { value: "none", label: "Program yok" },
+  { value: "low", label: "Uyum < %50" },
+  { value: "high", label: "Uyum ≥ %50" },
+] as const
 
 const GRADES = ["7", "8", "9", "10", "11", "12", "Mezun"] as const
 const ALL = "__all__"
@@ -90,18 +117,45 @@ export function StudentsView({
   students,
   coaches,
   headerAction,
+  initialPrefs = STUDENT_LIST_DEFAULTS,
 }: {
   students: StudentRow[]
   coaches: Coach[]
   headerAction?: React.ReactNode
+  initialPrefs?: StudentListPrefs
 }) {
   const [isPending, startTransition] = useTransition()
   const [query, setQuery] = useState("")
   const [grade, setGrade] = useState<string>(ALL)
   const [coachFilter, setCoachFilter] = useState<string>(ALL)
-  const [statusFilter, setStatusFilter] = useState<string>("active")
+  const [statusFilter, setStatusFilter] = useState<string>(initialPrefs.statusFilter)
+  const [complianceFilter, setComplianceFilter] = useState<string>("__all__")
+  const [columns, setColumns] = useState<StudentListColumns>(initialPrefs.columns)
   const [assignTarget, setAssignTarget] = useState<StudentRow | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<StudentRow | null>(null)
+
+  // Kalıcı tercihleri kaydet (kolon görünürlüğü + durum filtresi).
+  function persist(next: { columns?: StudentListColumns; statusFilter?: string }) {
+    const payload: StudentListPrefs = {
+      columns: next.columns ?? columns,
+      statusFilter: next.statusFilter ?? statusFilter,
+    }
+    startTransition(async () => {
+      const res = await saveUiPreference("mudur_student_list", payload as unknown as Record<string, unknown>)
+      if (!res.success) toast.error(res.error ?? "Tercih kaydedilemedi.")
+    })
+  }
+
+  function toggleColumn(key: keyof StudentListColumns, checked: boolean) {
+    const next = { ...columns, [key]: checked }
+    setColumns(next)
+    persist({ columns: next })
+  }
+
+  function changeStatusFilter(v: string) {
+    setStatusFilter(v)
+    persist({ statusFilter: v })
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -119,9 +173,14 @@ export function StudentsView({
       if (statusFilter === "pending" && status !== "pending") return false
       if (statusFilter === "active" && status !== "active") return false
       if (statusFilter === "passive" && status !== "inactive") return false
+      // Uyum filtresi (ephemeral)
+      const pct = s.compliance?.percent ?? null
+      if (complianceFilter === "none" && pct !== null) return false
+      if (complianceFilter === "low" && !(pct !== null && pct < 50)) return false
+      if (complianceFilter === "high" && !(pct !== null && pct >= 50)) return false
       return true
     })
-  }, [students, query, grade, coachFilter, statusFilter])
+  }, [students, query, grade, coachFilter, statusFilter, complianceFilter])
 
   function handleDelete() {
     if (!deleteTarget) return
@@ -195,7 +254,7 @@ export function StudentsView({
           </SelectContent>
         </Select>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={changeStatusFilter}>
           <SelectTrigger className="md:w-36">
             <SelectValue />
           </SelectTrigger>
@@ -208,6 +267,44 @@ export function StudentsView({
             ))}
           </SelectContent>
         </Select>
+
+        {columns.compliance && (
+          <Select value={complianceFilter} onValueChange={setComplianceFilter}>
+            <SelectTrigger className="md:w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {COMPLIANCE_FILTERS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="md:w-auto">
+              <SlidersHorizontal className="h-4 w-4" />
+              Görünürlük
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel>Görünen kolonlar</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {COLUMN_LABELS.map((c) => (
+              <DropdownMenuCheckboxItem
+                key={c.key}
+                checked={columns[c.key]}
+                onCheckedChange={(checked) => toggleColumn(c.key, !!checked)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {c.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {students.length === 0 ? (
@@ -226,11 +323,12 @@ export function StudentsView({
             <TableHeader>
               <TableRow>
                 <TableHead>Öğrenci</TableHead>
-                <TableHead>Sınıf</TableHead>
-                <TableHead>Koç</TableHead>
-                <TableHead>Hedef Bölüm</TableHead>
-                <TableHead>Veli Telefon</TableHead>
-                <TableHead>Kayıt</TableHead>
+                {columns.grade && <TableHead>Sınıf</TableHead>}
+                {columns.coach && <TableHead>Koç</TableHead>}
+                {columns.compliance && <TableHead>Uyum</TableHead>}
+                {columns.target && <TableHead>Hedef Bölüm</TableHead>}
+                {columns.parentPhone && <TableHead>Veli Telefon</TableHead>}
+                {columns.created && <TableHead>Kayıt</TableHead>}
                 <TableHead className="text-right">İşlemler</TableHead>
               </TableRow>
             </TableHeader>
@@ -261,33 +359,52 @@ export function StudentsView({
                       </div>
                     </Link>
                   </TableCell>
-                  <TableCell>
-                    {s.grade ? (
-                      <Badge variant="outline">{s.grade === "Mezun" ? "Mezun" : `${s.grade}. Sınıf`}</Badge>
-                    ) : (
-                      <span className="text-zinc-400 text-sm">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {s.coach_name ? (
-                      <span className="text-zinc-900">{s.coach_name}</span>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-zinc-400 text-sm">Atanmamış</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => setAssignTarget(s)}
-                        >
-                          Ata
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-zinc-600">{truncate(s.target_department, 30)}</TableCell>
-                  <TableCell className="text-zinc-600">{s.parent_phone ?? "—"}</TableCell>
-                  <TableCell className="text-zinc-600">{formatDate(s.created_at)}</TableCell>
+                  {columns.grade && (
+                    <TableCell>
+                      {s.grade ? (
+                        <Badge variant="outline">{s.grade === "Mezun" ? "Mezun" : `${s.grade}. Sınıf`}</Badge>
+                      ) : (
+                        <span className="text-zinc-400 text-sm">—</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {columns.coach && (
+                    <TableCell>
+                      {s.coach_name ? (
+                        <span className="text-zinc-900">{s.coach_name}</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-zinc-400 text-sm">Atanmamış</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setAssignTarget(s)}
+                          >
+                            Ata
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  )}
+                  {columns.compliance && (
+                    <TableCell>
+                      <ComplianceBadge
+                        percent={s.compliance?.percent ?? null}
+                        totalItems={s.compliance?.totalItems}
+                        doneItems={s.compliance?.doneItems}
+                      />
+                    </TableCell>
+                  )}
+                  {columns.target && (
+                    <TableCell className="text-zinc-600">{truncate(s.target_department, 30)}</TableCell>
+                  )}
+                  {columns.parentPhone && (
+                    <TableCell className="text-zinc-600">{s.parent_phone ?? "—"}</TableCell>
+                  )}
+                  {columns.created && (
+                    <TableCell className="text-zinc-600">{formatDate(s.created_at)}</TableCell>
+                  )}
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

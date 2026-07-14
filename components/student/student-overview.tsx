@@ -14,6 +14,7 @@ import {
   TrendingUp,
   UserCog,
   Eye,
+  CalendarCheck,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { SubjectRadarChart } from "@/components/charts/subject-radar-chart"
@@ -26,6 +27,7 @@ import {
   buildSubjectComparisonData,
   buildExamTrendData,
 } from "@/lib/charts/builders"
+import { getStudentWeeklyCompliance, formatCompliance } from "@/lib/analytics/compliance"
 
 function isoDate(d: Date) {
   return d.toISOString().slice(0, 10)
@@ -106,6 +108,9 @@ export async function StudentOverview({
   ])
 
   if (!student || !profile) notFound()
+
+  // Haftalık program uyumu (müdür + koç + kurum panellerinde paylaşılan hesap)
+  const compliance = await getStudentWeeklyCompliance(supabase, id)
 
   // Atanan koç bilgisi (yalnız readonly modda gösterilir)
   const coachId = student.coach_id ?? upcomingAppt?.coach_id ?? null
@@ -222,6 +227,20 @@ export async function StudentOverview({
             value={lastExam ? lastExamNet.toFixed(2) : "—"}
             tone="rose"
           />
+          <Stat
+            icon={<CalendarCheck className="h-4 w-4" />}
+            label="Haftalık Uyum"
+            value={formatCompliance(compliance?.percent ?? null)}
+            tone={
+              compliance?.percent == null
+                ? "gray"
+                : compliance.percent >= 80
+                  ? "green"
+                  : compliance.percent >= 50
+                    ? "orange"
+                    : "rose"
+            }
+          />
         </div>
         <UpcomingAppointmentCard
           appointment={
@@ -276,6 +295,7 @@ const TONES: Record<string, string> = {
   cyan: "bg-cyan-50 text-cyan-700",
   orange: "bg-orange-50 text-[#F97316]",
   rose: "bg-rose-50 text-rose-700",
+  gray: "bg-zinc-100 text-zinc-500",
 }
 
 function Stat({
