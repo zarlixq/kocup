@@ -25,6 +25,7 @@ import {
 import { createAssignment } from "@/app/koc/konu-analizi/actions"
 import { gradeToExamTypes } from "@/lib/exam-target"
 import { CurriculumSwitch, useCurriculumTopics } from "@/components/konular/curriculum-picker"
+import { SubjectSelect } from "@/components/konular/subject-select"
 import type { CurriculumData, CurriculumKey } from "@/lib/curriculum/topics"
 
 type Student = { id: string; full_name: string; grade?: string | null }
@@ -158,24 +159,14 @@ export function AssignTopicDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Ders</Label>
-              <Select
+              <SubjectSelect
+                subjects={subjectOptions}
                 value={subjectId}
                 onValueChange={(v) => {
                   setSubjectId(v)
                   setTopicId("")
                 }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Ders seç" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjectOptions.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Konu</Label>

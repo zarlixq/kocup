@@ -15,13 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { SubjectSelect } from "@/components/konular/subject-select"
 import { addCustomTopic } from "@/app/koc/ogrenciler/[id]/konular/actions"
 import {
   CurriculumSwitch,
@@ -111,18 +105,11 @@ export function CustomTopicDialog({ studentId, curriculumData }: Props) {
                 Bu seviyede ders bulunamadı.
               </p>
             ) : (
-              <Select value={effectiveSubjectId} onValueChange={setSubjectId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Ders seç" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SubjectSelect
+                subjects={subjects}
+                value={effectiveSubjectId}
+                onValueChange={setSubjectId}
+              />
             )}
           </div>
           <div className="space-y-1.5">

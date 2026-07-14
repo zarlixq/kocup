@@ -17,8 +17,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
+import { SelectItem } from "@/components/ui/select"
 import { bulkAssign } from "@/app/koc/konu-analizi/actions"
 import { CurriculumSwitch, useCurriculumTopics } from "@/components/konular/curriculum-picker"
+import { SubjectSelect } from "@/components/konular/subject-select"
 import type { CurriculumData, CurriculumKey } from "@/lib/curriculum/topics"
 
 type Student = { id: string; full_name: string }
@@ -184,18 +186,13 @@ export function BulkAssignDialog({
               <Label>Konular ({topicIds.size} seçili)</Label>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-2 mb-2">
-              <select
+              <SubjectSelect
+                subjects={subjects}
                 value={topicSubjectFilter}
-                onChange={(e) => setTopicSubjectFilter(e.target.value)}
-                className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm"
-              >
-                <option value="all">Tüm dersler</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setTopicSubjectFilter}
+                placeholder="Tüm dersler"
+                leading={<SelectItem value="all">Tüm dersler</SelectItem>}
+              />
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                 <Input

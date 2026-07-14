@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { SubjectSelect } from "@/components/konular/subject-select"
 import {
   createScheduleEntry,
   updateScheduleEntry,
@@ -47,32 +48,6 @@ export type SubjectOption = {
   exam_type: string | null
   grade: number | null
   order: number
-}
-
-// Gruplama: exam_type doluysa ona göre (TYT/AYT/LGS), NULL ise (maarif) grade'e
-// göre ("5. Sınıf" vb.). Sadece görsel gruplama — hiçbir ders gizlenmez/filtrelenmez.
-const GROUP_WEIGHT: Record<string, number> = { LGS: 8, TYT: 100, AYT: 101 }
-
-function groupSubjects(subjects: SubjectOption[]) {
-  const map = new Map<string, SubjectOption[]>()
-  for (const s of subjects) {
-    const key = s.exam_type
-      ? s.exam_type.toUpperCase()
-      : s.grade != null
-        ? `${s.grade}. Sınıf`
-        : "Diğer"
-    const list = map.get(key)
-    if (list) list.push(s)
-    else map.set(key, [s])
-  }
-  const weightOf = (key: string, items: SubjectOption[]) =>
-    GROUP_WEIGHT[key] ?? items[0]?.grade ?? 999
-  return Array.from(map.entries())
-    .map(([key, items]) => ({
-      key,
-      items: [...items].sort((a, b) => a.order - b.order),
-    }))
-    .sort((a, b) => weightOf(a.key, a.items) - weightOf(b.key, b.items))
 }
 
 type Props = {
@@ -196,8 +171,6 @@ export function ScheduleFormDialog({
     })
   }
 
-  const subjectGroups = groupSubjects(subjects)
-
   return (
     <Dialog
       open={open}
@@ -273,27 +246,18 @@ export function ScheduleFormDialog({
 
           <div className="space-y-1.5">
             <Label htmlFor="subject">Ders</Label>
-            <Select value={subjectMode} onValueChange={setSubjectMode}>
-              <SelectTrigger id="subject">
-                <SelectValue placeholder="Ders seç" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {subjectGroups.map((g) => (
-                  <SelectGroup key={g.key}>
-                    <SelectLabel>{g.key}</SelectLabel>
-                    {g.items.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
+            <SubjectSelect
+              triggerId="subject"
+              subjects={subjects}
+              value={subjectMode}
+              onValueChange={setSubjectMode}
+              trailing={
                 <SelectGroup>
                   <SelectLabel>Diğer</SelectLabel>
                   <SelectItem value={CUSTOM_VALUE}>Özel başlık gir…</SelectItem>
                 </SelectGroup>
-              </SelectContent>
-            </Select>
+              }
+            />
             {subjectMode === CUSTOM_VALUE && (
               <Input
                 placeholder="ör. Etüt, Soru Çözümü, Genel Tekrar"

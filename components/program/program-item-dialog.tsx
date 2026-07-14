@@ -18,12 +18,11 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { SubjectSelect } from "@/components/konular/subject-select"
 import { DAYS } from "@/lib/days"
 import {
   createProgramItem,
@@ -44,31 +43,6 @@ export type ProgramItemInitial = {
   subject_id: string | null
   baslik: string | null
   aciklama: string | null
-}
-
-// Gruplama: exam_type (TYT/AYT/LGS) veya grade (maarif). schedule-form-dialog ile aynı.
-const GROUP_WEIGHT: Record<string, number> = { LGS: 8, TYT: 100, AYT: 101 }
-
-function groupSubjects(subjects: SubjectOption[]) {
-  const map = new Map<string, SubjectOption[]>()
-  for (const s of subjects) {
-    const key = s.exam_type
-      ? s.exam_type.toUpperCase()
-      : s.grade != null
-        ? `${s.grade}. Sınıf`
-        : "Diğer"
-    const list = map.get(key)
-    if (list) list.push(s)
-    else map.set(key, [s])
-  }
-  const weightOf = (key: string, items: SubjectOption[]) =>
-    GROUP_WEIGHT[key] ?? items[0]?.grade ?? 999
-  return Array.from(map.entries())
-    .map(([key, items]) => ({
-      key,
-      items: [...items].sort((a, b) => a.order - b.order),
-    }))
-    .sort((a, b) => weightOf(a.key, a.items) - weightOf(b.key, b.items))
 }
 
 const NO_SUBJECT = "__none__"
@@ -102,8 +76,6 @@ export function ProgramItemDialog({
   const [baslik, setBaslik] = useState(initial?.baslik ?? "")
   const [aciklama, setAciklama] = useState(initial?.aciklama ?? "")
   const [error, setError] = useState<string | null>(null)
-
-  const subjectGroups = groupSubjects(subjects)
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -174,24 +146,13 @@ export function ProgramItemDialog({
 
           <div className="space-y-1.5">
             <Label htmlFor="subject">Ders (opsiyonel)</Label>
-            <Select value={subjectId} onValueChange={setSubjectId}>
-              <SelectTrigger id="subject">
-                <SelectValue placeholder="Ders seç" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                <SelectItem value={NO_SUBJECT}>Ders yok</SelectItem>
-                {subjectGroups.map((g) => (
-                  <SelectGroup key={g.key}>
-                    <SelectLabel>{g.key}</SelectLabel>
-                    {g.items.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
+            <SubjectSelect
+              triggerId="subject"
+              subjects={subjects}
+              value={subjectId}
+              onValueChange={setSubjectId}
+              leading={<SelectItem value={NO_SUBJECT}>Ders yok</SelectItem>}
+            />
           </div>
 
           <div className="space-y-1.5">

@@ -17,13 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { SubjectSelect } from "@/components/konular/subject-select"
 import { assignTopicsToStudent } from "@/app/koc/ogrenciler/[id]/konular/actions"
 import {
   CurriculumSwitch,
@@ -151,18 +145,11 @@ export function AssignTopicsDialog({ studentId, curriculumData, assignedTopicIds
         <div className="flex flex-col md:flex-row gap-4 flex-1 overflow-hidden">
           <div className="md:w-56 shrink-0 space-y-2">
             <Label>Ders</Label>
-            <Select value={effectiveSubjectId} onValueChange={setSubjectId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Ders seç" />
-              </SelectTrigger>
-              <SelectContent>
-                {subjects.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SubjectSelect
+              subjects={subjects}
+              value={effectiveSubjectId}
+              onValueChange={setSubjectId}
+            />
           </div>
 
           <div className="flex-1 min-h-0 flex flex-col gap-2">
