@@ -8,6 +8,9 @@ import {
   Mail,
   Phone,
   Calendar,
+  Activity,
+  BookOpenCheck,
+  CalendarCheck,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -27,6 +30,11 @@ import { UserStatusBadge } from "@/components/shared/user-status-badge"
 import { getUserStatus } from "@/lib/user-status"
 import { resendCoachInvitationKurum } from "@/app/kurum/actions"
 import { formatDate } from "@/lib/format"
+import { StudentLeaderboard, type LeaderboardRow } from "@/components/mudur/student-leaderboard"
+import { getScoreboardStats } from "@/lib/analytics/scoreboard"
+import { getWeeklyComplianceMap } from "@/lib/analytics/compliance"
+import { mergeDashboardPrefs } from "@/lib/analytics/ui-preferences"
+import { getUiPreference } from "@/lib/analytics/ui-preferences-actions"
 
 function initials(name: string) {
   return name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase()
@@ -74,6 +82,54 @@ export default async function KurumCoachDetailPage({
 
   const studentCount = (students ?? []).length
   const activeStudentCount = (students ?? []).filter((s) => s.is_active).length
+
+  // ── Bu koçun öğrencilerine özel analitik (kapsam RLS ile yalnız kurum içi) ─
+  const activeIds = (students ?? []).filter((s) => s.is_active).map((s) => s.id)
+  const activeIdSet = new Set(activeIds)
+  const [scoreStats, complianceMap, dashPrefsRaw] = await Promise.all([
+    getScoreboardStats(supabase),
+    getWeeklyComplianceMap(supabase),
+    getUiPreference("kurum_dashboard"),
+  ])
+  const studentIdSet = new Set(studentIds)
+  const coachStats = scoreStats.filter((s) => studentIdSet.has(s.student_id))
+  const statById = new Map(coachStats.map((s) => [s.student_id, s]))
+
+  const totalQuestions30 = coachStats.reduce((a, s) => a + s.questions, 0)
+  const avgActiveDays = activeIds.length
+    ? activeIds.reduce((a, id) => a + (statById.get(id)?.active_days ?? 0), 0) / activeIds.length
+    : 0
+
+  let studentsWithProgram = 0
+  const compliancePercents: number[] = []
+  for (const id of activeIds) {
+    const c = complianceMap.get(id)
+    if (c) {
+      studentsWithProgram += 1
+      if (c.percent !== null) compliancePercents.push(c.percent)
+    }
+  }
+  const avgCompliance =
+    compliancePercents.length > 0
+      ? Math.round(compliancePercents.reduce((a, v) => a + v, 0) / compliancePercents.length)
+      : null
+
+  const gradeById = new Map((students ?? []).map((s) => [s.id, s.grade]))
+  const dashPrefs = mergeDashboardPrefs(dashPrefsRaw)
+  const coachLeaderboardRows: LeaderboardRow[] = coachStats
+    .filter((s) => activeIdSet.has(s.student_id))
+    .map((s) => {
+      const comp = complianceMap.get(s.student_id)
+      return {
+        ...s,
+        name: nameById.get(s.student_id) ?? "—",
+        grade: (gradeById.get(s.student_id) as string | null) ?? null,
+        coachName: profile.full_name,
+        compliance: comp
+          ? { percent: comp.percent, totalItems: comp.totalItems, doneItems: comp.doneItems }
+          : null,
+      }
+    })
 
   // Server action wrapper (Client Component'e geçilebilir hale getir)
   async function handleResend() {
@@ -182,6 +238,45 @@ export default async function KurumCoachDetailPage({
           color={hasLoggedIn ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}
         />
       </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard
+          icon={<Activity className="h-4 w-4" />}
+          label="Ort. Aktif Gün (30g)"
+          value={avgActiveDays.toFixed(1)}
+          color="bg-purple-50 text-purple-700"
+        />
+        <StatCard
+          icon={<BookOpenCheck className="h-4 w-4" />}
+          label="Çözülen Soru (30g)"
+          value={totalQuestions30.toLocaleString("tr-TR")}
+          color="bg-orange-50 text-[#F97316]"
+        />
+        <StatCard
+          icon={<CalendarCheck className="h-4 w-4" />}
+          label="Programlı Öğrenci"
+          value={`${studentsWithProgram} / ${activeStudentCount}`}
+          color="bg-blue-50 text-blue-700"
+        />
+        <StatCard
+          icon={<GraduationCap className="h-4 w-4" />}
+          label="Ort. Haftalık Uyum"
+          value={avgCompliance === null ? "—" : `%${avgCompliance}`}
+          color="bg-green-50 text-green-700"
+        />
+      </div>
+
+      <section>
+        <h2 className="text-base font-semibold text-zinc-900 mb-3">
+          Öğrenci Aktiflik Sıralaması
+        </h2>
+        <StudentLeaderboard
+          rows={coachLeaderboardRows}
+          initialPrefs={dashPrefs}
+          hrefPrefix="/kurum/ogrenciler"
+          prefScope="kurum_dashboard"
+        />
+      </section>
 
       <section>
         <h2 className="text-base font-semibold text-zinc-900 mb-3">Atanmış Öğrenciler</h2>

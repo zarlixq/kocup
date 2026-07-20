@@ -1765,6 +1765,13 @@ export type Database = {
       is_coach_of: { Args: { student_id: string }; Returns: boolean }
       is_org_admin_of: { Args: { target_org_id: string }; Returns: boolean }
       my_coach_id: { Args: never; Returns: string }
+      org_coach_last_login: {
+        Args: never
+        Returns: {
+          coach_id: string
+          last_sign_in_at: string
+        }[]
+      }
       student_scoreboard_stats: {
         Args: { p_since: string }
         Returns: {

@@ -8,7 +8,11 @@ import { DEFAULT_SCORE_METRIC, DEFAULT_MULTIPLIER_ON } from "@/lib/analytics/sco
 // güvenle import edebilir. Server okuma/yazma: ui-preferences-actions.ts.
 // ─────────────────────────────────────────────────────────────────────────
 
-export type UiScope = "mudur_dashboard" | "mudur_student_list" | "koc_student_list"
+export type UiScope =
+  | "mudur_dashboard"
+  | "mudur_student_list"
+  | "koc_student_list"
+  | "kurum_dashboard"
 
 // ── Müdür dashboard: leaderboard görünürlük/sıralama tercihleri ──────────
 export type DashboardColumns = {

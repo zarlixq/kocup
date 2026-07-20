@@ -35,6 +35,7 @@ import {
   DASHBOARD_DEFAULTS,
   type DashboardPrefs,
   type DashboardColumns,
+  type UiScope,
 } from "@/lib/analytics/ui-preferences"
 import { saveUiPreference } from "@/lib/analytics/ui-preferences-actions"
 
@@ -57,9 +58,15 @@ const COLUMN_LABELS: { key: keyof DashboardColumns; label: string }[] = [
 export function StudentLeaderboard({
   rows,
   initialPrefs,
+  hrefPrefix = "/mudur/ogrenciler",
+  prefScope = "mudur_dashboard",
 }: {
   rows: LeaderboardRow[]
   initialPrefs: DashboardPrefs
+  /** Öğrenci profili link kökü — panel bazlı (müdür/kurum). */
+  hrefPrefix?: string
+  /** UI tercihlerinin kalıcı yazılacağı scope — panel bazlı. */
+  prefScope?: UiScope
 }) {
   const [prefs, setPrefs] = useState<DashboardPrefs>(initialPrefs)
   const [, startTransition] = useTransition()
@@ -75,7 +82,7 @@ export function StudentLeaderboard({
   function update(next: DashboardPrefs) {
     setPrefs(next)
     startTransition(async () => {
-      const res = await saveUiPreference("mudur_dashboard", next as unknown as Record<string, unknown>)
+      const res = await saveUiPreference(prefScope, next as unknown as Record<string, unknown>)
       if (!res.success) toast.error(res.error ?? "Tercih kaydedilemedi.")
     })
   }
@@ -201,7 +208,7 @@ export function StudentLeaderboard({
                     </TableCell>
                     <TableCell>
                       <Link
-                        href={`/mudur/ogrenciler/${s.studentId}`}
+                        href={`${hrefPrefix}/${s.studentId}`}
                         className="font-medium text-zinc-900 hover:text-[#1B6B8A]"
                       >
                         {r.name}

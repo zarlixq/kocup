@@ -9,6 +9,7 @@ import {
   type CoachPerformanceRow,
 } from "@/components/kurum/coach-performance-table"
 import { getUserStatus } from "@/lib/user-status"
+import { getWeeklyComplianceMap } from "@/lib/analytics/compliance"
 
 export const metadata = { title: "Analitik — Kurum" }
 
@@ -49,26 +50,45 @@ export default async function KurumAnalitikPage() {
   const activeStudentIds = (orgStudents ?? []).filter((s) => s.is_active).map((s) => s.id)
 
   // Pending davetler (henüz giriş yapmamış koç)
-  const pendingInvites = coaches.filter((c) => getUserStatus({ first_login_at: c.first_login_at }) === "pending").length
+  const pendingInvites = coaches.filter(
+    (c) => getUserStatus({ first_login_at: c.first_login_at }) === "pending",
+  ).length
 
-  // Son 30 gün soru çözüm — kurum scope
-  const [{ data: sessions30 }, { data: appts30 }] = await Promise.all([
-    studentIds.length
-      ? supabase
-          .from("study_sessions")
-          .select("date, total_questions, student_id")
-          .in("student_id", studentIds)
-          .gte("date", thirtyAgoIso)
-      : Promise.resolve({ data: [] as Array<{ date: string; total_questions: number; student_id: string }> }),
-    coachIds.length
-      ? supabase
-          .from("appointments")
-          .select("status, start_time, coach_id")
-          .in("coach_id", coachIds)
-          .gte("start_time", thirtyAgoTime)
-          .lt("start_time", nowIso)
-      : Promise.resolve({ data: [] as Array<{ status: string; start_time: string; coach_id: string }> }),
-  ])
+  // Son 30 gün soru çözüm + görüşme notları + haftalık uyum + koç son giriş
+  const [{ data: sessions30 }, { data: appts30 }, complianceMap, { data: lastLogins }] =
+    await Promise.all([
+      studentIds.length
+        ? supabase
+            .from("study_sessions")
+            .select("date, total_questions, student_id")
+            .in("student_id", studentIds)
+            .gte("date", thirtyAgoIso)
+        : Promise.resolve({
+            data: [] as Array<{ date: string; total_questions: number; student_id: string }>,
+          }),
+      coachIds.length
+        ? supabase
+            .from("appointments")
+            .select("coach_id, start_time, meeting_notes, summary, notes")
+            .in("coach_id", coachIds)
+            .gte("start_time", thirtyAgoTime)
+            .lt("start_time", nowIso)
+        : Promise.resolve({
+            data: [] as Array<{
+              coach_id: string
+              start_time: string
+              meeting_notes: string | null
+              summary: string | null
+              notes: string | null
+            }>,
+          }),
+      getWeeklyComplianceMap(supabase),
+      supabase.rpc("org_coach_last_login"),
+    ])
+
+  const lastLoginByCoach = new Map<string, string | null>(
+    (lastLogins ?? []).map((r) => [r.coach_id, r.last_sign_in_at]),
+  )
 
   // Sistem geneli (kurum) trend datası
   const trendByDay: Record<string, number> = {}
@@ -95,12 +115,17 @@ export default async function KurumAnalitikPage() {
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
 
-  // Koç başına 30 günlük soru toplamı
+  // Koç başına öğrenci grupları
   const studentsByCoach = new Map<string, string[]>()
+  const activeStudentsByCoach = new Map<string, string[]>()
   for (const s of orgStudents ?? []) {
     if (!s.coach_id) continue
     if (!studentsByCoach.has(s.coach_id)) studentsByCoach.set(s.coach_id, [])
     studentsByCoach.get(s.coach_id)!.push(s.id)
+    if (s.is_active) {
+      if (!activeStudentsByCoach.has(s.coach_id)) activeStudentsByCoach.set(s.coach_id, [])
+      activeStudentsByCoach.get(s.coach_id)!.push(s.id)
+    }
   }
 
   const questionsByStudent = new Map<string, number>()
@@ -111,43 +136,52 @@ export default async function KurumAnalitikPage() {
     )
   }
 
-  // Koç başına randevu durumu
-  const apptCountByCoach = new Map<string, { total: number; completed: number }>()
+  // Koç başına görüşme/geri bildirim notu (son 30 gün)
+  const feedbackByCoach = new Map<string, number>()
   for (const a of appts30 ?? []) {
-    const cur = apptCountByCoach.get(a.coach_id) ?? { total: 0, completed: 0 }
-    cur.total += 1
-    if (a.status === "tamamlandi") cur.completed += 1
-    apptCountByCoach.set(a.coach_id, cur)
+    const hasFeedback =
+      (a.meeting_notes?.trim().length ?? 0) > 0 ||
+      (a.summary?.trim().length ?? 0) > 0 ||
+      (a.notes?.trim().length ?? 0) > 0
+    if (!hasFeedback) continue
+    feedbackByCoach.set(a.coach_id, (feedbackByCoach.get(a.coach_id) ?? 0) + 1)
   }
 
-  // Performans tablosu
+  // Performans / aktiflik satırları
   const performanceRows: CoachPerformanceRow[] = coaches.map((c) => {
     const totalStudents = (studentsByCoach.get(c.id) ?? []).length
-    const activeStudents = activeByCoach.get(c.id) ?? 0
+    const activeIds = activeStudentsByCoach.get(c.id) ?? []
+    const activeStudents = activeIds.length
 
-    // Sadece aktif öğrenciler üzerinden ortalama soru çözüm
-    const activeStudentIdsForCoach = (orgStudents ?? [])
-      .filter((s) => s.coach_id === c.id && s.is_active)
-      .map((s) => s.id)
-    const sumQ = activeStudentIdsForCoach.reduce(
-      (s, id) => s + (questionsByStudent.get(id) ?? 0),
-      0,
-    )
+    const sumQ = activeIds.reduce((s, id) => s + (questionsByStudent.get(id) ?? 0), 0)
     const avgQuestionsPerActive = activeStudents > 0 ? sumQ / activeStudents : 0
 
-    const a = apptCountByCoach.get(c.id) ?? { total: 0, completed: 0 }
-    const completionRate = a.total > 0 ? (a.completed / a.total) * 100 : 0
+    // Haftalık program: aktif öğrenciler içinde programı olanlar + ortalama uyum
+    let studentsWithProgram = 0
+    const compliancePercents: number[] = []
+    for (const id of activeIds) {
+      const comp = complianceMap.get(id)
+      if (comp) {
+        studentsWithProgram += 1
+        if (comp.percent !== null) compliancePercents.push(comp.percent)
+      }
+    }
+    const weeklyComplianceAvg =
+      compliancePercents.length > 0
+        ? compliancePercents.reduce((s, v) => s + v, 0) / compliancePercents.length
+        : null
 
     return {
       id: c.id,
       full_name: c.full_name,
       email: c.email,
+      lastSignInAt: lastLoginByCoach.get(c.id) ?? null,
       totalStudents,
       activeStudents,
       avgQuestionsPerActive,
-      completedAppointments: a.completed,
-      totalAppointments: a.total,
-      completionRate,
+      studentsWithProgram,
+      weeklyComplianceAvg,
+      feedbackCount: feedbackByCoach.get(c.id) ?? 0,
     }
   })
 
@@ -166,10 +200,7 @@ export default async function KurumAnalitikPage() {
             Kurum düzeyinde performans göstergeleri (son 30 gün).
           </p>
         </div>
-        <Link
-          href="/kurum"
-          className="text-sm text-[#1B6B8A] hover:underline"
-        >
+        <Link href="/kurum" className="text-sm text-[#1B6B8A] hover:underline">
           ← Dashboard
         </Link>
       </div>
@@ -206,9 +237,7 @@ export default async function KurumAnalitikPage() {
           <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center mx-auto mb-4">
             <BarChart3 className="h-6 w-6 text-zinc-500" />
           </div>
-          <h3 className="text-base font-semibold text-zinc-900 mb-1">
-            Veriler birikiyor
-          </h3>
+          <h3 className="text-base font-semibold text-zinc-900 mb-1">Veriler birikiyor</h3>
           <p className="text-sm text-zinc-500 max-w-md mx-auto">
             Koç ve öğrencileriniz aktifleştikçe ders programları, soru çözümleri ve
             randevu istatistikleri burada görüntülenecek.
@@ -230,13 +259,13 @@ export default async function KurumAnalitikPage() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-zinc-900 mb-3">
-              Koç Performans Karşılaştırma
-            </h2>
+            <h2 className="text-base font-semibold text-zinc-900 mb-3">Koç Aktiflik Paneli</h2>
             <CoachPerformanceTable rows={performanceRows} />
             <p className="text-xs text-zinc-500 mt-2">
-              Aylık değil, son 30 günü kapsar. Sıralamak için kolon başlığına tıkla.
-              Yeşil: yüksek; turuncu: dikkat gerektiren.
+              Son giriş = koçun panele en son girişi. Ort. Soru/Aktif ve Geri Bildirim son 30 günü
+              kapsar; Bu Hafta Program ve Ort. Uyum bu haftanın program maddelerinden hesaplanır.
+              Geri Bildirim, görüşme/randevu notu bırakılmış randevu sayısıdır. Sıralamak için kolon
+              başlığına tıkla.
             </p>
           </div>
         </>

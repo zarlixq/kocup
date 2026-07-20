@@ -70,6 +70,33 @@ export type ScoreboardStatRaw = {
   last_exam_net: number | null
 }
 
+// ── Aktiflik durumu segmentleri (aktif / az aktif / pasif) — TEK YER ──────
+// Dağılım grafikleri ve koç panelleri bu eşikleri paylaşır (kopyalama yok).
+// Segment son SEGMENT_WINDOW_DAYS gündeki aktif gün sayısından belirlenir:
+//   aktif   → yarıdan fazla gün aktif (≥ 4/7)
+//   az aktif→ en az bir gün aktif (1–3/7)
+//   pasif   → hiç aktif gün yok (0/7)
+export const ACTIVITY_SEGMENT_WINDOW_DAYS = 7
+
+export type ActivitySegment = "active" | "low" | "inactive"
+
+export function activitySegment(activeDaysInWindow: number): ActivitySegment {
+  if (activeDaysInWindow >= 4) return "active"
+  if (activeDaysInWindow >= 1) return "low"
+  return "inactive"
+}
+
+export const ACTIVITY_SEGMENT_META: Record<
+  ActivitySegment,
+  { label: string; color: string }
+> = {
+  active: { label: "Aktif", color: "#10b981" },
+  low: { label: "Az Aktif", color: "#F97316" },
+  inactive: { label: "Pasif", color: "#94a3b8" },
+}
+
+export const ACTIVITY_SEGMENT_ORDER: ActivitySegment[] = ["active", "low", "inactive"]
+
 export type ScoredStudent = {
   studentId: string
   questions: number
