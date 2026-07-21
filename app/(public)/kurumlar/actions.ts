@@ -4,13 +4,14 @@ import { createClient } from "@/lib/supabase/server"
 import { z } from "zod"
 
 const InquirySchema = z.object({
-  institution_name: z.string().trim().min(2, "Kurum adı en az 2 karakter olmalı"),
-  full_name: z.string().trim().min(2, "Ad Soyad en az 2 karakter olmalı"),
-  phone: z.string().trim().min(10, "Geçerli bir telefon girin"),
+  institution_name: z.string().trim().min(2, "Dershane adı en az 2 karakter olmalı"),
+  city: z.string().trim().min(2, "İl seçin"),
+  full_name: z.string().trim().min(2, "Yetkili adı en az 2 karakter olmalı"),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^[0-9+()\s-]{10,17}$/, "Geçerli bir telefon numarası girin"),
   email: z.union([z.string().trim().email("Geçerli bir e-posta girin"), z.literal("")]),
-  student_count: z.string().trim().max(20).optional().or(z.literal("")),
-  coach_count: z.string().trim().max(20).optional().or(z.literal("")),
-  message: z.string().trim().max(2000).optional().or(z.literal("")),
   kvkk: z.literal("on", { message: "Devam etmek için KVKK onayı gerekli." }),
 })
 
@@ -24,12 +25,10 @@ export async function submitInstitutionInquiry(
 ): Promise<InquiryResult> {
   const raw = {
     institution_name: formData.get("institution_name"),
+    city: formData.get("city"),
     full_name: formData.get("full_name"),
     phone: formData.get("phone"),
     email: formData.get("email") ?? "",
-    student_count: formData.get("student_count") ?? "",
-    coach_count: formData.get("coach_count") ?? "",
-    message: formData.get("message") ?? "",
     kvkk: formData.get("kvkk") ?? "",
   }
 
@@ -39,17 +38,13 @@ export async function submitInstitutionInquiry(
   }
 
   const d = parsed.data
-  const nullIfEmpty = (v: string | undefined) => (v && v.trim() ? v.trim() : null)
-
   const supabase = await createClient()
   const { error } = await supabase.from("institution_inquiries").insert({
     institution_name: d.institution_name,
+    city: d.city,
     full_name: d.full_name,
     phone: d.phone,
-    email: nullIfEmpty(d.email),
-    student_count: nullIfEmpty(d.student_count),
-    coach_count: nullIfEmpty(d.coach_count),
-    message: nullIfEmpty(d.message),
+    email: d.email.trim() ? d.email.trim() : null,
     // status ('new') ve created_at (now()) DB default'larına bırakılıyor.
   })
 

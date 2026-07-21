@@ -286,6 +286,7 @@ export function TaleplerView({ kurumBasvurular, kocBasvurular }: Props) {
               </DialogHeader>
               <div className="space-y-3 py-2">
                 <Row label="Yetkili" value={detail.row.full_name} />
+                <Row label="İl" value={detail.row.city} />
                 <Row label="Telefon" value={detail.row.phone} />
                 <Row label="E-posta" value={detail.row.email} />
                 <Row label="Öğrenci Sayısı" value={detail.row.student_count} />

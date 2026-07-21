@@ -6,86 +6,113 @@ import { Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { submitInstitutionInquiry } from "./actions"
 
+const ILLER = [
+  "Adana", "Adıyaman", "Afyonkarahisar", "Ağrı", "Aksaray", "Amasya", "Ankara",
+  "Antalya", "Ardahan", "Artvin", "Aydın", "Balıkesir", "Bartın", "Batman",
+  "Bayburt", "Bilecik", "Bingöl", "Bitlis", "Bolu", "Burdur", "Bursa",
+  "Çanakkale", "Çankırı", "Çorum", "Denizli", "Diyarbakır", "Düzce", "Edirne",
+  "Elazığ", "Erzincan", "Erzurum", "Eskişehir", "Gaziantep", "Giresun",
+  "Gümüşhane", "Hakkari", "Hatay", "Iğdır", "Isparta", "İstanbul", "İzmir",
+  "Kahramanmaraş", "Karabük", "Karaman", "Kars", "Kastamonu", "Kayseri",
+  "Kilis", "Kırıkkale", "Kırklareli", "Kırşehir", "Kocaeli", "Konya",
+  "Kütahya", "Malatya", "Manisa", "Mardin", "Mersin", "Muğla", "Muş",
+  "Nevşehir", "Niğde", "Ordu", "Osmaniye", "Rize", "Sakarya", "Samsun",
+  "Şanlıurfa", "Siirt", "Sinop", "Şırnak", "Sivas", "Tekirdağ", "Tokat",
+  "Trabzon", "Tunceli", "Uşak", "Van", "Yalova", "Yozgat", "Zonguldak",
+]
+
 const SELECT_CLASS =
-  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+  "flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 
 export function DemoForm() {
   const [state, action, pending] = useActionState(submitInstitutionInquiry, undefined)
 
   if (state?.success) {
     return (
-      <div className="text-center py-6">
+      <div className="text-center py-8">
         <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-          <Check className="w-7 h-7 text-green-600" strokeWidth={2.5} />
+          <Check className="w-7 h-7 text-green-600" strokeWidth={2.5} aria-hidden="true" />
         </div>
         <h3 className="text-xl font-bold text-zinc-900 mb-2">Talebiniz alındı</h3>
-        <p className="text-sm text-zinc-500">
-          Talebiniz alındı, en kısa sürede size döneceğiz.
+        <p className="text-sm text-zinc-500 max-w-xs mx-auto">
+          Talebiniz alındı, aynı gün dönüş yapıyoruz.
         </p>
       </div>
     )
   }
 
   return (
-    <form action={action} className="space-y-5">
+    <form action={action} className="space-y-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="institution_name">Dershane Adı *</Label>
+        <Input
+          id="institution_name"
+          name="institution_name"
+          placeholder="Örnek Kurs Merkezi"
+          autoComplete="organization"
+          required
+          className="h-11"
+        />
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="full_name">Ad Soyad *</Label>
-          <Input id="full_name" name="full_name" placeholder="Ahmet Yılmaz" required />
+          <Label htmlFor="city">İl *</Label>
+          <select id="city" name="city" required defaultValue="" className={SELECT_CLASS}>
+            <option value="" disabled>
+              İl seçin
+            </option>
+            {ILLER.map((il) => (
+              <option key={il} value={il}>
+                {il}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="institution_name">Kurum Adı *</Label>
-          <Input id="institution_name" name="institution_name" placeholder="Örnek Dershanesi" required />
+          <Label htmlFor="full_name">Yetkili Adı *</Label>
+          <Input
+            id="full_name"
+            name="full_name"
+            placeholder="Ad Soyad"
+            autoComplete="name"
+            required
+            className="h-11"
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="phone">Telefon *</Label>
-          <Input id="phone" name="phone" type="tel" placeholder="05XX XXX XX XX" required />
+          <Input
+            id="phone"
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            placeholder="05XX XXX XX XX"
+            autoComplete="tel"
+            required
+            className="h-11"
+          />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="email">E-posta</Label>
-          <Input id="email" name="email" type="email" placeholder="ornek@mail.com" />
+          <Label htmlFor="email">E-posta (opsiyonel)</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            inputMode="email"
+            placeholder="ornek@mail.com"
+            autoComplete="email"
+            className="h-11"
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="student_count">Öğrenci Sayısı</Label>
-          <select id="student_count" name="student_count" className={SELECT_CLASS} defaultValue="">
-            <option value="">Seçin (opsiyonel)</option>
-            <option value="1-25">1-25</option>
-            <option value="25-50">25-50</option>
-            <option value="50-100">50-100</option>
-            <option value="100+">100+</option>
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="coach_count">Koç Sayısı</Label>
-          <select id="coach_count" name="coach_count" className={SELECT_CLASS} defaultValue="">
-            <option value="">Seçin (opsiyonel)</option>
-            <option value="1-5">1-5</option>
-            <option value="5-10">5-10</option>
-            <option value="10+">10+</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="message">Mesaj</Label>
-        <Textarea
-          id="message"
-          name="message"
-          rows={4}
-          placeholder="Kurumunuz ve ihtiyaçlarınız hakkında kısaca bilgi verin..."
-        />
-      </div>
-
-      <label className="flex items-start gap-2.5 text-sm text-zinc-600">
+      <label className="flex items-start gap-2.5 text-[13px] leading-snug text-zinc-600 pt-1">
         <input
           type="checkbox"
           name="kvkk"
@@ -96,21 +123,24 @@ export function DemoForm() {
           <Link href="/kvkk" target="_blank" className="text-[#1B6B8A] underline">
             KVKK Aydınlatma Metni
           </Link>{" "}
-          ve{" "}
-          <Link href="/gizlilik" target="_blank" className="text-[#1B6B8A] underline">
-            Gizlilik Politikası
-          </Link>{" "}
           kapsamında verilerimin işlenmesini kabul ediyorum.
         </span>
       </label>
 
       {state?.error && (
-        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{state.error}</p>
+        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">
+          {state.error}
+        </p>
       )}
 
-      <Button type="submit" className="w-full bg-[#1B6B8A] hover:bg-[#155a75]" disabled={pending}>
-        {pending ? "Gönderiliyor..." : "Talep Gönder"}
+      <Button
+        type="submit"
+        disabled={pending}
+        className="w-full h-12 text-base font-bold bg-[#F97316] hover:bg-[#ea6c10] shadow-md shadow-orange-500/20"
+      >
+        {pending ? "Gönderiliyor..." : "Demo Talep Et"}
       </Button>
+      <p className="text-center text-xs text-zinc-400">Aynı gün dönüş yapıyoruz.</p>
     </form>
   )
 }

@@ -646,6 +646,7 @@ export type Database = {
       }
       institution_inquiries: {
         Row: {
+          city: string | null
           coach_count: string | null
           created_at: string | null
           email: string | null
@@ -658,6 +659,7 @@ export type Database = {
           student_count: string | null
         }
         Insert: {
+          city?: string | null
           coach_count?: string | null
           created_at?: string | null
           email?: string | null
@@ -670,6 +672,7 @@ export type Database = {
           student_count?: string | null
         }
         Update: {
+          city?: string | null
           coach_count?: string | null
           created_at?: string | null
           email?: string | null
