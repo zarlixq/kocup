@@ -95,10 +95,13 @@ export async function updateAssignment(input: UpdateAssignmentInput): Promise<Ac
 
   const { data: existing } = await supabase
     .from("topic_assignments")
-    .select("id, coach_id, student_id")
+    .select("id, coach_id, student_id, created_by_role")
     .eq("id", data.id)
     .maybeSingle()
   if (!existing) return { success: false, error: "Atama bulunamadı" }
+  if (existing.created_by_role === "student") {
+    return { success: false, error: "Öğrencinin kendi hedefini düzenleyemezsiniz; yalnızca silebilirsiniz." }
+  }
   if (existing.coach_id !== userId) return { success: false, error: "Yetkiniz yok" }
 
   const changes: TablesUpdate<"topic_assignments"> = {}
@@ -125,14 +128,30 @@ export async function deleteAssignment(id: string): Promise<ActionResult> {
 
   const { data: existing } = await supabase
     .from("topic_assignments")
-    .select("id, coach_id, student_id")
+    .select("id, coach_id, student_id, created_by_role")
     .eq("id", id)
     .maybeSingle()
   if (!existing) return { success: false, error: "Atama bulunamadı" }
-  if (existing.coach_id !== userId) return { success: false, error: "Yetkiniz yok" }
 
-  const { error } = await supabase.from("topic_assignments").delete().eq("id", id)
+  if (existing.created_by_role === "student") {
+    // Öğrencinin kendi hedefi: öğrencinin şu anki koçu silebilir (RLS: coach_delete_student_goals).
+    const { data: student } = await supabase
+      .from("students")
+      .select("coach_id")
+      .eq("id", existing.student_id)
+      .maybeSingle()
+    if (student?.coach_id !== userId) return { success: false, error: "Yetkiniz yok" }
+  } else if (existing.coach_id !== userId) {
+    return { success: false, error: "Yetkiniz yok" }
+  }
+
+  const { data: deleted, error } = await supabase
+    .from("topic_assignments")
+    .delete()
+    .eq("id", id)
+    .select("id")
   if (error) return { success: false, error: error.message }
+  if (!deleted || deleted.length === 0) return { success: false, error: "Atama bulunamadı" }
 
   revalidatePath("/koc/konu-analizi")
   revalidatePath(`/koc/ogrenciler/${existing.student_id}/konu-analizi`)

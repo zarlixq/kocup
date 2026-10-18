@@ -8,20 +8,28 @@ import {
   deriveAssignmentStatus,
   progressBarColor,
   progressPercent,
+  goalSummary,
+  isGoalMet,
   ASSIGNMENT_STATUS_TONE,
   ASSIGNMENT_STATUS_LABEL,
   type AssignmentStatus,
 } from "@/lib/assignments/constants"
 import { LogProgressDialog } from "@/components/konu-analizi/log-progress-dialog"
 
-type TaskItem = {
+export type TaskItem = {
   id: string
   topic_name: string
   subject_name: string
-  hedef_soru: number
+  hedef_soru: number | null
+  hedef_dogruluk: number | null
   son_tarih: string
   status: AssignmentStatus
   cozulen_soru: number
+  dogru_sayisi: number
+}
+
+function targetsOf(t: TaskItem) {
+  return { hedefSoru: t.hedef_soru, hedefDogruluk: t.hedef_dogruluk, dogru: t.dogru_sayisi }
 }
 
 function endOfWeek() {
@@ -43,7 +51,7 @@ export function WeeklyTasksCard({ tasks }: { tasks: TaskItem[] }) {
     return tasks
       .filter((t) => {
         if (t.status !== "aktif") return false
-        if (t.cozulen_soru >= t.hedef_soru) return false
+        if (isGoalMet(t.cozulen_soru, targetsOf(t))) return false
         const son = new Date(t.son_tarih)
         son.setHours(23, 59, 59, 999)
         return son <= weekEnd
@@ -58,7 +66,7 @@ export function WeeklyTasksCard({ tasks }: { tasks: TaskItem[] }) {
     <div className="bg-white border border-zinc-200 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-          <Target className="h-4 w-4 text-[#F97316]" /> Bu Hafta Görevlerin
+          <Target className="h-4 w-4 text-[#F97316]" /> Bu Haftaki Hedeflerin
           {filtered.length > 0 && (
             <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-[#F97316] text-white text-[11px] font-semibold">
               {filtered.length}
@@ -75,13 +83,16 @@ export function WeeklyTasksCard({ tasks }: { tasks: TaskItem[] }) {
 
       {filtered.length === 0 ? (
         <div className="text-sm text-zinc-500 text-center py-4">
-          Bu haftaya ait aktif atama yok 🎉
+          Bu haftaya ait aktif hedef yok.{" "}
+          <Link href="/ogrenci/konularim" className="text-[#1B6B8A] font-medium hover:underline">
+            Hedef koy →
+          </Link>
         </div>
       ) : (
         <ul className="space-y-2">
           {filtered.map((t) => {
-            const derived = deriveAssignmentStatus(t.status, t.cozulen_soru, t.hedef_soru, t.son_tarih, today)
-            const pct = progressPercent(t.cozulen_soru, t.hedef_soru)
+            const derived = deriveAssignmentStatus(t.status, t.cozulen_soru, targetsOf(t), t.son_tarih, today)
+            const pct = progressPercent(t.cozulen_soru, targetsOf(t))
             const tone = ASSIGNMENT_STATUS_TONE[derived]
             const barColor = progressBarColor(derived, pct)
             return (
@@ -107,7 +118,7 @@ export function WeeklyTasksCard({ tasks }: { tasks: TaskItem[] }) {
                     <div className={`h-full ${barColor}`} style={{ width: `${pct}%` }} />
                   </div>
                   <span className="text-[11px] tabular-nums text-zinc-600 whitespace-nowrap">
-                    {t.cozulen_soru}/{t.hedef_soru}
+                    {goalSummary(t.cozulen_soru, targetsOf(t))}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">

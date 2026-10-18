@@ -14,6 +14,7 @@ import {
   WeeklyMetricsChart,
   type WeeklyMetricsDatum,
 } from "@/components/charts/weekly-metrics-chart"
+import { goalSummary, isGoalMet } from "@/lib/assignments/constants"
 
 export type TakipSession = {
   student_id: string
@@ -28,10 +29,16 @@ export type TakipAssignment = {
   student_id: string
   topic_name: string
   subject_name: string
-  hedef_soru: number
+  hedef_soru: number | null
+  hedef_dogruluk: number | null
   son_tarih: string
   cozulen_soru: number
+  dogru_sayisi: number
   status: "aktif" | "tamamlandi" | "iptal"
+}
+
+function goalMet(a: TakipAssignment) {
+  return isGoalMet(a.cozulen_soru, { hedefSoru: a.hedef_soru, hedefDogruluk: a.hedef_dogruluk, dogru: a.dogru_sayisi })
 }
 
 type Student = { id: string; full_name: string }
@@ -168,14 +175,14 @@ export function WeeklySummaryDashboard({
       if (a.status !== "aktif") return false
       const son = new Date(a.son_tarih)
       son.setHours(23, 59, 59, 999)
-      return son < today && a.cozulen_soru < a.hedef_soru
+      return son < today && !goalMet(a)
     })
   }, [assignments, studentId, today])
 
   const activeOpen = useMemo(
     () =>
       assignments.filter(
-        (a) => a.student_id === studentId && a.status === "aktif" && a.cozulen_soru < a.hedef_soru,
+        (a) => a.student_id === studentId && a.status === "aktif" && !goalMet(a),
       ).length,
     [assignments, studentId],
   )
@@ -256,7 +263,12 @@ export function WeeklySummaryDashboard({
                         {a.subject_name} — {a.topic_name}
                       </div>
                       <div className="text-xs text-zinc-500">
-                        Hedef: {a.hedef_soru} · İlerleme: {a.cozulen_soru} ·{" "}
+                        {goalSummary(a.cozulen_soru, {
+                          hedefSoru: a.hedef_soru,
+                          hedefDogruluk: a.hedef_dogruluk,
+                          dogru: a.dogru_sayisi,
+                        })}{" "}
+                        ·{" "}
                         {new Date(a.son_tarih).toLocaleDateString("tr-TR")}
                       </div>
                     </div>

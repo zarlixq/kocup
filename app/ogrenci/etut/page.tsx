@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server"
 import { Calendar } from "lucide-react"
 import { WeeklyEtutGrid, type EtutEntryWithSubject } from "@/components/etut/weekly-grid"
 import { ProgramTermSwitch } from "@/components/schedule/term-switch"
+import { NoCoachState } from "@/components/ogrenci/no-coach-state"
+import { getStudentContext, noCoachMessage } from "@/lib/ogrenci/context"
 
 export const metadata = { title: "Etüt — KoçUp" }
 
@@ -18,6 +20,7 @@ export default async function EtutPage({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  const ctxPromise = getStudentContext(supabase, user!.id)
   const { data: schedule } = await supabase
     .from("etut_schedule")
     .select(
@@ -28,6 +31,7 @@ export default async function EtutPage({
     .order("day_of_week")
     .order("start_time")
 
+  const ctx = await ctxPromise
   const entries: EtutEntryWithSubject[] = (schedule ?? []).map((r) => ({
     id: r.id,
     term: r.term,
@@ -48,13 +52,21 @@ export default async function EtutPage({
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Etüt Programı</h1>
           <p className="text-sm text-zinc-500 mt-1">
-            Koçunun hazırladığı haftalık etüt programı.
+            {ctx.coachId
+              ? "Koçunun hazırladığı haftalık etüt programı."
+              : "Etüt programı koçun ya da kurumun tarafından hazırlanır."}
           </p>
         </div>
         <ProgramTermSwitch baseHref="/ogrenci/etut" current={term} />
       </div>
 
-      {entries.length === 0 ? (
+      {entries.length === 0 && !ctx.coachId ? (
+        <NoCoachState
+          icon={Calendar}
+          title={noCoachMessage(ctx).title}
+          description="Etüt saatlerini koçun planlar. Kendi çalışma saatlerini Haftalık Program'da gün/saat bloklarıyla planlayabilirsin."
+        />
+      ) : entries.length === 0 ? (
         <div className="bg-white border border-zinc-200 rounded-2xl p-12 text-center">
           <Calendar className="h-6 w-6 text-zinc-400 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-zinc-900 mb-1">

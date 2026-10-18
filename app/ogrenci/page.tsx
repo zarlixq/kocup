@@ -12,7 +12,12 @@ import { SubjectRadarChart } from "@/components/charts/subject-radar-chart"
 import { ExamTrendChart } from "@/components/charts/exam-trend-chart"
 import { UpcomingAppointmentCard } from "@/components/randevu/upcoming-appointment-card"
 import { CoachCard } from "@/components/ogrenci/coach-card"
-import { WeeklyTasksCard } from "@/components/ogrenci/weekly-tasks-card"
+import { WeeklyTasksCard, type TaskItem } from "@/components/ogrenci/weekly-tasks-card"
+import { SelfCoachCard } from "@/components/ogrenci/self-coach-card"
+import { StudentComplianceCard } from "@/components/analytics/student-compliance-card"
+import { getStudentContext, noCoachMessage } from "@/lib/ogrenci/context"
+import { loadAssignmentsWithProgress } from "@/lib/assignments/load"
+import { getStudentComplianceHistory } from "@/lib/analytics/compliance"
 import { buildSubjectRadarData, buildExamTrendData } from "@/lib/charts/builders"
 
 function initials(name: string) {
@@ -37,19 +42,11 @@ export default async function OgrenciDashboard() {
     .eq("id", studentId)
     .maybeSingle()
 
-  const { data: studentRow } = await supabase
-    .from("students")
-    .select("coach_id")
-    .eq("id", studentId)
-    .maybeSingle()
-
-  const { data: coachProfile } = studentRow?.coach_id
-    ? await supabase
-        .from("profiles")
-        .select("full_name, email")
-        .eq("id", studentRow.coach_id)
-        .maybeSingle()
-    : { data: null }
+  const ctx = await getStudentContext(supabase, studentId)
+  const coachProfile = ctx.coachId && ctx.coachName
+    ? { full_name: ctx.coachName, email: ctx.coachEmail ?? "" }
+    : null
+  const noCoach = noCoachMessage(ctx)
 
   // Tarih sınırları — Istanbul takvimine göre (sunucu UTC olsa da doğru gün).
   const now = new Date()
@@ -111,37 +108,12 @@ export default async function OgrenciDashboard() {
     buildExamTrendData(supabase, studentId),
   ])
 
-  // Hedefli atamalar + ilerlemeleri (WeeklyTasksCard için)
-  const [{ data: assignments }, { data: asgProgress }] = await Promise.all([
-    supabase
-      .from("topic_assignments")
-      .select("id, hedef_soru, son_tarih, status, topics(name, subjects(name))")
-      .eq("student_id", studentId),
-    supabase
-      .from("study_sessions")
-      .select("assignment_id, total_questions")
-      .eq("student_id", studentId)
-      .not("assignment_id", "is", null),
+  // Hedefler + soru çözümünden otomatik ilerleme (WeeklyTasksCard) ve program uyumu.
+  const [assignments, complianceHistory] = await Promise.all([
+    loadAssignmentsWithProgress(supabase, { studentId }),
+    getStudentComplianceHistory(supabase, studentId),
   ])
-
-  const cozulenByAsg = new Map<string, number>()
-  for (const p of asgProgress ?? []) {
-    if (!p.assignment_id) continue
-    cozulenByAsg.set(
-      p.assignment_id,
-      (cozulenByAsg.get(p.assignment_id) ?? 0) + (p.total_questions ?? 0),
-    )
-  }
-
-  const weeklyTasks = (assignments ?? []).map((a) => ({
-    id: a.id,
-    topic_name: a.topics?.name ?? "—",
-    subject_name: a.topics?.subjects?.name ?? "—",
-    hedef_soru: a.hedef_soru,
-    son_tarih: a.son_tarih,
-    status: a.status,
-    cozulen_soru: cozulenByAsg.get(a.id) ?? 0,
-  }))
+  const weeklyTasks: TaskItem[] = assignments
 
   // Yaklaşan randevuda koç ismini çek
   let upcomingCoachName: string | null = null
@@ -205,7 +177,7 @@ export default async function OgrenciDashboard() {
             className="bg-white border border-zinc-200 rounded-xl px-3 py-2 flex items-center gap-2 text-sm text-zinc-500 hover:border-zinc-300"
           >
             <UserCog className="h-4 w-4" />
-            Koç atanmamış
+            {ctx.organizationId ? "Koç ataması bekleniyor" : "Bağımsız çalışıyorsun"}
           </Link>
         )}
       </div>
@@ -237,14 +209,13 @@ export default async function OgrenciDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CoachCard
-          coach={
-            coachProfile
-              ? { full_name: coachProfile.full_name, email: coachProfile.email }
-              : null
-          }
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {coachProfile ? (
+          <CoachCard coach={{ full_name: coachProfile.full_name, email: coachProfile.email }} />
+        ) : (
+          <SelfCoachCard title={noCoach.title} description={noCoach.description} />
+        )}
+        <StudentComplianceCard history={complianceHistory} />
         <WeeklyTasksCard tasks={weeklyTasks} />
       </div>
 

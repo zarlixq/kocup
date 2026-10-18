@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/database.types"
 import { istanbulWeekStartStr } from "@/lib/tz"
+import { addWeeks } from "@/lib/week"
 
 type Client = SupabaseClient<Database>
 
@@ -119,4 +120,21 @@ export const COMPLIANCE_TONE_CLASS: Record<ComplianceTone, string> = {
 
 export function formatCompliance(percent: number | null): string {
   return percent === null ? "Program yok" : `%${percent}`
+}
+
+export type ComplianceWeek = { weekStart: string; compliance: Compliance | null }
+
+/**
+ * Öğrencinin son `weeks` haftalık uyumu (eskiden yeniye; son eleman bu hafta).
+ * Öğrenci kendi panelinde de çağırır — RPC SECURITY INVOKER, RLS kendi satırlarına süzer.
+ */
+export async function getStudentComplianceHistory(
+  supabase: Client,
+  studentId: string,
+  weeks = 4,
+  currentWeekStart: string = istanbulWeekStartStr(),
+): Promise<ComplianceWeek[]> {
+  const starts = Array.from({ length: weeks }, (_, i) => addWeeks(currentWeekStart, i - (weeks - 1)))
+  const results = await Promise.all(starts.map((ws) => getStudentWeeklyCompliance(supabase, studentId, ws)))
+  return starts.map((weekStart, i) => ({ weekStart, compliance: results[i] }))
 }

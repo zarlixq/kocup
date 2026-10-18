@@ -3,7 +3,8 @@ import { ArrowLeft, Mail, Phone, Award, Calendar } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { EmptyState } from "@/components/shared/empty-state"
+import { NoCoachState } from "@/components/ogrenci/no-coach-state"
+import { getStudentContext, noCoachMessage } from "@/lib/ogrenci/context"
 import { Users } from "lucide-react"
 import { formatDate } from "@/lib/format"
 
@@ -22,13 +23,13 @@ export default async function KocumPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: student } = await supabase
-    .from("students")
-    .select("coach_id, created_at")
-    .eq("id", user!.id)
-    .maybeSingle()
+  const [{ data: student }, ctx] = await Promise.all([
+    supabase.from("students").select("coach_id, created_at").eq("id", user!.id).maybeSingle(),
+    getStudentContext(supabase, user!.id),
+  ])
 
   if (!student?.coach_id) {
+    const msg = noCoachMessage(ctx)
     return (
       <div className="space-y-6">
         <div>
@@ -40,11 +41,7 @@ export default async function KocumPage() {
           </Link>
           <h1 className="text-2xl font-bold text-zinc-900">Koçum</h1>
         </div>
-        <EmptyState
-          icon={Users}
-          title="Henüz koç atanmamış"
-          description="Sana henüz bir koç atanmadı. Lütfen müdürle iletişime geç."
-        />
+        <NoCoachState icon={Users} title={msg.title} description={msg.description} />
       </div>
     )
   }

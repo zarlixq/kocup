@@ -32,30 +32,77 @@ export const ASSIGNMENT_STATUS_TONE: Record<
   gecikti: { bg: "bg-red-50", text: "text-red-800", border: "border-red-200" },
 }
 
+// Doğruluk hedefi için anlamlı örneklem: 3 sorudan 3 doğru "%100" sayılmasın.
+export const MIN_ACCURACY_SAMPLE = 20
+
+export type GoalTargets = {
+  /** Hedef soru sayısı; yalnızca doğruluk hedefi varsa null. */
+  hedefSoru: number | null
+  /** Hedef doğruluk % (1–100); yoksa null/undefined. */
+  hedefDogruluk?: number | null
+  /** Doğru sayısı — doğruluk hedefi için gerekli. */
+  dogru?: number
+}
+
+export function accuracyOf(dogru: number, cozulen: number): number | null {
+  return cozulen > 0 ? Math.round((dogru / cozulen) * 100) : null
+}
+
+/** Hedef(ler) tuttu mu? Soru ve doğruluk hedefi birlikte varsa ikisi de gerekir. */
+export function isGoalMet(cozulen: number, t: GoalTargets): boolean {
+  const soruOk = t.hedefSoru == null || cozulen >= t.hedefSoru
+  if (t.hedefDogruluk == null) return t.hedefSoru != null && soruOk
+  const acc = accuracyOf(t.dogru ?? 0, cozulen)
+  const accOk = cozulen >= MIN_ACCURACY_SAMPLE && acc != null && acc >= t.hedefDogruluk
+  return soruOk && accOk
+}
+
 /**
  * UI'da gösterilecek durum:
- * - status='aktif' AND son_tarih < today AND cozulen < hedef  → 'gecikti'
- * - status='aktif' AND cozulen >= hedef                       → 'tamamlandi'  (UI level, DB'de 'aktif' kalabilir)
+ * - status='aktif' AND hedef tuttu                  → 'tamamlandi' (UI level, DB'de 'aktif' kalabilir)
+ * - status='aktif' AND son_tarih < today            → 'gecikti'
  * - aksi: DB status'u
+ * `hedef` sayı verilirse eski çağrı biçimi (yalnız soru hedefi) korunur.
  */
 export function deriveAssignmentStatus(
   status: AssignmentStatus,
   cozulenSoru: number,
-  hedefSoru: number,
+  hedef: number | null | GoalTargets,
   sonTarih: string,
   today = new Date(),
 ): DerivedAssignmentStatus {
   if (status !== "aktif") return status
-  if (cozulenSoru >= hedefSoru) return "tamamlandi"
+  const targets: GoalTargets = typeof hedef === "object" && hedef !== null ? hedef : { hedefSoru: hedef }
+  if (isGoalMet(cozulenSoru, targets)) return "tamamlandi"
   const son = new Date(sonTarih)
   son.setHours(23, 59, 59, 999)
   if (son < today) return "gecikti"
   return "aktif"
 }
 
-export function progressPercent(cozulen: number, hedef: number): number {
-  if (hedef <= 0) return 0
-  return Math.min(100, Math.round((cozulen / hedef) * 100))
+/**
+ * 0–100 ilerleme. İki hedef varsa ortalaması; doğruluk bileşeni örneklem
+ * dolana kadar örneklem oranıyla sınırlanır.
+ */
+export function progressPercent(cozulen: number, hedef: number | null | GoalTargets): number {
+  const t: GoalTargets = typeof hedef === "object" && hedef !== null ? hedef : { hedefSoru: hedef }
+  const parts: number[] = []
+  if (t.hedefSoru != null && t.hedefSoru > 0) parts.push(Math.min(1, cozulen / t.hedefSoru))
+  if (t.hedefDogruluk != null && t.hedefDogruluk > 0) {
+    const acc = accuracyOf(t.dogru ?? 0, cozulen) ?? 0
+    const sample = Math.min(1, cozulen / MIN_ACCURACY_SAMPLE)
+    parts.push(Math.min(1, acc / t.hedefDogruluk, sample))
+  }
+  if (parts.length === 0) return 0
+  return Math.round((parts.reduce((s, p) => s + p, 0) / parts.length) * 100)
+}
+
+/** "32 / 50 soru", "32 soru · %78 (hedef %80)" gibi kısa hedef özeti. */
+export function goalSummary(cozulen: number, t: GoalTargets): string {
+  const soru = t.hedefSoru != null ? `${cozulen} / ${t.hedefSoru} soru` : `${cozulen} soru`
+  if (t.hedefDogruluk == null) return soru
+  const acc = accuracyOf(t.dogru ?? 0, cozulen)
+  return `${soru} · ${acc == null ? "—" : `%${acc}`} (hedef %${t.hedefDogruluk})`
 }
 
 /**

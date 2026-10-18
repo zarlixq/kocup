@@ -32,32 +32,19 @@ import {
   deriveAssignmentStatus,
   progressBarColor,
   progressPercent,
-  type AssignmentStatus,
+  goalSummary,
   type DerivedAssignmentStatus,
 } from "@/lib/assignments/constants"
 import { AssignTopicDialog } from "@/components/konu-analizi/assign-topic-dialog"
 import { BulkAssignDialog } from "@/components/konu-analizi/bulk-assign-dialog"
 import { EditAssignmentDialog } from "@/components/konu-analizi/edit-assignment-dialog"
 import type { CurriculumData } from "@/lib/curriculum/topics"
+import type { AssignmentWithProgress } from "@/lib/assignments/load"
+import { OwnerBadge } from "@/components/shared/owner-badge"
+import { DeleteStudentGoalDialog } from "@/components/konu-analizi/delete-student-goal-dialog"
 
-export type AssignmentRow = {
-  id: string
-  student_id: string
-  student_name: string
-  topic_id: string
-  topic_name: string
-  subject_id: string
-  subject_name: string
-  hedef_soru: number
-  hedef_sure_dk: number | null
-  baslangic_tarihi: string
-  son_tarih: string
-  notes: string | null
-  status: AssignmentStatus
-  cozulen_soru: number
-  dogru_sayisi: number
-  toplam_sure_dk: number
-}
+// Ortak yükleyici (lib/assignments/load.ts) çıktısı + görünen öğrenci adı.
+export type AssignmentRow = AssignmentWithProgress & { student_name: string }
 
 type Student = { id: string; full_name: string; grade?: string | null }
 type Subject = { id: string; name: string; exam_type?: string | null }
@@ -104,15 +91,17 @@ export function KocKonuAnaliziView({
   const [assignOpen, setAssignOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [editRow, setEditRow] = useState<AssignmentRow | null>(null)
+  const [deleteRow, setDeleteRow] = useState<AssignmentRow | null>(null)
 
   const today = useMemo(() => new Date(), [])
 
   const enriched = useMemo(
     () =>
       rows.map((r) => {
-        const derived = deriveAssignmentStatus(r.status, r.cozulen_soru, r.hedef_soru, r.son_tarih, today)
-        const pct = progressPercent(r.cozulen_soru, r.hedef_soru)
-        return { ...r, derived, pct }
+        const targets = { hedefSoru: r.hedef_soru, hedefDogruluk: r.hedef_dogruluk, dogru: r.dogru_sayisi }
+        const derived = deriveAssignmentStatus(r.status, r.cozulen_soru, targets, r.son_tarih, today)
+        const pct = progressPercent(r.cozulen_soru, targets)
+        return { ...r, derived, pct, summary: goalSummary(r.cozulen_soru, targets) }
       }),
     [rows, today],
   )
@@ -225,7 +214,9 @@ export function KocKonuAnaliziView({
       {filtered.length === 0 ? (
         <div className="bg-white border border-zinc-200 rounded-2xl p-12 text-center text-sm text-zinc-500">
           {enriched.length === 0
-            ? "Henüz konu atanmamış 📚 — sağ üstten ata."
+            ? canManage
+              ? "Henüz konu atanmamış 📚 — sağ üstten ata."
+              : "Henüz konu ataması ya da öğrenci hedefi yok."
             : "Bu filtreyle eşleşen atama yok."}
         </div>
       ) : (
@@ -257,10 +248,13 @@ export function KocKonuAnaliziView({
                   )}
                   <TableCell>
                     <div className="text-xs text-zinc-500">{r.subject_name}</div>
-                    <div className="font-medium text-zinc-900">{r.topic_name}</div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-medium text-zinc-900">{r.topic_name}</span>
+                      {r.created_by_role === "student" && <OwnerBadge role="student" />}
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm tabular-nums whitespace-nowrap">
-                    {r.cozulen_soru} / {r.hedef_soru}
+                    {r.summary}
                     {r.hedef_sure_dk && (
                       <div className="text-xs text-zinc-500">{r.hedef_sure_dk} dk hedef</div>
                     )}
@@ -284,9 +278,15 @@ export function KocKonuAnaliziView({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {canManage && (
+                        {/* Öğrencinin kendi hedefi: koç düzenleyemez, yalnızca silebilir. */}
+                        {canManage && r.created_by_role !== "student" && (
                           <DropdownMenuItem onClick={() => setEditRow(r)}>
                             Düzenle / Sil
+                          </DropdownMenuItem>
+                        )}
+                        {canManage && r.created_by_role === "student" && (
+                          <DropdownMenuItem variant="destructive" onClick={() => setDeleteRow(r)}>
+                            Sil
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem asChild>
@@ -322,6 +322,12 @@ export function KocKonuAnaliziView({
           onOpenChange={setBulkOpen}
           students={students}
           curriculumData={curriculumData}
+        />
+      )}
+      {canManage && deleteRow && (
+        <DeleteStudentGoalDialog
+          goal={{ id: deleteRow.id, topic_name: deleteRow.topic_name, student_name: deleteRow.student_name }}
+          onOpenChange={(o) => !o && setDeleteRow(null)}
         />
       )}
       {canManage && editRow && (

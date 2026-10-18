@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useOptimistic, useState, useTransition } from "react"
-import { Plus, Pencil, Trash2, StickyNote, CheckCircle2 } from "lucide-react"
+import { Plus, Pencil, Trash2, StickyNote, CheckCircle2, Clock, Target, GripVertical } from "lucide-react"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -18,23 +18,46 @@ import { cn } from "@/lib/utils"
 import { DAYS, todayDayOfWeek } from "@/lib/days"
 import {
   ProgramItemDialog,
+  type ProgramItemInitial,
   type SubjectOption,
+  type TopicOption,
 } from "@/components/program/program-item-dialog"
 import { WeekSwitcher } from "@/components/program/week-switcher"
-import { deleteProgramItem } from "@/app/koc/ogrenciler/[id]/program/weekly-actions"
-import { toggleProgramItemDone } from "@/app/ogrenci/program/actions"
+import { OwnerBadge } from "@/components/shared/owner-badge"
+import type { ProgramItemInput } from "@/lib/program/item-schema"
+import {
+  createProgramItem,
+  deleteProgramItem,
+  moveProgramItem,
+  updateProgramItem,
+} from "@/app/koc/ogrenciler/[id]/program/weekly-actions"
+import {
+  createMyProgramItem,
+  deleteMyProgramItem,
+  moveMyProgramItem,
+  toggleProgramItemDone,
+  updateMyProgramItem,
+} from "@/app/ogrenci/program/actions"
 
 export type ProgramItem = {
   id: string
   day_of_week: number
+  start_time: string | null
+  end_time: string | null
   subject_id: string | null
+  topic_id: string | null
+  topic_name: string | null
   baslik: string | null
   aciklama: string | null
+  hedef_soru: number | null
   is_completed: boolean
+  created_by_role: "student" | "coach" | "ai"
   subject: { id: string; name: string; color: string | null } | null
 }
 
 export type BoardMode = "coach" | "student" | "readonly"
+
+type ActionResult = { success: boolean; error?: string }
 
 const FALLBACK_PALETTE = [
   "#1B6B8A", "#F97316", "#3B82F6", "#10B981",
@@ -50,8 +73,22 @@ function colorFor(item: ProgramItem): string {
 }
 
 function titleOf(item: ProgramItem): string {
-  if (item.subject?.name && item.baslik) return `${item.subject.name} · ${item.baslik}`
-  return item.subject?.name ?? item.baslik ?? "—"
+  const main = item.topic_name ?? item.baslik
+  if (item.subject?.name && main) return `${item.subject.name} · ${main}`
+  return item.subject?.name ?? main ?? "—"
+}
+
+function timeRange(item: ProgramItem): string | null {
+  if (!item.start_time) return null
+  return item.end_time ? `${item.start_time}–${item.end_time}` : item.start_time
+}
+
+// Gün içi sıra: saatli kalemler saate göre önce, saatsizler eklenme sırasıyla sonra.
+function sortItems(a: ProgramItem, b: ProgramItem) {
+  if (a.start_time && b.start_time) return a.start_time.localeCompare(b.start_time)
+  if (a.start_time) return -1
+  if (b.start_time) return 1
+  return 0
 }
 
 type Props = {
@@ -59,10 +96,13 @@ type Props = {
   items: ProgramItem[]
   mode: BoardMode
   baseHref: string
+  /** Koç modunda zorunlu. */
   studentId?: string
   subjects?: SubjectOption[]
-  /** Üst barda WeekSwitcher yanında ekstra içerik (ör. carry-forward butonu). */
+  topics?: TopicOption[]
 }
+
+type Patch = { id: string; is_completed?: boolean; day_of_week?: number }
 
 export function WeeklyProgramBoard({
   weekStart,
@@ -71,14 +111,26 @@ export function WeeklyProgramBoard({
   baseHref,
   studentId,
   subjects = [],
+  topics = [],
 }: Props) {
-  const editable = mode === "coach"
+  const canAdd = mode === "coach" || mode === "student"
   const canToggle = mode === "coach" || mode === "student"
 
-  const [optimisticItems, applyOptimistic] = useOptimistic(
-    items,
-    (state: ProgramItem[], patch: { id: string; is_completed: boolean }) =>
-      state.map((i) => (i.id === patch.id ? { ...i, is_completed: patch.is_completed } : i)),
+  // Sahiplik kuralı (DB'de de zorlanır, migration 201):
+  // öğrenci → kendi kalemini düzenler/siler; koç → kendi kalemini düzenler, her kalemi siler.
+  const canEdit = (i: ProgramItem) =>
+    mode === "student" ? i.created_by_role === "student" : mode === "coach" ? i.created_by_role !== "student" : false
+  const canDelete = (i: ProgramItem) =>
+    mode === "student" ? i.created_by_role === "student" : mode === "coach"
+  // Rozet: koç/müdür görünümünde öğrenci kalemi, öğrenci görünümünde koç kalemi işaretlenir.
+  const badgeFor = (i: ProgramItem): "student" | "coach" | "ai" | null => {
+    if (i.created_by_role === "ai") return "ai"
+    if (mode === "student") return i.created_by_role === "coach" ? "coach" : null
+    return i.created_by_role === "student" ? "student" : null
+  }
+
+  const [optimisticItems, applyOptimistic] = useOptimistic(items, (state: ProgramItem[], patch: Patch) =>
+    state.map((i) => (i.id === patch.id ? { ...i, ...patch } : i)),
   )
 
   const [, startTransition] = useTransition()
@@ -89,17 +141,27 @@ export function WeeklyProgramBoard({
   const [editTarget, setEditTarget] = useState<ProgramItem | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ProgramItem | null>(null)
   const [deletePending, setDeletePending] = useState(false)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dropDay, setDropDay] = useState<number | null>(null)
 
   const byDay = useMemo(() => {
     const map = new Map<number, ProgramItem[]>()
     for (let d = 1; d <= 7; d++) map.set(d, [])
     for (const i of optimisticItems) map.get(i.day_of_week)?.push(i)
+    for (const list of map.values()) list.sort(sortItems)
     return map
   }, [optimisticItems])
 
   const total = optimisticItems.length
   const done = optimisticItems.filter((i) => i.is_completed).length
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
+
+  function submitItem(input: ProgramItemInput, itemId?: string): Promise<ActionResult> {
+    if (mode === "coach" && studentId) {
+      return itemId ? updateProgramItem(studentId, itemId, input) : createProgramItem(studentId, weekStart, input)
+    }
+    return itemId ? updateMyProgramItem(itemId, input) : createMyProgramItem(weekStart, input)
+  }
 
   function handleToggle(item: ProgramItem, next: boolean) {
     startTransition(async () => {
@@ -109,10 +171,26 @@ export function WeeklyProgramBoard({
     })
   }
 
+  function handleMove(item: ProgramItem, day: number) {
+    if (item.day_of_week === day || !canEdit(item)) return
+    startTransition(async () => {
+      applyOptimistic({ id: item.id, day_of_week: day })
+      const res =
+        mode === "coach" && studentId
+          ? await moveProgramItem(studentId, item.id, day)
+          : await moveMyProgramItem(item.id, day)
+      if (res.success) toast.success(`${DAYS.find((d) => d.num === day)?.label ?? ""} gününe taşındı.`)
+      else toast.error(res.error ?? "Taşınamadı.")
+    })
+  }
+
   async function handleDelete() {
-    if (!deleteTarget || !studentId) return
+    if (!deleteTarget) return
     setDeletePending(true)
-    const res = await deleteProgramItem(studentId, deleteTarget.id)
+    const res =
+      mode === "coach" && studentId
+        ? await deleteProgramItem(studentId, deleteTarget.id)
+        : await deleteMyProgramItem(deleteTarget.id)
     setDeletePending(false)
     if (res.success) {
       toast.success("Kalem silindi.")
@@ -122,6 +200,50 @@ export function WeeklyProgramBoard({
     }
   }
 
+  const columnProps = (dayNum: number) => ({
+    items: byDay.get(dayNum) ?? [],
+    canAdd,
+    canToggle,
+    canEdit,
+    canDelete,
+    badgeFor,
+    isToday: dayNum === todayDay,
+    onAdd: () => setCreateDay(dayNum),
+    onEdit: setEditTarget,
+    onDelete: setDeleteTarget,
+    onToggle: handleToggle,
+  })
+
+  const dndFor = (dayNum: number) => ({
+    isDropTarget: dragId != null && dropDay === dayNum,
+    onDragStart: (id: string) => setDragId(id),
+    onDragEnd: () => {
+      setDragId(null)
+      setDropDay(null)
+    },
+    onDragOver: () => dragId && setDropDay(dayNum),
+    onDrop: () => {
+      const item = optimisticItems.find((i) => i.id === dragId)
+      setDragId(null)
+      setDropDay(null)
+      if (item) handleMove(item, dayNum)
+    },
+  })
+
+  const editInitial: ProgramItemInitial | undefined = editTarget
+    ? {
+        id: editTarget.id,
+        day_of_week: editTarget.day_of_week,
+        start_time: editTarget.start_time,
+        end_time: editTarget.end_time,
+        subject_id: editTarget.subject_id,
+        topic_id: editTarget.topic_id,
+        baslik: editTarget.baslik,
+        aciklama: editTarget.aciklama,
+        hedef_soru: editTarget.hedef_soru,
+      }
+    : undefined
+
   return (
     <div className="space-y-4">
       {/* Üst bar: hafta gezinme + tamamlanma özeti */}
@@ -130,10 +252,7 @@ export function WeeklyProgramBoard({
         {total > 0 && (
           <div className="flex items-center gap-2">
             <div className="h-2 w-28 bg-zinc-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-[#10B981] transition-all"
-                style={{ width: `${pct}%` }}
-              />
+              <div className="h-full bg-[#10B981] transition-all" style={{ width: `${pct}%` }} />
             </div>
             <span className="text-sm text-zinc-600 tabular-nums whitespace-nowrap">
               <CheckCircle2 className="inline h-3.5 w-3.5 text-[#10B981] mb-0.5 mr-1" />
@@ -164,9 +283,7 @@ export function WeeklyProgramBoard({
                 )}
                 aria-pressed={isActive}
               >
-                <span className={cn("leading-none", isToday && !isActive && "text-[#F97316]")}>
-                  {d.short}
-                </span>
+                <span className={cn("leading-none", isToday && !isActive && "text-[#F97316]")}>{d.short}</span>
                 <span
                   className={cn(
                     "mt-1 text-[10px] leading-none tabular-nums",
@@ -181,99 +298,71 @@ export function WeeklyProgramBoard({
         </div>
       </div>
 
-      {/* Mobil: seçili gün */}
+      {/* Mobil: seçili gün (gün değiştirme düzenle dialog'undan; dokunmatik DnD yok) */}
       <div className="md:hidden">
         {(() => {
           const day = DAYS.find((d) => d.num === selectedDay)!
-          return (
-            <DayColumn
-              dayLabel={day.label}
-              items={byDay.get(day.num) ?? []}
-              editable={editable}
-              canToggle={canToggle}
-              isToday={day.num === todayDay}
-              onAdd={() => setCreateDay(day.num)}
-              onEdit={setEditTarget}
-              onDelete={setDeleteTarget}
-              onToggle={handleToggle}
-              variant="mobile"
-            />
-          )
+          return <DayColumn dayLabel={day.label} variant="mobile" {...columnProps(day.num)} />
         })()}
       </div>
 
-      {/* Desktop: 7 sütun */}
+      {/* Desktop: 7 sütun + sürükle-bırak */}
       <div className="hidden md:grid md:grid-cols-7 gap-3">
         {DAYS.map((d) => (
           <DayColumn
             key={d.num}
             dayLabel={d.label}
             dayShort={d.short}
-            items={byDay.get(d.num) ?? []}
-            editable={editable}
-            canToggle={canToggle}
-            isToday={d.num === todayDay}
-            onAdd={() => setCreateDay(d.num)}
-            onEdit={setEditTarget}
-            onDelete={setDeleteTarget}
-            onToggle={handleToggle}
             variant="desktop"
+            {...columnProps(d.num)}
+            dnd={canAdd ? dndFor(d.num) : undefined}
           />
         ))}
       </div>
+      {canAdd && total > 0 && (
+        <p className="hidden md:block text-xs text-zinc-400">
+          İpucu: düzenleyebildiğin kalemleri sürükleyip başka güne bırakabilirsin.
+        </p>
+      )}
 
-      {/* Create/Edit dialog (koç) */}
-      {editable && studentId && createDay !== null && (
+      {canAdd && createDay !== null && (
         <ProgramItemDialog
-          studentId={studentId}
-          weekStart={weekStart}
           subjects={subjects}
+          topics={topics}
           initialDay={createDay}
-          open={createDay !== null}
+          open
           onOpenChange={(o) => !o && setCreateDay(null)}
+          onSubmit={submitItem}
         />
       )}
 
-      {editable && studentId && editTarget && (
+      {canAdd && editInitial && (
         <ProgramItemDialog
-          studentId={studentId}
-          weekStart={weekStart}
+          key={editInitial.id}
           subjects={subjects}
-          initial={{
-            id: editTarget.id,
-            day_of_week: editTarget.day_of_week,
-            subject_id: editTarget.subject_id,
-            baslik: editTarget.baslik,
-            aciklama: editTarget.aciklama,
-          }}
-          open={!!editTarget}
+          topics={topics}
+          initial={editInitial}
+          open
           onOpenChange={(o) => !o && setEditTarget(null)}
+          onSubmit={submitItem}
         />
       )}
 
-      {/* Delete confirm (koç) */}
-      {editable && (
-        <AlertDialog
-          open={!!deleteTarget}
-          onOpenChange={(o) => !o && !deletePending && setDeleteTarget(null)}
-        >
+      {canAdd && (
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && !deletePending && setDeleteTarget(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Kalemi sil?</AlertDialogTitle>
               <AlertDialogDescription>
-                <span className="font-medium">
-                  {deleteTarget ? titleOf(deleteTarget) : "Bu kalem"}
-                </span>{" "}
-                programdan kalıcı olarak silinecek. Bu işlem geri alınamaz.
+                <span className="font-medium">{deleteTarget ? titleOf(deleteTarget) : "Bu kalem"}</span>{" "}
+                programdan kalıcı olarak silinecek.
+                {mode === "coach" && deleteTarget?.created_by_role === "student" && " Bu kalemi öğrenci eklemişti."}{" "}
+                Bu işlem geri alınamaz.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={deletePending}>Vazgeç</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                disabled={deletePending}
-                className="bg-red-600 hover:bg-red-700"
-              >
+              <AlertDialogAction onClick={handleDelete} disabled={deletePending} className="bg-red-600 hover:bg-red-700">
                 {deletePending ? "Siliniyor..." : "Evet, sil"}
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -284,39 +373,72 @@ export function WeeklyProgramBoard({
   )
 }
 
+type Dnd = {
+  isDropTarget: boolean
+  onDragStart: (id: string) => void
+  onDragEnd: () => void
+  onDragOver: () => void
+  onDrop: () => void
+}
+
 type ColumnProps = {
   dayLabel: string
   dayShort?: string
   items: ProgramItem[]
-  editable: boolean
+  canAdd: boolean
   canToggle: boolean
+  canEdit: (i: ProgramItem) => boolean
+  canDelete: (i: ProgramItem) => boolean
+  badgeFor: (i: ProgramItem) => "student" | "coach" | "ai" | null
   isToday: boolean
   onAdd: () => void
   onEdit: (i: ProgramItem) => void
   onDelete: (i: ProgramItem) => void
   onToggle: (i: ProgramItem, next: boolean) => void
   variant: "desktop" | "mobile"
+  dnd?: Dnd
 }
 
 function DayColumn({
   dayLabel,
   dayShort,
   items,
-  editable,
+  canAdd,
   canToggle,
+  canEdit,
+  canDelete,
+  badgeFor,
   isToday,
   onAdd,
   onEdit,
   onDelete,
   onToggle,
   variant,
+  dnd,
 }: ColumnProps) {
   const isMobile = variant === "mobile"
   return (
     <div
+      onDragOver={
+        dnd
+          ? (e) => {
+              e.preventDefault()
+              dnd.onDragOver()
+            }
+          : undefined
+      }
+      onDrop={
+        dnd
+          ? (e) => {
+              e.preventDefault()
+              dnd.onDrop()
+            }
+          : undefined
+      }
       className={cn(
-        "bg-white border rounded-2xl flex flex-col",
+        "bg-white border rounded-2xl flex flex-col transition-colors",
         isToday ? "border-[#1B6B8A]/40 ring-1 ring-[#1B6B8A]/15" : "border-zinc-200",
+        dnd?.isDropTarget && "border-[#F97316] bg-orange-50/40 ring-2 ring-[#F97316]/30",
         isMobile ? "min-h-[200px]" : "min-h-[260px]",
       )}
     >
@@ -331,9 +453,7 @@ function DayColumn({
             <div className="text-xs font-semibold text-zinc-900 truncate">{dayShort}</div>
             <div className="text-[10px] text-zinc-500 truncate">{dayLabel}</div>
           </div>
-          {items.length > 0 && (
-            <span className="text-[10px] tabular-nums text-zinc-400">{items.length}</span>
-          )}
+          {items.length > 0 && <span className="text-[10px] tabular-nums text-zinc-400">{items.length}</span>}
         </div>
       )}
 
@@ -347,18 +467,23 @@ function DayColumn({
             <ItemCard
               key={item.id}
               item={item}
-              editable={editable}
+              editable={canEdit(item)}
+              deletable={canDelete(item)}
               canToggle={canToggle}
+              badge={badgeFor(item)}
               onEdit={() => onEdit(item)}
               onDelete={() => onDelete(item)}
               onToggle={(next) => onToggle(item, next)}
               variant={variant}
+              draggable={!!dnd && canEdit(item)}
+              onDragStart={() => dnd?.onDragStart(item.id)}
+              onDragEnd={() => dnd?.onDragEnd()}
             />
           ))
         )}
       </div>
 
-      {editable && (
+      {canAdd && (
         <div className="p-2 pt-0">
           <button
             type="button"
@@ -377,30 +502,56 @@ function DayColumn({
 type CardProps = {
   item: ProgramItem
   editable: boolean
+  deletable: boolean
   canToggle: boolean
+  badge: "student" | "coach" | "ai" | null
   onEdit: () => void
   onDelete: () => void
   onToggle: (next: boolean) => void
   variant: "desktop" | "mobile"
+  draggable: boolean
+  onDragStart: () => void
+  onDragEnd: () => void
 }
 
-function ItemCard({ item, editable, canToggle, onEdit, onDelete, onToggle, variant }: CardProps) {
+function ItemCard({
+  item,
+  editable,
+  deletable,
+  canToggle,
+  badge,
+  onEdit,
+  onDelete,
+  onToggle,
+  variant,
+  draggable,
+  onDragStart,
+  onDragEnd,
+}: CardProps) {
   const color = colorFor(item)
   const completed = item.is_completed
+  const time = timeRange(item)
+  const main = item.topic_name ?? item.baslik ?? item.subject?.name ?? "—"
+  const secondary = item.topic_name && item.baslik ? item.baslik : null
   return (
     <div
+      draggable={draggable}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move"
+        e.dataTransfer.setData("text/plain", item.id)
+        onDragStart()
+      }}
+      onDragEnd={onDragEnd}
       className={cn(
         "group relative rounded-lg border transition-colors pl-2.5 pr-2 py-2",
         completed
           ? "bg-green-50/60 border-green-100"
           : "bg-zinc-50 hover:bg-white border-transparent hover:border-zinc-200",
+        draggable && "cursor-grab active:cursor-grabbing",
+        (editable || deletable) && variant === "mobile" && "pr-16",
       )}
     >
-      <span
-        aria-hidden
-        className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-full"
-        style={{ backgroundColor: color }}
-      />
+      <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-full" style={{ backgroundColor: color }} />
 
       <div className="pl-2 min-w-0 flex items-start gap-2">
         {canToggle && (
@@ -412,9 +563,15 @@ function ItemCard({ item, editable, canToggle, onEdit, onDelete, onToggle, varia
           />
         )}
         <div className="min-w-0 flex-1">
-          {item.subject?.name && (
-            <div className="text-[10px] uppercase tracking-wide text-zinc-500 truncate">
-              {item.subject.name}
+          {(time || item.subject?.name) && (
+            <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500 min-w-0">
+              {time && (
+                <span className="inline-flex items-center gap-0.5 normal-case tabular-nums text-zinc-600 shrink-0">
+                  <Clock className="h-2.5 w-2.5" /> {time}
+                </span>
+              )}
+              {time && item.subject?.name && <span className="text-zinc-300">·</span>}
+              {item.subject?.name && <span className="truncate">{item.subject.name}</span>}
             </div>
           )}
           <div
@@ -424,8 +581,19 @@ function ItemCard({ item, editable, canToggle, onEdit, onDelete, onToggle, varia
               completed ? "text-zinc-400 line-through" : "text-zinc-900",
             )}
           >
-            {item.baslik ?? item.subject?.name ?? "—"}
+            {main}
           </div>
+          {secondary && <div className="text-[11px] text-zinc-500 leading-snug">{secondary}</div>}
+          {(item.hedef_soru || badge) && (
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              {item.hedef_soru && (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 tabular-nums">
+                  <Target className="h-2.5 w-2.5" /> {item.hedef_soru} soru
+                </span>
+              )}
+              {badge && <OwnerBadge role={badge} />}
+            </div>
+          )}
           {item.aciklama && (
             <div className="mt-1 flex items-start gap-1 text-[11px] text-zinc-500 leading-snug">
               <StickyNote className="h-3 w-3 mt-0.5 shrink-0" />
@@ -433,26 +601,41 @@ function ItemCard({ item, editable, canToggle, onEdit, onDelete, onToggle, varia
             </div>
           )}
         </div>
+        {draggable && variant === "desktop" && (
+          <GripVertical className="h-3 w-3 shrink-0 text-zinc-300 opacity-0 group-hover:opacity-100" aria-hidden />
+        )}
       </div>
 
-      {editable && (
-        <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="p-1 rounded-md bg-white text-zinc-600 hover:text-[#1B6B8A] hover:bg-zinc-100"
-            aria-label="Düzenle"
-          >
-            <Pencil className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="p-1 rounded-md bg-white text-zinc-600 hover:text-red-600 hover:bg-red-50"
-            aria-label="Sil"
-          >
-            <Trash2 className="h-3 w-3" />
-          </button>
+      {(editable || deletable) && (
+        <div
+          className={cn(
+            "absolute top-1.5 right-1.5 flex items-center gap-0.5 transition-opacity",
+            // Dokunmatikte hover yok → mobilde her zaman görünür.
+            variant === "mobile"
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100 focus-within:opacity-100",
+          )}
+        >
+          {editable && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="p-1 rounded-md bg-white text-zinc-600 hover:text-[#1B6B8A] hover:bg-zinc-100"
+              aria-label="Düzenle"
+            >
+              <Pencil className={variant === "mobile" ? "h-3.5 w-3.5" : "h-3 w-3"} />
+            </button>
+          )}
+          {deletable && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="p-1 rounded-md bg-white text-zinc-600 hover:text-red-600 hover:bg-red-50"
+              aria-label="Sil"
+            >
+              <Trash2 className={variant === "mobile" ? "h-3.5 w-3.5" : "h-3 w-3"} />
+            </button>
+          )}
         </div>
       )}
     </div>

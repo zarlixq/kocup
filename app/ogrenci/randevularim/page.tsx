@@ -3,6 +3,9 @@ import {
   OgrenciRandevularView,
   type StudentAppointmentRow,
 } from "@/components/randevu/ogrenci-randevular-view"
+import { CalendarCheck } from "lucide-react"
+import { NoCoachState } from "@/components/ogrenci/no-coach-state"
+import { getStudentContext, noCoachMessage } from "@/lib/ogrenci/context"
 
 export const metadata = { title: "Randevularım — KoçUp" }
 
@@ -23,6 +26,7 @@ export default async function OgrenciRandevularimPage() {
     .order("start_time", { ascending: true })
 
   const appts = rawAppts ?? []
+  const ctx = await getStudentContext(supabase, user!.id)
 
   const coachIds = Array.from(new Set(appts.map((a) => a.coach_id)))
   const { data: coaches } = coachIds.length
@@ -63,7 +67,16 @@ export default async function OgrenciRandevularimPage() {
         </p>
       </header>
 
-      <OgrenciRandevularView appointments={rows} nowIso={nowIso} />
+      {/* Koç yok + hiç randevu yok → boş takvim yerine açıklayıcı ekran. */}
+      {!ctx.coachId && rows.length === 0 ? (
+        <NoCoachState
+          icon={CalendarCheck}
+          title={noCoachMessage(ctx).title}
+          description="Randevular koçunla planlanır. Koçun olduğunda görüşmelerin burada listelenir."
+        />
+      ) : (
+        <OgrenciRandevularView appointments={rows} nowIso={nowIso} />
+      )}
     </div>
   )
 }

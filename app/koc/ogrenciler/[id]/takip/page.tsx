@@ -4,6 +4,7 @@ import {
   type TakipAssignment,
   type TakipSession,
 } from "@/components/takip/weekly-summary-dashboard"
+import { loadAssignmentsWithProgress } from "@/lib/assignments/load"
 
 export default async function StudentTakipPage({
   params,
@@ -18,34 +19,19 @@ export default async function StudentTakipPage({
   twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84)
   const fromIso = twelveWeeksAgo.toISOString().slice(0, 10)
 
-  const [{ data: profile }, { data: sessions }, { data: assignments }, { data: progressAgg }] =
-    await Promise.all([
-      supabase.from("profiles").select("id, full_name").eq("id", id).maybeSingle(),
-      supabase
-        .from("study_sessions")
-        .select("student_id, date, total_questions, correct, duration_minutes")
-        .eq("student_id", id)
-        .gte("date", fromIso),
-      supabase
-        .from("topic_assignments")
-        .select(
-          "id, student_id, hedef_soru, son_tarih, status, topics(name, subjects(name))",
-        )
-        .eq("student_id", id),
-      supabase
-        .from("study_sessions")
-        .select("assignment_id, total_questions")
-        .eq("student_id", id),
-    ])
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const cozulenByAsg = new Map<string, number>()
-  for (const p of progressAgg ?? []) {
-    if (!p.assignment_id) continue
-    cozulenByAsg.set(
-      p.assignment_id,
-      (cozulenByAsg.get(p.assignment_id) ?? 0) + (p.total_questions ?? 0),
-    )
-  }
+  const [{ data: profile }, { data: sessions }, assignments] = await Promise.all([
+    supabase.from("profiles").select("id, full_name").eq("id", id).maybeSingle(),
+    supabase
+      .from("study_sessions")
+      .select("student_id, date, total_questions, correct, duration_minutes")
+      .eq("student_id", id)
+      .gte("date", fromIso),
+    loadAssignmentsWithProgress(supabase, { studentId: id, coachScopeId: user!.id }),
+  ])
 
   const tSessions: TakipSession[] = (sessions ?? []).map((s) => ({
     student_id: s.student_id,
@@ -55,14 +41,16 @@ export default async function StudentTakipPage({
     duration_minutes: s.duration_minutes,
   }))
 
-  const tAssignments: TakipAssignment[] = (assignments ?? []).map((a) => ({
+  const tAssignments: TakipAssignment[] = assignments.map((a) => ({
     id: a.id,
     student_id: a.student_id,
-    topic_name: a.topics?.name ?? "—",
-    subject_name: a.topics?.subjects?.name ?? "—",
+    topic_name: a.topic_name,
+    subject_name: a.subject_name,
     hedef_soru: a.hedef_soru,
+    hedef_dogruluk: a.hedef_dogruluk,
     son_tarih: a.son_tarih,
-    cozulen_soru: cozulenByAsg.get(a.id) ?? 0,
+    cozulen_soru: a.cozulen_soru,
+    dogru_sayisi: a.dogru_sayisi,
     status: a.status,
   }))
 

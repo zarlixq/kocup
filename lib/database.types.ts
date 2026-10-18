@@ -1583,10 +1583,12 @@ export type Database = {
       topic_assignments: {
         Row: {
           baslangic_tarihi: string
-          coach_id: string
+          coach_id: string | null
           created_at: string | null
           created_by: string | null
-          hedef_soru: number
+          created_by_role: string
+          hedef_dogruluk: number | null
+          hedef_soru: number | null
           hedef_sure_dk: number | null
           id: string
           notes: string | null
@@ -1598,10 +1600,12 @@ export type Database = {
         }
         Insert: {
           baslangic_tarihi?: string
-          coach_id: string
+          coach_id?: string | null
           created_at?: string | null
           created_by?: string | null
-          hedef_soru: number
+          created_by_role?: string
+          hedef_dogruluk?: number | null
+          hedef_soru?: number | null
           hedef_sure_dk?: number | null
           id?: string
           notes?: string | null
@@ -1613,10 +1617,12 @@ export type Database = {
         }
         Update: {
           baslangic_tarihi?: string
-          coach_id?: string
+          coach_id?: string | null
           created_at?: string | null
           created_by?: string | null
-          hedef_soru?: number
+          created_by_role?: string
+          hedef_dogruluk?: number | null
+          hedef_soru?: number | null
           hedef_sure_dk?: number | null
           id?: string
           notes?: string | null
@@ -1717,12 +1723,17 @@ export type Database = {
           carried_from_item_id: string | null
           completed_at: string | null
           created_at: string | null
+          created_by_role: string
           day_of_week: number
+          end_time: string | null
+          hedef_soru: number | null
           id: string
           is_completed: boolean
           order_index: number
           program_id: string
+          start_time: string | null
           subject_id: string | null
+          topic_id: string | null
         }
         Insert: {
           aciklama?: string | null
@@ -1730,12 +1741,17 @@ export type Database = {
           carried_from_item_id?: string | null
           completed_at?: string | null
           created_at?: string | null
+          created_by_role?: string
           day_of_week: number
+          end_time?: string | null
+          hedef_soru?: number | null
           id?: string
           is_completed?: boolean
           order_index?: number
           program_id: string
+          start_time?: string | null
           subject_id?: string | null
+          topic_id?: string | null
         }
         Update: {
           aciklama?: string | null
@@ -1743,12 +1759,17 @@ export type Database = {
           carried_from_item_id?: string | null
           completed_at?: string | null
           created_at?: string | null
+          created_by_role?: string
           day_of_week?: number
+          end_time?: string | null
+          hedef_soru?: number | null
           id?: string
           is_completed?: boolean
           order_index?: number
           program_id?: string
+          start_time?: string | null
           subject_id?: string | null
+          topic_id?: string | null
         }
         Relationships: [
           {
@@ -1770,6 +1791,13 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_program_items_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
             referencedColumns: ["id"]
           },
         ]

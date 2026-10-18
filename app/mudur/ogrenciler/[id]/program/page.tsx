@@ -6,18 +6,9 @@ import {
 } from "@/components/program/weekly-program-board"
 import { WeekSwitcher } from "@/components/program/week-switcher"
 import { getWeekStart, isValidWeekStartParam } from "@/lib/week"
+import { mapProgramItem, PROGRAM_ITEM_COLUMNS, type RawProgramItem } from "@/lib/program/map-item"
 
 type SearchParams = { hafta?: string }
-
-type RawItem = {
-  id: string
-  day_of_week: number
-  subject_id: string | null
-  baslik: string | null
-  aciklama: string | null
-  is_completed: boolean
-  subjects: { id: string; name: string; color: string | null } | null
-}
 
 export default async function MudurStudentProgramPage({
   params,
@@ -34,26 +25,12 @@ export default async function MudurStudentProgramPage({
 
   const { data: program } = await supabase
     .from("weekly_programs")
-    .select(
-      "id, weekly_program_items(id, day_of_week, subject_id, baslik, aciklama, is_completed, subjects(id, name, color))",
-    )
+    .select(`id, weekly_program_items(${PROGRAM_ITEM_COLUMNS})`)
     .eq("student_id", id)
     .eq("week_start", weekStart)
     .maybeSingle()
 
-  const items: ProgramItem[] = ((program?.weekly_program_items ?? []) as RawItem[]).map(
-    (r) => ({
-      id: r.id,
-      day_of_week: r.day_of_week,
-      subject_id: r.subject_id,
-      baslik: r.baslik,
-      aciklama: r.aciklama,
-      is_completed: r.is_completed,
-      subject: r.subjects
-        ? { id: r.subjects.id, name: r.subjects.name, color: r.subjects.color }
-        : null,
-    }),
-  )
+  const items: ProgramItem[] = ((program?.weekly_program_items ?? []) as RawProgramItem[]).map(mapProgramItem)
 
   return (
     <div className="space-y-4">

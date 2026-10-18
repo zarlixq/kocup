@@ -35,7 +35,7 @@ type Props = {
     topic_name: string
     subject_name: string
     student_name: string
-    hedef_soru: number
+    hedef_soru: number | null
     hedef_sure_dk: number | null
     son_tarih: string
     notes: string | null
@@ -44,7 +44,9 @@ type Props = {
 }
 
 export function EditAssignmentDialog({ open, onOpenChange, assignment }: Props) {
-  const [hedefSoru, setHedefSoru] = useState<string>(String(assignment.hedef_soru))
+  const [hedefSoru, setHedefSoru] = useState<string>(
+    assignment.hedef_soru != null ? String(assignment.hedef_soru) : "",
+  )
   const [hedefSure, setHedefSure] = useState<string>(
     assignment.hedef_sure_dk ? String(assignment.hedef_sure_dk) : "",
   )

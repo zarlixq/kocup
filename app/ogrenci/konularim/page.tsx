@@ -6,6 +6,9 @@ import {
 } from "@/components/konu-analizi/assignments-card-grid"
 import { CleanList } from "@/components/konular/clean-list"
 import type { Status, TopicCard } from "@/components/konular/types"
+import { loadAssignmentsWithProgress } from "@/lib/assignments/load"
+import { loadSessionFormData } from "@/lib/soru-cozum/form-data"
+import { getStudentContext } from "@/lib/ogrenci/context"
 
 export const metadata = { title: "Konularım — KoçUp" }
 
@@ -14,11 +17,7 @@ export default async function KonularimPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const userId = user!.id
 
-  const [
-    { data: topics },
-    { data: assignments },
-    { data: progressAgg },
-  ] = await Promise.all([
+  const [{ data: topics }, assignments, ctx, formData] = await Promise.all([
     supabase
       .from("student_topics")
       .select(
@@ -26,52 +25,23 @@ export default async function KonularimPage() {
       )
       .eq("student_id", userId)
       .order("created_at", { ascending: false }),
-    supabase
-      .from("topic_assignments")
-      .select(
-        "id, hedef_soru, hedef_sure_dk, son_tarih, notes, status, coach_id, topics(name, subjects(name))",
-      )
-      .eq("student_id", userId),
-    supabase
-      .from("study_sessions")
-      .select("assignment_id, total_questions, correct, duration_minutes")
-      .eq("student_id", userId)
-      .not("assignment_id", "is", null),
+    loadAssignmentsWithProgress(supabase, { studentId: userId }),
+    getStudentContext(supabase, userId),
+    loadSessionFormData(supabase, userId),
   ])
 
-  const coachIds = Array.from(new Set((assignments ?? []).map((a) => a.coach_id)))
+  const coachIds = Array.from(
+    new Set(assignments.map((a) => a.coach_id).filter((v): v is string => v != null)),
+  )
   const { data: coaches } = coachIds.length
     ? await supabase.from("profiles").select("id, full_name").in("id", coachIds)
     : { data: [] as Array<{ id: string; full_name: string }> }
   const coachById = new Map((coaches ?? []).map((c) => [c.id, c.full_name]))
 
-  const progressByAsg = new Map<string, { cozulen: number; dogru: number; sure: number }>()
-  for (const p of progressAgg ?? []) {
-    if (!p.assignment_id) continue
-    const cur = progressByAsg.get(p.assignment_id) ?? { cozulen: 0, dogru: 0, sure: 0 }
-    cur.cozulen += p.total_questions ?? 0
-    cur.dogru += p.correct ?? 0
-    cur.sure += p.duration_minutes ?? 0
-    progressByAsg.set(p.assignment_id, cur)
-  }
-
-  const assignmentRows: StudentAssignmentRow[] = (assignments ?? []).map((a) => {
-    const prog = progressByAsg.get(a.id) ?? { cozulen: 0, dogru: 0, sure: 0 }
-    return {
-      id: a.id,
-      topic_name: a.topics?.name ?? "—",
-      subject_name: a.topics?.subjects?.name ?? "—",
-      hedef_soru: a.hedef_soru,
-      hedef_sure_dk: a.hedef_sure_dk,
-      son_tarih: a.son_tarih,
-      notes: a.notes,
-      status: a.status,
-      cozulen_soru: prog.cozulen,
-      dogru_sayisi: prog.dogru,
-      toplam_sure_dk: prog.sure,
-      coach_name: coachById.get(a.coach_id) ?? null,
-    }
-  })
+  const assignmentRows: StudentAssignmentRow[] = assignments.map((a) => ({
+    ...a,
+    coach_name: a.coach_id ? coachById.get(a.coach_id) ?? null : null,
+  }))
 
   const cards: TopicCard[] = (topics ?? []).map((t) => {
     const isCustom = !t.topic_id
@@ -96,16 +66,27 @@ export default async function KonularimPage() {
       <div>
         <h1 className="text-2xl font-bold text-zinc-900">Konularım</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Hedefli atamaların ve genel konu durumun.
+          {ctx.coachId
+            ? "Koçunun atadığı konular, kendi hedeflerin ve genel konu durumun."
+            : "Kendine konu hedefleri koy, ilerlemeni takip et."}
         </p>
       </div>
 
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Target className="h-5 w-5 text-[#F97316]" />
-          <h2 className="text-lg font-semibold text-zinc-900">Hedefli Atamalarım</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Hedeflerim</h2>
         </div>
-        <AssignmentsCardGrid rows={assignmentRows} />
+        <AssignmentsCardGrid
+          rows={assignmentRows}
+          hasCoach={ctx.coachId != null}
+          goalForm={{
+            grade: formData.grade,
+            subjects: formData.subjects,
+            topics: formData.topics,
+            recentTopics: formData.recentTopics,
+          }}
+        />
       </section>
 
       <section>

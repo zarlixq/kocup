@@ -24,7 +24,7 @@ export function CoachCard({ coach }: { coach: CoachInfo }) {
           <UserCog className="h-4 w-4 text-zinc-400" /> Koçum
         </h3>
         <div className="text-sm text-zinc-500">
-          Henüz bir koç atanmadı. Müdürle iletişime geç.
+          Henüz bir koç atanmadı. Bu sırada programını ve hedeflerini kendin yönetebilirsin.
         </div>
       </div>
     )

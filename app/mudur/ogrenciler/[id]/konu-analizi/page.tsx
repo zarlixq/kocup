@@ -5,6 +5,7 @@ import {
   type AssignmentRow,
 } from "@/components/konu-analizi/koc-konu-analizi-view"
 import { StudentTopicAnalysis } from "@/components/konu-analizi/student-topic-analysis"
+import { loadAssignmentsWithProgress } from "@/lib/assignments/load"
 
 export default async function MudurStudentKonuAnaliziPage({
   params,
@@ -16,18 +17,13 @@ export default async function MudurStudentKonuAnaliziPage({
 
   const [
     { data: profile },
-    { data: assignments },
+    assignments,
     { data: subjects },
     { data: topics },
     { data: sessions },
   ] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", id).maybeSingle(),
-    supabase
-      .from("topic_assignments")
-      .select(
-        "id, student_id, topic_id, hedef_soru, hedef_sure_dk, baslangic_tarihi, son_tarih, notes, status, topics(name, subject_id, subjects(id, name))",
-      )
-      .eq("student_id", id),
+    loadAssignmentsWithProgress(supabase, { studentId: id }),
     supabase.from("subjects").select("id, name, exam_type, order").order("exam_type").order("order"),
     supabase.from("topics").select("id, subject_id, name, order").order("order"),
     supabase
@@ -40,39 +36,7 @@ export default async function MudurStudentKonuAnaliziPage({
 
   if (!profile) notFound()
 
-  const allAsgIds = (assignments ?? []).map((a) => a.id)
-  const progressByAsg = new Map<string, { cozulen: number; dogru: number; sure: number }>()
-  for (const s of sessions ?? []) {
-    if (!s.assignment_id) continue
-    if (!allAsgIds.includes(s.assignment_id)) continue
-    const cur = progressByAsg.get(s.assignment_id) ?? { cozulen: 0, dogru: 0, sure: 0 }
-    cur.cozulen += s.total_questions ?? 0
-    cur.dogru += s.correct ?? 0
-    cur.sure += s.duration_minutes ?? 0
-    progressByAsg.set(s.assignment_id, cur)
-  }
-
-  const rows: AssignmentRow[] = (assignments ?? []).map((a) => {
-    const prog = progressByAsg.get(a.id) ?? { cozulen: 0, dogru: 0, sure: 0 }
-    return {
-      id: a.id,
-      student_id: a.student_id,
-      student_name: profile.full_name,
-      topic_id: a.topic_id,
-      topic_name: a.topics?.name ?? "—",
-      subject_id: a.topics?.subject_id ?? "",
-      subject_name: a.topics?.subjects?.name ?? "—",
-      hedef_soru: a.hedef_soru,
-      hedef_sure_dk: a.hedef_sure_dk,
-      baslangic_tarihi: a.baslangic_tarihi,
-      son_tarih: a.son_tarih,
-      notes: a.notes,
-      status: a.status,
-      cozulen_soru: prog.cozulen,
-      dogru_sayisi: prog.dogru,
-      toplam_sure_dk: prog.sure,
-    }
-  })
+  const rows: AssignmentRow[] = assignments.map((a) => ({ ...a, student_name: profile.full_name }))
 
   return (
     <div className="space-y-6">
