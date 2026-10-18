@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Hash, Info } from "lucide-react"
 import { formatDate } from "@/lib/format"
+import { EditedBadge } from "@/components/shared/edited-badge"
 
 export default async function StudentSoruCozumPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -9,7 +10,7 @@ export default async function StudentSoruCozumPage({ params }: { params: Promise
 
   const { data: sessions } = await supabase
     .from("study_sessions")
-    .select("id, date, total_questions, correct, wrong, empty, duration_minutes, subjects(name)")
+    .select("id, date, total_questions, correct, wrong, empty, duration_minutes, updated_at, updated_by, subjects(name), topics(name)")
     .eq("student_id", id)
     .order("date", { ascending: false })
     .limit(50)
@@ -39,6 +40,7 @@ export default async function StudentSoruCozumPage({ params }: { params: Promise
               <TableRow>
                 <TableHead>Tarih</TableHead>
                 <TableHead>Ders</TableHead>
+                <TableHead>Konu</TableHead>
                 <TableHead className="text-right">Toplam</TableHead>
                 <TableHead className="text-right">Doğru</TableHead>
                 <TableHead className="text-right">Yanlış</TableHead>
@@ -51,6 +53,15 @@ export default async function StudentSoruCozumPage({ params }: { params: Promise
                 <TableRow key={s.id}>
                   <TableCell className="whitespace-nowrap">{formatDate(s.date)}</TableCell>
                   <TableCell className="font-medium">{s.subjects?.name ?? "—"}</TableCell>
+                  <TableCell className="text-zinc-600">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span>{s.topics?.name ?? "—"}</span>
+                      <EditedBadge
+                        updatedAt={s.updated_at}
+                        editor={s.updated_by == null ? null : s.updated_by === id ? "ogrenci" : "koc"}
+                      />
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{s.total_questions}</TableCell>
                   <TableCell className="text-right tabular-nums text-green-600">{s.correct}</TableCell>
                   <TableCell className="text-right tabular-nums text-red-600">{s.wrong}</TableCell>

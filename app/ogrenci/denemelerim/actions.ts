@@ -85,20 +85,85 @@ export async function createExamAction(input: unknown) {
   }
 }
 
+export async function updateExamAction(examId: string, input: unknown) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Oturum bulunamadı." }
+
+  const parsed = examSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Form hatalı." }
+  }
+
+  const { name, exam_type, date, siralama, notes, results } = parsed.data
+  const nonZero = results.filter((r) => r.correct + r.wrong + r.empty > 0)
+  if (nonZero.length === 0) {
+    return { error: "En az bir ders için sonuç girmelisin." }
+  }
+
+  const { data: exam } = await supabase
+    .from("exams")
+    .select("id")
+    .eq("id", examId)
+    .eq("student_id", user.id)
+    .maybeSingle()
+  if (!exam) return { error: "Deneme bulunamadı." }
+
+  // exams + exam_results tek transaction'da (migration 199); RLS geçerli.
+  const { error } = await supabase.rpc("update_exam_with_results", {
+    p_exam_id: examId,
+    p_name: name,
+    p_exam_type: exam_type,
+    p_date: date,
+    p_siralama: siralama ?? undefined,
+    p_notes: notes ?? undefined,
+    p_results: nonZero,
+  })
+
+  if (error) {
+    console.error("updateExamAction", error)
+    return { error: "Deneme güncellenemedi, tekrar dene." }
+  }
+
+  revalidatePath("/ogrenci/denemelerim")
+  revalidatePath(`/ogrenci/denemelerim/${examId}`)
+  revalidatePath("/ogrenci")
+  revalidatePath(`/koc/ogrenciler/${user.id}/denemeler`)
+  return {
+    examId,
+    studentId: user.id,
+    redirectTo: `/ogrenci/denemelerim/${examId}`,
+  }
+}
+
 export async function deleteExamAction(examId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Oturum bulunamadı." }
 
-  const { error } = await supabase
+  // .select() → RLS 0 satır etkilerse sessizce "başarılı" dönmesin.
+  const { data, error } = await supabase
     .from("exams")
     .delete()
     .eq("id", examId)
     .eq("student_id", user.id)
+    .select("pdf_path")
 
-  if (error) return { error: error.message }
+  if (error) {
+    console.error("deleteExamAction", error)
+    return { error: "Deneme silinemedi, tekrar dene." }
+  }
+  if (!data || data.length === 0) return { error: "Deneme bulunamadı." }
+
+  // PDF best-effort: storage hatası silme işlemini geri almaz.
+  const pdfPath = data[0].pdf_path
+  if (pdfPath) {
+    const { error: rmErr } = await supabase.storage.from("exam-pdfs").remove([pdfPath])
+    if (rmErr) console.error("deleteExamAction pdf", rmErr)
+  }
 
   revalidatePath("/ogrenci/denemelerim")
   revalidatePath("/ogrenci")
+  revalidatePath(`/koc/ogrenciler/${user.id}/denemeler`)
   redirect("/ogrenci/denemelerim")
 }

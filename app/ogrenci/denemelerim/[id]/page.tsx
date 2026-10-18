@@ -1,12 +1,14 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Pencil } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDate } from "@/lib/format"
 import { DeleteExamButton } from "@/components/ogrenci/delete-exam-button"
 import { ExamPdfButton } from "@/components/denemeler/exam-pdf-button"
+import { Button } from "@/components/ui/button"
+import { EditedBadge } from "@/components/shared/edited-badge"
 
 const examTypeLabel: Record<string, string> = {
   tyt: "TYT",
@@ -21,7 +23,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ id:
 
   const { data: exam } = await supabase
     .from("exams")
-    .select("id, name, exam_type, date, student_id, pdf_path, exam_results(id, correct, wrong, empty, net, subjects(name))")
+    .select("id, name, exam_type, date, student_id, pdf_path, updated_at, exam_results(id, correct, wrong, empty, net, subjects(name))")
     .eq("id", id)
     .eq("student_id", user!.id)
     .maybeSingle()
@@ -48,11 +50,19 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ id:
               {exam.name}
               <Badge variant="outline">{examTypeLabel[exam.exam_type] ?? exam.exam_type}</Badge>
             </h1>
-            <p className="text-sm text-zinc-500 mt-1">{formatDate(exam.date)}</p>
+            <p className="text-sm text-zinc-500 mt-1 flex items-center gap-2">
+              {formatDate(exam.date)}
+              <EditedBadge updatedAt={exam.updated_at} />
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {exam.pdf_path && <ExamPdfButton examId={exam.id} />}
-            <DeleteExamButton examId={exam.id} />
+            <Button asChild variant="outline">
+              <Link href={`/ogrenci/denemelerim/${exam.id}/duzenle`}>
+                <Pencil className="h-4 w-4" /> Düzenle
+              </Link>
+            </Button>
+            <DeleteExamButton examId={exam.id} examName={exam.name} />
           </div>
         </div>
       </div>

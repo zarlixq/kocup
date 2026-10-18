@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Plus, FileText } from "lucide-react"
 import { formatDate } from "@/lib/format"
 import { ExamPdfButton } from "@/components/denemeler/exam-pdf-button"
+import { EditedBadge } from "@/components/shared/edited-badge"
 
 const examTypeLabel: Record<string, string> = {
   tyt: "TYT",
@@ -18,7 +19,7 @@ export default async function StudentDenemelerPage({ params }: { params: Promise
 
   const { data: exams } = await supabase
     .from("exams")
-    .select("id, name, exam_type, date, pdf_path, exam_results(net, subjects(name))")
+    .select("id, name, exam_type, date, pdf_path, updated_at, updated_by, exam_results(net, subjects(name))")
     .eq("student_id", id)
     .order("date", { ascending: false })
 
@@ -63,7 +64,15 @@ export default async function StudentDenemelerPage({ params }: { params: Promise
                 return (
                   <TableRow key={e.id}>
                     <TableCell className="whitespace-nowrap">{formatDate(e.date)}</TableCell>
-                    <TableCell className="font-medium">{e.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span>{e.name}</span>
+                        <EditedBadge
+                          updatedAt={e.updated_at}
+                          editor={e.updated_by == null ? null : e.updated_by === id ? "ogrenci" : "koc"}
+                        />
+                      </div>
+                    </TableCell>
                     <TableCell>{examTypeLabel[e.exam_type] ?? e.exam_type}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">{totalNet.toFixed(2)}</TableCell>
                     <TableCell className="text-right">

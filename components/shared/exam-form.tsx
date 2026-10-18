@@ -43,15 +43,22 @@ function net(correct: number, wrong: number) {
 export function ExamForm({
   subjects,
   onSubmit,
+  initial,
+  submitLabel = "Denemeyi Kaydet",
+  hasExistingPdf = false,
 }: {
   subjects: ExamFormSubject[]
   onSubmit: (input: ExamFormInput) => Promise<ExamFormSubmitResult | void>
+  // Düzenleme modu: mevcut deneme değerleriyle başlar.
+  initial?: ExamFormInput
+  submitLabel?: string
+  hasExistingPdf?: boolean
 }) {
   const router = useRouter()
   const today = isoDate(new Date())
-  const [name, setName] = useState("")
-  const [examType, setExamType] = useState<ExamFormInput["exam_type"]>("tyt")
-  const [date, setDate] = useState(today)
+  const [name, setName] = useState(initial?.name ?? "")
+  const [examType, setExamType] = useState<ExamFormInput["exam_type"]>(initial?.exam_type ?? "tyt")
+  const [date, setDate] = useState(initial?.date ?? today)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -62,9 +69,16 @@ export function ExamForm({
     return subjects
   }, [subjects, examType])
 
-  const [rows, setRows] = useState<Record<string, Row>>({})
-  const [siralama, setSiralama] = useState<string>("")
-  const [notes, setNotes] = useState<string>("")
+  const [rows, setRows] = useState<Record<string, Row>>(() =>
+    Object.fromEntries(
+      (initial?.results ?? []).map((r) => [
+        r.subject_id,
+        { subject_id: r.subject_id, correct: String(r.correct), wrong: String(r.wrong), empty: String(r.empty) },
+      ]),
+    ),
+  )
+  const [siralama, setSiralama] = useState<string>(initial?.siralama != null ? String(initial.siralama) : "")
+  const [notes, setNotes] = useState<string>(initial?.notes ?? "")
   const [pdfFile, setPdfFile] = useState<File | null>(null)
 
   function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -329,7 +343,9 @@ export function ExamForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="exam-pdf">Deneme PDF&apos;i (opsiyonel)</Label>
+        <Label htmlFor="exam-pdf">
+          {hasExistingPdf ? "PDF'i değiştir (opsiyonel)" : "Deneme PDF'i (opsiyonel)"}
+        </Label>
         <Input
           id="exam-pdf"
           type="file"
@@ -344,7 +360,7 @@ export function ExamForm({
 
       <div className="flex items-center gap-3 pt-2">
         <Button type="submit" variant="accent" disabled={pending}>
-          {pending ? "Kaydediliyor..." : "Denemeyi Kaydet"}
+          {pending ? "Kaydediliyor..." : submitLabel}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={pending}>
           İptal

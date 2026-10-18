@@ -488,6 +488,8 @@ export type Database = {
           pdf_path: string | null
           siralama: number | null
           student_id: string
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string | null
@@ -500,6 +502,8 @@ export type Database = {
           pdf_path?: string | null
           siralama?: number | null
           student_id: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string | null
@@ -512,6 +516,8 @@ export type Database = {
           pdf_path?: string | null
           siralama?: number | null
           student_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -524,6 +530,13 @@ export type Database = {
           {
             foreignKeyName: "exams_student_id_fkey"
             columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exams_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -850,6 +863,104 @@ export type Database = {
           referrer?: string | null
           session_id?: string | null
           tool_slug?: string | null
+        }
+        Relationships: []
+      }
+      party_applications: {
+        Row: {
+          created_at: string
+          first_name: string
+          id: number
+          last_name: string
+          phone: string
+          school_id: number
+        }
+        Insert: {
+          created_at?: string
+          first_name: string
+          id?: never
+          last_name: string
+          phone: string
+          school_id: number
+        }
+        Update: {
+          created_at?: string
+          first_name?: string
+          id?: never
+          last_name?: string
+          phone?: string
+          school_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_applications_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "party_schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_messages: {
+        Row: {
+          created_at: string
+          id: number
+          message: string
+          phone: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          message: string
+          phone: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          message?: string
+          phone?: string
+        }
+        Relationships: []
+      }
+      party_schools: {
+        Row: {
+          created_at: string
+          id: number
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      party_site_content: {
+        Row: {
+          key: string
+          label: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          label: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          label?: string
+          updated_at?: string
+          value?: string
         }
         Relationships: []
       }
@@ -1342,7 +1453,10 @@ export type Database = {
           resource_id: string | null
           student_id: string
           subject_id: string
+          topic_id: string | null
           total_questions: number
+          updated_at: string | null
+          updated_by: string | null
           wrong: number
         }
         Insert: {
@@ -1357,7 +1471,10 @@ export type Database = {
           resource_id?: string | null
           student_id: string
           subject_id: string
+          topic_id?: string | null
           total_questions: number
+          updated_at?: string | null
+          updated_by?: string | null
           wrong: number
         }
         Update: {
@@ -1372,7 +1489,10 @@ export type Database = {
           resource_id?: string | null
           student_id?: string
           subject_id?: string
+          topic_id?: string | null
           total_questions?: number
+          updated_at?: string | null
+          updated_by?: string | null
           wrong?: number
         }
         Relationships: [
@@ -1409,6 +1529,20 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_sessions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_sessions_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1775,6 +1909,7 @@ export type Database = {
           last_sign_in_at: string
         }[]
       }
+      party_application_count: { Args: never; Returns: number }
       student_scoreboard_stats: {
         Args: { p_since: string }
         Returns: {
@@ -1784,6 +1919,18 @@ export type Database = {
           questions: number
           student_id: string
         }[]
+      }
+      update_exam_with_results: {
+        Args: {
+          p_date: string
+          p_exam_id: string
+          p_exam_type: string
+          p_name: string
+          p_notes?: string
+          p_results: Json
+          p_siralama?: number
+        }
+        Returns: undefined
       }
       weekly_program_compliance: {
         Args: { p_student_id?: string; p_week_start: string }
@@ -1819,12 +1966,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1848,11 +1995,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1873,11 +2020,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1898,11 +2045,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1915,11 +2062,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDate } from "@/lib/format"
+import { EditedBadge } from "@/components/shared/edited-badge"
 
 export const metadata = { title: "Denemelerim — KoçUp" }
 
@@ -20,7 +21,7 @@ export default async function DenemelerimPage() {
 
   const { data: exams } = await supabase
     .from("exams")
-    .select("id, name, exam_type, date, exam_results(net)")
+    .select("id, name, exam_type, date, updated_at, exam_results(net)")
     .eq("student_id", user!.id)
     .order("date", { ascending: false })
 
@@ -68,9 +69,12 @@ export default async function DenemelerimPage() {
                   <TableRow key={e.id}>
                     <TableCell className="whitespace-nowrap">{formatDate(e.date)}</TableCell>
                     <TableCell>
-                      <Link href={`/ogrenci/denemelerim/${e.id}`} className="font-medium hover:text-[#1B6B8A]">
-                        {e.name}
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link href={`/ogrenci/denemelerim/${e.id}`} className="font-medium hover:text-[#1B6B8A]">
+                          {e.name}
+                        </Link>
+                        <EditedBadge updatedAt={e.updated_at} />
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{examTypeLabel[e.exam_type] ?? e.exam_type}</Badge>

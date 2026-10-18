@@ -1,33 +1,18 @@
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
-import { SessionForm } from "@/components/ogrenci/session-form"
+import { SessionForm } from "@/components/soru-cozum/session-form"
+import { loadSessionFormData } from "@/lib/soru-cozum/form-data"
 
 export const metadata = { title: "Soru Çözüm Ekle — KoçUp" }
 
 export default async function YeniSessionPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
-  const [{ data: subjects }, { data: studentResources }] = await Promise.all([
-    supabase
-      .from("subjects")
-      .select("id, name, exam_type")
-      .order("exam_type")
-      .order("order"),
-    supabase
-      .from("student_resources")
-      .select("resource_id, status, resources(name)")
-      .eq("student_id", user!.id)
-      .neq("status", "birakildi"),
-  ])
-
-  const resources = (studentResources ?? [])
-    .filter((r) => r.resources)
-    .map((r) => ({ id: r.resource_id, name: r.resources!.name }))
+  const data = await loadSessionFormData(supabase, user!.id)
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-5">
       <div>
         <Link
           href="/ogrenci/soru-cozum"
@@ -36,11 +21,11 @@ export default async function YeniSessionPage() {
           <ArrowLeft className="h-4 w-4" /> Soru Çözüm
         </Link>
         <h1 className="text-2xl font-bold text-zinc-900">Yeni Soru Çözüm</h1>
-        <p className="text-sm text-zinc-500 mt-1">Bugünkü çalışmanı kaydet.</p>
+        <p className="text-sm text-zinc-500 mt-1">Çözdüğün soruları konu bazında kaydet.</p>
       </div>
 
-      <div className="bg-white border border-zinc-200 rounded-2xl p-6">
-        <SessionForm subjects={subjects ?? []} resources={resources} />
+      <div className="bg-white border border-zinc-200 rounded-2xl p-4 sm:p-6">
+        <SessionForm data={data} mode={{ kind: "create" }} />
       </div>
     </div>
   )
