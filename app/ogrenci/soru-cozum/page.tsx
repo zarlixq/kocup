@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { BarChart3, Clock, Hash, Library, Plus, SearchX, Target } from "lucide-react"
+import { BarChart3, Clock, Hash, Library, NotebookPen, Plus, SearchX, Target } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { formatDate } from "@/lib/format"
@@ -72,6 +72,16 @@ export default async function SoruCozumPage({
     correct: r.correct,
   }))
   const list = listRaw ?? []
+
+  // Kayıt başına yanlış defterine girilmiş satır sayısı (rozet + silme uyarısı).
+  const listIds = list.filter((r) => r.wrong > 0).map((r) => r.id)
+  const { data: wrongRows } = listIds.length
+    ? await supabase.from("wrong_answers").select("study_session_id").in("study_session_id", listIds)
+    : { data: [] as { study_session_id: string | null }[] }
+  const recordedBySession = new Map<string, number>()
+  for (const w of wrongRows ?? []) {
+    if (w.study_session_id) recordedBySession.set(w.study_session_id, (recordedBySession.get(w.study_session_id) ?? 0) + 1)
+  }
 
   const summary = weeklySummary(stats)
   const streak = dailyStreak(stats.map((s) => s.date), today)
@@ -227,6 +237,11 @@ export default async function SoruCozumPage({
                                     <Target className="h-3 w-3" /> Koç ataması
                                   </span>
                                 )}
+                                {(recordedBySession.get(s.id) ?? 0) > 0 && (
+                                  <span className="inline-flex items-center gap-1 text-orange-700">
+                                    <NotebookPen className="h-3 w-3" /> {recordedBySession.get(s.id)}/{s.wrong} yanlış defterde
+                                  </span>
+                                )}
                               </div>
                               <ResultBar correct={s.correct} wrong={s.wrong} empty={s.empty} />
                             </div>
@@ -236,6 +251,8 @@ export default async function SoruCozumPage({
                             </div>
                             <SessionRowActions
                               sessionId={s.id}
+                              wrong={s.wrong}
+                              recordedWrongs={recordedBySession.get(s.id) ?? 0}
                               label={`${formatDate(s.date, "dd.MM.yyyy")} · ${subjectName}${s.topics?.name ? ` · ${s.topics.name}` : ""}`}
                             />
                           </li>

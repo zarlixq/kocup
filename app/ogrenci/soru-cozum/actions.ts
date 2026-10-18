@@ -5,6 +5,8 @@ import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { resolveCounts } from "@/lib/soru-cozum/counts"
 import { istanbulDateStr } from "@/lib/tz"
+import { countActiveTopics } from "@/lib/curriculum/active-topics"
+import { loadSessionWrongContext, type SessionWrongContext } from "@/lib/yanlis-defteri/load"
 
 type ActionResult<T = undefined> = { success: boolean; error?: string; data?: T }
 
@@ -41,11 +43,11 @@ type ValidRow = {
 async function validate(
   supabase: Supabase,
   input: unknown,
-  opts: { requireTopic: boolean },
+  opts: { requireTopic: boolean; existingTopicId?: string | null },
 ): Promise<{ row: ValidRow } | { error: string }> {
   const parsed = sessionSchema.safeParse(input)
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Form hatalı." }
-  const d = parsed.data
+  const d = { ...parsed.data }
 
   if (d.date > istanbulDateStr()) return { error: "Gelecek bir tarihe kayıt giremezsin." }
 
@@ -60,13 +62,16 @@ async function validate(
         .select("subject_id")
         .eq("id", d.topic_id)
         .maybeSingle()
-      if (!topic || topic.subject_id !== d.subject_id) return { error: "Seçilen konu bu derse ait değil." }
+      if (!topic) return { error: "Seçilen konu bulunamadı." }
+      if (topic.subject_id !== d.subject_id) {
+        // Müfredat düzeltmesiyle konu başka derse taşınmış olabilir: kaydın
+        // MEVCUT konusu korunuyorsa ders konunun yeni dersine hizalanır.
+        if (opts.existingTopicId && opts.existingTopicId === d.topic_id) d.subject_id = topic.subject_id
+        else return { error: "Seçilen konu bu derse ait değil." }
+      }
     } else {
-      const { count: topicCount } = await supabase
-        .from("topics")
-        .select("id", { count: "exact", head: true })
-        .eq("subject_id", d.subject_id)
-      if ((topicCount ?? 0) > 0) return { error: "Konu seçmelisin." }
+      // Yalnız aktif konular sayılır (pasif konular seçicilerde yok).
+      if ((await countActiveTopics(supabase, d.subject_id)) > 0) return { error: "Konu seçmelisin." }
     }
   }
 
@@ -99,7 +104,9 @@ function revalidateAll(studentId: string) {
   revalidatePath(`/koc/ogrenciler/${studentId}/soru-cozum`)
 }
 
-export async function createSessionAction(input: unknown): Promise<ActionResult<{ id: string }>> {
+export async function createSessionAction(
+  input: unknown,
+): Promise<ActionResult<{ id: string; wrongContext: SessionWrongContext | null }>> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -120,7 +127,9 @@ export async function createSessionAction(input: unknown): Promise<ActionResult<
     }
 
     revalidateAll(user.id)
-    return { success: true, data: { id: data.id } }
+    // Yanlış varsa giriş paneli bağlamını da döndür (panel kayıt sonrası açılır).
+    const wrongContext = v.row.wrong > 0 ? await loadSessionWrongContext(supabase, user.id, data.id) : null
+    return { success: true, data: { id: data.id, wrongContext } }
   } catch (e) {
     console.error("createSessionAction", e)
     return { success: false, error: "Bir hata oluştu, tekrar deneyin." }
@@ -147,7 +156,7 @@ export async function updateSessionAction(sessionId: string, input: unknown): Pr
       ? { ...input, subject_id: existing.subject_id, topic_id: existing.topic_id }
       : input
 
-    const v = await validate(supabase, raw, { requireTopic: !locked })
+    const v = await validate(supabase, raw, { requireTopic: !locked, existingTopicId: existing.topic_id })
     if ("error" in v) return { success: false, error: v.error }
 
     const { data, error } = await supabase
@@ -158,6 +167,8 @@ export async function updateSessionAction(sessionId: string, input: unknown): Pr
       .select("id")
 
     if (error) {
+      // 23514: yanlış sayısı, yanlış defterindeki kayıtların altına indirildi (migration 203).
+      if (error.code === "23514") return { success: false, error: error.message }
       console.error("updateSessionAction", error)
       return { success: false, error: "Kayıt güncellenemedi, tekrar dene." }
     }

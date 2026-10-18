@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/database.types"
+import { fetchActiveTopics } from "@/lib/curriculum/active-topics"
 
 // İki müfredat düzeni: Normal (mevcut) ve Maarif.
 export type CurriculumKey = "normal" | "maarif"
@@ -74,7 +75,7 @@ export async function fetchCurriculumTopics(
       .select("id, name, exam_type, grade, order, curriculum")
       .order("exam_type")
       .order("order"),
-    supabase.from("topics").select("id, subject_id, name, order").order("order"),
+    fetchActiveTopics(supabase).then((data) => ({ data })),
   ])
 
   const allSubjects = subjects ?? []

@@ -14,6 +14,7 @@ import {
   Library,
   LineChart,
   Menu,
+  NotebookPen,
   LogOut,
   UserCog,
   User,
@@ -43,6 +44,7 @@ const NAV: NavItem[] = [
   { href: "/ogrenci/denemelerim", label: "Denemelerim", icon: FileText },
   { href: "/ogrenci/analizim", label: "Analizim", icon: LineChart },
   { href: "/ogrenci/soru-cozum", label: "Soru Çözüm", icon: Hash },
+  { href: "/ogrenci/yanlis-defteri", label: "Yanlış Defteri", icon: NotebookPen },
   { href: "/ogrenci/kaynaklarim", label: "Kaynaklarım", icon: Library },
   { href: "/ogrenci/kocum", label: "Koçum", icon: UserCog },
 ]

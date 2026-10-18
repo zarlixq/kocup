@@ -8,6 +8,7 @@ import { mapProgramItem, PROGRAM_ITEM_COLUMNS, type RawProgramItem } from "@/lib
 import { filterProgramSubjects } from "@/lib/program/subjects"
 import { getStudentComplianceHistory } from "@/lib/analytics/compliance"
 import { getStudentContext } from "@/lib/ogrenci/context"
+import { fetchActiveTopics } from "@/lib/curriculum/active-topics"
 
 export const metadata = { title: "Program — KoçUp" }
 
@@ -27,7 +28,7 @@ export default async function ProgramPage({
   } = await supabase.auth.getUser()
   const userId = user!.id
 
-  const [{ data: program }, { data: subjects }, { data: topics }, ctx, history] = await Promise.all([
+  const [{ data: program }, { data: subjects }, ctx, history] = await Promise.all([
     supabase
       .from("weekly_programs")
       .select(`id, weekly_program_items(${PROGRAM_ITEM_COLUMNS})`)
@@ -39,13 +40,14 @@ export default async function ProgramPage({
       .select("id, name, exam_type, grade, order")
       .order("exam_type", { ascending: true, nullsFirst: true })
       .order("order"),
-    supabase.from("topics").select("id, subject_id, name, order").order("order"),
     getStudentContext(supabase, userId),
     // Görüntülenen haftayla biten son 4 hafta (geçmiş haftalara bakarken de anlamlı).
     getStudentComplianceHistory(supabase, userId, 4, weekStart),
   ])
 
   const items: ProgramItem[] = ((program?.weekly_program_items ?? []) as RawProgramItem[]).map(mapProgramItem)
+  // Kalemlerin mevcut konuları pasif olsa bile düzenleme seçicisinde kalsın.
+  const topics = await fetchActiveTopics(supabase, { includeIds: items.map((i) => i.topic_id) })
   const hasCoachItems = items.some((i) => i.created_by_role === "coach")
 
   return (
@@ -81,7 +83,7 @@ export default async function ProgramPage({
         mode="student"
         baseHref="/ogrenci/program"
         subjects={filterProgramSubjects(subjects ?? [], ctx.grade)}
-        topics={topics ?? []}
+        topics={topics}
       />
 
       {hasCoachItems && (

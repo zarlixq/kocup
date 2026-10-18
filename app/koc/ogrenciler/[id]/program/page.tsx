@@ -7,6 +7,7 @@ import { CarryForwardPanel } from "@/components/program/carry-forward-panel"
 import type { SubjectOption } from "@/components/program/program-item-dialog"
 import { mapProgramItem, PROGRAM_ITEM_COLUMNS, type RawProgramItem } from "@/lib/program/map-item"
 import { filterProgramSubjects } from "@/lib/program/subjects"
+import { fetchActiveTopics } from "@/lib/curriculum/active-topics"
 import { getWeekStart, isValidWeekStartParam, addWeeks } from "@/lib/week"
 
 type SearchParams = { hafta?: string }
@@ -25,7 +26,7 @@ export default async function CoachStudentProgramPage({
 
   const supabase = await createClient()
 
-  const [{ data: programs }, { data: subjects }, { data: student }, { data: topics }] = await Promise.all([
+  const [{ data: programs }, { data: subjects }, { data: student }] = await Promise.all([
     supabase
       .from("weekly_programs")
       .select(`week_start, weekly_program_items(${PROGRAM_ITEM_COLUMNS})`)
@@ -37,7 +38,6 @@ export default async function CoachStudentProgramPage({
       .order("exam_type", { ascending: true, nullsFirst: true })
       .order("order"),
     supabase.from("students").select("grade").eq("id", id).maybeSingle(),
-    supabase.from("topics").select("id, subject_id, name, order").order("order"),
   ])
 
   const currentRows =
@@ -46,6 +46,7 @@ export default async function CoachStudentProgramPage({
     (programs ?? []).find((p) => p.week_start === prevWeek)?.weekly_program_items ?? []
 
   const items = (currentRows as RawProgramItem[]).map(mapProgramItem)
+  const topics = await fetchActiveTopics(supabase, { includeIds: items.map((i) => i.topic_id) })
 
   // Bu haftaya zaten taşınmış kaynak id'leri (tekrar önerme).
   const carriedSet = new Set(
@@ -78,7 +79,7 @@ export default async function CoachStudentProgramPage({
         baseHref={`/koc/ogrenciler/${id}/program`}
         studentId={id}
         subjects={filteredSubjects}
-        topics={topics ?? []}
+        topics={topics}
       />
     </div>
   )

@@ -41,3 +41,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Yerel veri yedekleri (canlı DB dökümü, kişisel veri içerir)
+/backups/

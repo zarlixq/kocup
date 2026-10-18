@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/database.types"
 import { subjectExamKey, type SegmentSubject } from "@/lib/soru-cozum/segment"
+import { fetchActiveTopics } from "@/lib/curriculum/active-topics"
 
 type Client = SupabaseClient<Database>
 
@@ -37,7 +38,12 @@ export const RECENT_TOPIC_LIMIT = 5
  * Soru kaydı formu (yeni + düzenle) için tüm referans verisi.
  * Katalog (resources) RLS ile org-izoledir: global + kendi kurumunun kaynakları.
  */
-export async function loadSessionFormData(supabase: Client, studentId: string): Promise<SessionFormData> {
+export async function loadSessionFormData(
+  supabase: Client,
+  studentId: string,
+  /** Düzenlenen kaydın konusu pasif olsa bile seçicide kalsın. */
+  includeTopicIds: (string | null | undefined)[] = [],
+): Promise<SessionFormData> {
   const [
     { data: student },
     { data: subjects },
@@ -48,7 +54,7 @@ export async function loadSessionFormData(supabase: Client, studentId: string): 
   ] = await Promise.all([
     supabase.from("students").select("grade").eq("id", studentId).maybeSingle(),
     supabase.from("subjects").select("id, name, exam_type, grade, curriculum, order").order("order"),
-    supabase.from("topics").select("id, subject_id, name, order").order("order"),
+    fetchActiveTopics(supabase, { includeIds: includeTopicIds }).then((data) => ({ data })),
     supabase.from("resources").select("id, name, publisher, subject_id").order("name"),
     supabase
       .from("student_resources")

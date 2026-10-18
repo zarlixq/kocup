@@ -699,6 +699,80 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_atom_prerequisites: {
+        Row: {
+          atom_id: string
+          prerequisite_atom_id: string
+        }
+        Insert: {
+          atom_id: string
+          prerequisite_atom_id: string
+        }
+        Update: {
+          atom_id?: string
+          prerequisite_atom_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_atom_prerequisites_atom_id_fkey"
+            columns: ["atom_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_atoms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_atom_prerequisites_prerequisite_atom_id_fkey"
+            columns: ["prerequisite_atom_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_atoms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_atoms: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          meb_kazanim_kodu: string | null
+          name: string
+          sort_order: number
+          source_url: string | null
+          topic_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id: string
+          meb_kazanim_kodu?: string | null
+          name: string
+          sort_order?: number
+          source_url?: string | null
+          topic_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          meb_kazanim_kodu?: string | null
+          name?: string
+          sort_order?: number
+          source_url?: string | null
+          topic_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_atoms_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       koc_applications: {
         Row: {
           ad_soyad: string
@@ -1667,6 +1741,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_active: boolean
           name: string
           order: number
           subject_id: string
@@ -1674,6 +1749,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          is_active?: boolean
           name: string
           order: number
           subject_id: string
@@ -1681,6 +1757,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          is_active?: boolean
           name?: string
           order?: number
           subject_id?: string
@@ -1841,6 +1918,74 @@ export type Database = {
           },
         ]
       }
+      wrong_answers: {
+        Row: {
+          created_at: string
+          error_type: string
+          id: string
+          knowledge_atom_id: string | null
+          note: string | null
+          photo_path: string | null
+          student_id: string
+          study_session_id: string | null
+          topic_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_type: string
+          id?: string
+          knowledge_atom_id?: string | null
+          note?: string | null
+          photo_path?: string | null
+          student_id: string
+          study_session_id?: string | null
+          topic_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_type?: string
+          id?: string
+          knowledge_atom_id?: string | null
+          note?: string | null
+          photo_path?: string | null
+          student_id?: string
+          study_session_id?: string | null
+          topic_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wrong_answers_knowledge_atom_id_fkey"
+            columns: ["knowledge_atom_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_atoms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wrong_answers_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wrong_answers_study_session_id_fkey"
+            columns: ["study_session_id"]
+            isOneToOne: false
+            referencedRelation: "study_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wrong_answers_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1938,6 +2083,49 @@ export type Database = {
         }[]
       }
       party_application_count: { Args: never; Returns: number }
+      set_session_wrong_answers: {
+        Args: { p_items: Json; p_session_id: string; p_topic_id?: string }
+        Returns: undefined
+      }
+      student_error_distribution: {
+        Args: { p_since?: string; p_student_id: string }
+        Returns: {
+          cnt: number
+          error_type: string
+          subject_id: string
+          subject_name: string
+          topic_id: string
+          topic_name: string
+        }[]
+      }
+      student_gap_map: {
+        Args: { p_since?: string; p_student_id: string }
+        Returns: {
+          atom_id: string
+          atom_name: string
+          atom_sort: number
+          atom_type: string
+          atoms_in_topic: number
+          confidence: string
+          prerequisite_ids: string[]
+          score: number
+          subject_id: string
+          subject_name: string
+          subject_wrong_rate: number
+          topic_id: string
+          topic_name: string
+          topic_questions: number
+          wrong_count: number
+        }[]
+      }
+      student_gap_trend: {
+        Args: { p_student_id: string; p_weeks?: number }
+        Returns: {
+          cnt: number
+          error_type: string
+          week_start: string
+        }[]
+      }
       student_scoreboard_stats: {
         Args: { p_since: string }
         Returns: {

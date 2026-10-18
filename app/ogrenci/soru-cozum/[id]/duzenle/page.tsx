@@ -12,17 +12,15 @@ export default async function DuzenleSessionPage({ params }: { params: Promise<{
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ data: session }, data] = await Promise.all([
-    supabase
-      .from("study_sessions")
-      .select("id, subject_id, topic_id, date, total_questions, correct, wrong, empty, duration_minutes, resource_id, assignment_id")
-      .eq("id", id)
-      .eq("student_id", user!.id)
-      .maybeSingle(),
-    loadSessionFormData(supabase, user!.id),
-  ])
+  const { data: session } = await supabase
+    .from("study_sessions")
+    .select("id, subject_id, topic_id, date, total_questions, correct, wrong, empty, duration_minutes, resource_id, assignment_id")
+    .eq("id", id)
+    .eq("student_id", user!.id)
+    .maybeSingle()
 
   if (!session) notFound()
+  const data = await loadSessionFormData(supabase, user!.id, [session.topic_id])
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">

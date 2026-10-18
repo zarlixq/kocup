@@ -5,11 +5,13 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { AlertTriangle, CheckCircle2, History, Lock, NotebookPen, Plus } from "lucide-react"
+import { WrongAnswersPanel } from "@/components/yanlis-defteri/wrong-answers-panel"
+import type { SessionWrongContext } from "@/lib/yanlis-defteri/load"
+import { getSessionWrongContext } from "@/app/ogrenci/yanlis-defteri/actions"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { SearchCombobox, type ComboOption } from "@/components/soru-cozum/search-combobox"
 import { resolveCounts, type CountField } from "@/lib/soru-cozum/counts"
 import { examKeyLabel, examOptionsFor, subjectExamKey, subjectsForExam } from "@/lib/soru-cozum/segment"
@@ -75,6 +77,9 @@ export function SessionForm({ data, mode }: { data: SessionFormData; mode: Mode 
   const [resourceId, setResourceId] = useState<string | null>(initial?.resource_id ?? null)
   const [submitted, setSubmitted] = useState(false)
   const [saved, setSaved] = useState<string | null>(null)
+  const [wrongCtx, setWrongCtx] = useState<SessionWrongContext | null>(null)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [wrongsSaved, setWrongsSaved] = useState(false)
   const [pending, start] = useTransition()
 
   const subjects = useMemo(() => subjectsForExam(data.subjects, examKey), [data.subjects, examKey])
@@ -144,6 +149,9 @@ export function SessionForm({ data, mode }: { data: SessionFormData; mode: Mode 
 
   function resetForNext() {
     setSaved(null)
+    setWrongCtx(null)
+    setPanelOpen(false)
+    setWrongsSaved(false)
     setSubmitted(false)
     setTopicId(null)
     setRaw(EMPTY_RAW)
@@ -187,6 +195,9 @@ export function SessionForm({ data, mode }: { data: SessionFormData; mode: Mode 
       }
       toast.success("Kayıt eklendi.")
       setSaved(summary)
+      const ctx = "data" in res && res.data && "wrongContext" in res.data ? res.data.wrongContext : null
+      setWrongCtx(ctx)
+      setPanelOpen(ctx != null) // yanlış varsa panel kendiliğinden açılır
       router.refresh() // son kullanılan konu chip'leri güncellensin
     })
   }
@@ -201,17 +212,36 @@ export function SessionForm({ data, mode }: { data: SessionFormData; mode: Mode 
           <h2 className="text-lg font-semibold text-zinc-900">Kaydedildi</h2>
           <p className="mt-1 text-sm text-zinc-600">{saved}</p>
         </div>
+        {wrongCtx && panelOpen && (
+          <div className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-4">
+            <WrongAnswersPanel
+              ctx={wrongCtx}
+              onDone={(ok) => {
+                setPanelOpen(false)
+                if (ok) setWrongsSaved(true)
+              }}
+            />
+          </div>
+        )}
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-          <Button
-            type="button"
-            variant="outline"
-            disabled
-            className="relative"
-            title="Yanlış defteri yakında"
-          >
-            <NotebookPen className="h-4 w-4" /> Yanlışlarını ekle
-            <Badge className="ml-1 bg-orange-100 text-orange-700 border-0 text-[10px] px-1.5 py-0">Yakında</Badge>
-          </Button>
+          {wrongCtx && !panelOpen && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() =>
+                // Kayıtlı yanlışlarla tazele: eski bağlamla açmak girileni sıfırlardı.
+                start(async () => {
+                  const res = await getSessionWrongContext(wrongCtx.session.id)
+                  if (!res.success || !res.data) return void toast.error(res.error ?? "Yüklenemedi.")
+                  setWrongCtx(res.data)
+                  setPanelOpen(true)
+                })
+              }
+            >
+              <NotebookPen className="h-4 w-4" /> {wrongsSaved ? "Yanlışları düzenle" : "Yanlışlarını ekle"}
+            </Button>
+          )}
           <Button type="button" variant="accent" onClick={resetForNext}>
             <Plus className="h-4 w-4" /> Yeni kayıt
           </Button>
