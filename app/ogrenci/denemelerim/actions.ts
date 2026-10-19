@@ -6,6 +6,8 @@ import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { ERROR_TYPES } from "@/lib/yanlis-defteri/constants"
 import { loadOverconfident } from "@/lib/upplan/load"
+import { supabaseAdmin } from "@/lib/supabase/admin"
+import { syncRoadmapProgressSafe } from "@/lib/upplan/roadmap-service"
 import type { OverconfidentTopic } from "@/lib/upplan/today"
 
 const resultSchema = z.object({
@@ -225,9 +227,11 @@ export async function saveExamWrongsAction(examId: string, items: unknown): Prom
     const topicIds = new Set(parsed.data.filter((i) => i.count > 0).map((i) => i.topic_id))
     const overconfident = (await loadOverconfident(supabase, user.id)).filter((t) => topicIds.has(t.topic_id))
 
+    await syncRoadmapProgressSafe(supabaseAdmin(), user.id)
     revalidatePath(`/ogrenci/denemelerim/${examId}`)
     revalidatePath("/ogrenci")
     revalidatePath("/ogrenci/upplan")
+    revalidatePath("/ogrenci/konularim")
     revalidatePath("/ogrenci/yanlis-defteri")
     revalidatePath(`/koc/ogrenciler/${user.id}/upplan`)
     revalidatePath(`/koc/ogrenciler/${user.id}/acik-haritasi`)

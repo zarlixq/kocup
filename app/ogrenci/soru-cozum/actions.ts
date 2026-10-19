@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
+import { supabaseAdmin } from "@/lib/supabase/admin"
+import { syncRoadmapProgressSafe } from "@/lib/upplan/roadmap-service"
 import { resolveCounts } from "@/lib/soru-cozum/counts"
 import { istanbulDateStr } from "@/lib/tz"
 import { countActiveTopics } from "@/lib/curriculum/active-topics"
@@ -126,6 +128,8 @@ export async function createSessionAction(
       return { success: false, error: "Kayıt eklenemedi, tekrar dene." }
     }
 
+    // Hedef ilerledi → biten UpPlan konusu kapanır, sıradaki açılır.
+    await syncRoadmapProgressSafe(supabaseAdmin(), user.id)
     revalidateAll(user.id)
     // Yanlış varsa giriş paneli bağlamını da döndür (panel kayıt sonrası açılır).
     const wrongContext = v.row.wrong > 0 ? await loadSessionWrongContext(supabase, user.id, data.id) : null
@@ -174,6 +178,8 @@ export async function updateSessionAction(sessionId: string, input: unknown): Pr
     }
     if (!data || data.length === 0) return { success: false, error: "Kayıt bulunamadı." }
 
+    // Hedef ilerledi → biten UpPlan konusu kapanır, sıradaki açılır.
+    await syncRoadmapProgressSafe(supabaseAdmin(), user.id)
     revalidateAll(user.id)
     return { success: true }
   } catch (e) {
@@ -202,6 +208,8 @@ export async function deleteSessionAction(sessionId: string): Promise<ActionResu
     }
     if (!data || data.length === 0) return { success: false, error: "Kayıt bulunamadı." }
 
+    // Hedef ilerledi → biten UpPlan konusu kapanır, sıradaki açılır.
+    await syncRoadmapProgressSafe(supabaseAdmin(), user.id)
     revalidateAll(user.id)
     return { success: true }
   } catch (e) {

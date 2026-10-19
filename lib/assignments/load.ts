@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/database.types"
-import type { AssignmentStatus } from "@/lib/assignments/constants"
+import { QUEUED_STATUSES, type AssignmentStatus } from "@/lib/assignments/constants"
 import {
   computeAssignmentProgress,
   PROGRESS_SESSION_COLUMNS,
@@ -52,6 +52,8 @@ export async function loadAssignmentsWithProgress(
     .select(
       "id, student_id, coach_id, topic_id, hedef_soru, hedef_dogruluk, hedef_sure_dk, baslangic_tarihi, son_tarih, notes, status, created_by_role, topics(name, subject_id, subjects(id, name))",
     )
+    // Yol haritası kuyruğundaki (açılmamış) hedefler ilerleme ekranlarına girmez.
+    .not("status", "in", `(${QUEUED_STATUSES.join(",")})`)
   if (opts.studentId) q = q.eq("student_id", opts.studentId)
   if (opts.coachScopeId) q = q.or(`coach_id.eq.${opts.coachScopeId},created_by_role.eq.student`)
 
@@ -121,7 +123,7 @@ export async function loadAssignmentsWithProgress(
       baslangic_tarihi: a.baslangic_tarihi,
       son_tarih: a.son_tarih,
       notes: a.notes,
-      status: a.status,
+      status: a.status as AssignmentStatus,
       created_by_role: toCreatedByRole(a.created_by_role),
       cozulen_soru: p.cozulen,
       dogru_sayisi: p.dogru,

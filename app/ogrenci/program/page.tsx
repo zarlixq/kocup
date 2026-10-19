@@ -9,6 +9,11 @@ import { filterProgramSubjects } from "@/lib/program/subjects"
 import { getStudentComplianceHistory } from "@/lib/analytics/compliance"
 import { getStudentContext } from "@/lib/ogrenci/context"
 import { fetchActiveTopics } from "@/lib/curriculum/active-topics"
+import { formatDate } from "@/lib/format"
+import { loadUpplanProfile } from "@/lib/upplan/load"
+import { parseDraftItems } from "@/lib/upplan/program-service"
+import { ProgramDraftPanel, type ProgramDraftView } from "@/components/upplan/program-draft-panel"
+import { addDaysIso } from "@/lib/upplan/roadmap"
 
 export const metadata = { title: "Program — KoçUp" }
 
@@ -28,7 +33,7 @@ export default async function ProgramPage({
   } = await supabase.auth.getUser()
   const userId = user!.id
 
-  const [{ data: program }, { data: subjects }, ctx, history] = await Promise.all([
+  const [{ data: program }, { data: subjects }, ctx, history, upplanProfile, { data: draftRow }] = await Promise.all([
     supabase
       .from("weekly_programs")
       .select(`id, weekly_program_items(${PROGRAM_ITEM_COLUMNS})`)
@@ -43,7 +48,25 @@ export default async function ProgramPage({
     getStudentContext(supabase, userId),
     // Görüntülenen haftayla biten son 4 hafta (geçmiş haftalara bakarken de anlamlı).
     getStudentComplianceHistory(supabase, userId, 4, weekStart),
+    loadUpplanProfile(supabase, userId),
+    supabase
+      .from("upplan_program_drafts")
+      .select("status, items, meta")
+      .eq("student_id", userId)
+      .eq("week_start", weekStart)
+      .maybeSingle(),
   ])
+  const draftMeta = (draftRow?.meta ?? {}) as { studyMinutes?: number; examCount?: number; unplaced?: number }
+  const draft: ProgramDraftView | null = draftRow
+    ? {
+        status: draftRow.status as ProgramDraftView["status"],
+        items: parseDraftItems(draftRow.items),
+        studyMinutes: draftMeta.studyMinutes ?? 0,
+        examCount: draftMeta.examCount ?? 0,
+        unplaced: draftMeta.unplaced ?? 0,
+      }
+    : null
+  const isPastWeek = addDaysIso(weekStart, 6) < istanbulWeekStartStr()
 
   const items: ProgramItem[] = ((program?.weekly_program_items ?? []) as RawProgramItem[]).map(mapProgramItem)
   // Kalemlerin mevcut konuları pasif olsa bile düzenleme seçicisinde kalsın.
@@ -60,6 +83,15 @@ export default async function ProgramPage({
             : "Haftanı kendin planla: gün ve saat blokları ekle, yaptıkça işaretle."}
         </p>
       </div>
+
+      {upplanProfile?.completed_at && !isPastWeek && (
+        <ProgramDraftPanel
+          weekStart={weekStart}
+          weekLabel={`${formatDate(weekStart, "dd.MM")}–${formatDate(addDaysIso(weekStart, 6), "dd.MM.yyyy")}`}
+          draft={draft}
+          coached={ctx.coachId != null}
+        />
+      )}
 
       <StudentComplianceCard history={history} href={`/ogrenci/program?hafta=${weekStart}`} emptyCta="Aşağıdan ilk kalemi ekle" />
 

@@ -1,9 +1,10 @@
 import Link from "next/link"
-import { AlertTriangle, ArrowRight, CalendarDays, RotateCcw, Sparkles } from "lucide-react"
+import { AlertTriangle, ArrowRight, CalendarCheck, CalendarDays, Map as MapIcon, RotateCcw, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { TodayData } from "@/lib/upplan/load"
 import { reviewText } from "@/lib/upplan/today"
 import { TodayProgram } from "@/components/upplan/today-program"
+import { TodayNotices } from "@/components/upplan/today-notices"
 
 // Öğrenci dashboard'unun en üstü: bugün ne yapmalıyım?
 export function TodaySection({ data }: { data: TodayData }) {
@@ -23,6 +24,33 @@ export function TodaySection({ data }: { data: TodayData }) {
             <Link href="/ogrenci/upplan/kurulum">{data.hasProfile ? "Devam et" : "Başla"}</Link>
           </Button>
         </div>
+      )}
+
+      <TodayNotices notices={data.notices} />
+
+      {data.pendingDraftWeek && (
+        <Link
+          href={`/ogrenci/program?hafta=${data.pendingDraftWeek}`}
+          className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 hover:border-emerald-300"
+        >
+          <CalendarCheck className="h-5 w-5 shrink-0 text-emerald-700" />
+          <span className="flex-1 text-sm">
+            <span className="font-semibold text-emerald-900">Yeni haftan hazır.</span>{" "}
+            <span className="text-emerald-800">Program taslağını gözden geçirip onayla.</span>
+          </span>
+          <ArrowRight className="h-4 w-4 text-emerald-700" />
+        </Link>
+      )}
+
+      {data.roadmapUpdatePrompt && (
+        <Link
+          href="/ogrenci/konularim"
+          className="flex items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 hover:border-orange-300"
+        >
+          <MapIcon className="h-5 w-5 shrink-0 text-[#F97316]" />
+          <span className="flex-1 text-sm text-orange-900">Yeni deneme girdin. Yol haritanı güncelleyelim mi?</span>
+          <ArrowRight className="h-4 w-4 text-orange-700" />
+        </Link>
       )}
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">

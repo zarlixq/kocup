@@ -1,6 +1,12 @@
 import type { Database } from "@/lib/database.types"
 
-export type AssignmentStatus = Database["public"]["Enums"]["assignment_status"]
+export type DbAssignmentStatus = Database["public"]["Enums"]["assignment_status"]
+
+// UpPlan yol haritası kuyruğu (migration 211): henüz açılmamış hedefler. Hedef
+// ekranlarında görünmez; yalnız Konularım yol haritası gösterir.
+export const QUEUED_STATUSES = ["sirada", "zaman_kalirsa"] as const satisfies readonly DbAssignmentStatus[]
+
+export type AssignmentStatus = Exclude<DbAssignmentStatus, (typeof QUEUED_STATUSES)[number]>
 
 // Read-time hesaplanan UI durumu: DB'de 'gecikti' yok, son_tarih < today + cozulen < hedef ile UI'da hesapla.
 export type DerivedAssignmentStatus = AssignmentStatus | "gecikti"

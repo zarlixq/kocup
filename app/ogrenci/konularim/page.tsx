@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
-import { BookOpen, Target } from "lucide-react"
+import Link from "next/link"
+import { BookOpen, Map as MapIcon, Target } from "lucide-react"
 import {
   AssignmentsCardGrid,
   type StudentAssignmentRow,
@@ -9,6 +10,9 @@ import type { Status, TopicCard } from "@/components/konular/types"
 import { loadAssignmentsWithProgress } from "@/lib/assignments/load"
 import { loadSessionFormData } from "@/lib/soru-cozum/form-data"
 import { getStudentContext } from "@/lib/ogrenci/context"
+import { loadUpplanProfile } from "@/lib/upplan/load"
+import { loadRoadmapView } from "@/lib/upplan/roadmap-view"
+import { RoadmapSection } from "@/components/upplan/roadmap/roadmap-section"
 
 export const metadata = { title: "Konularım — KoçUp" }
 
@@ -17,7 +21,7 @@ export default async function KonularimPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const userId = user!.id
 
-  const [{ data: topics }, assignments, ctx, formData] = await Promise.all([
+  const [{ data: topics }, assignments, ctx, formData, upplanProfile, roadmap] = await Promise.all([
     supabase
       .from("student_topics")
       .select(
@@ -28,6 +32,8 @@ export default async function KonularimPage() {
     loadAssignmentsWithProgress(supabase, { studentId: userId }),
     getStudentContext(supabase, userId),
     loadSessionFormData(supabase, userId),
+    loadUpplanProfile(supabase, userId),
+    loadRoadmapView(supabase, userId),
   ])
 
   const coachIds = Array.from(
@@ -71,6 +77,24 @@ export default async function KonularimPage() {
             : "Kendine konu hedefleri koy, ilerlemeni takip et."}
         </p>
       </div>
+
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <MapIcon className="h-5 w-5 text-[#1B6B8A]" />
+          <h2 className="text-lg font-semibold text-zinc-900">Yol Haritam</h2>
+        </div>
+        {upplanProfile?.completed_at ? (
+          <RoadmapSection view={roadmap} coached={ctx.coachId != null} />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-4 text-sm text-zinc-600">
+            Yol haritası için önce{" "}
+            <Link href="/ogrenci/upplan/kurulum" className="font-medium text-[#1B6B8A] hover:underline">
+              UpPlan kurulumunu
+            </Link>{" "}
+            tamamla.
+          </div>
+        )}
+      </section>
 
       <section>
         <div className="flex items-center gap-2 mb-4">

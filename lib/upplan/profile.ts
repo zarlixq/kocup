@@ -41,6 +41,8 @@ export type UpplanProfile = {
   target_ranking: number | null
   setup_step: SetupStep
   completed_at: string | null
+  /** Haftalık yük çarpanı (uyum düşükse haftalık güncelleme azaltır), 0..1. */
+  load_factor: number
 }
 
 function oneOf<T extends string>(list: readonly T[], v: unknown): v is T {
@@ -70,6 +72,7 @@ export function toUpplanProfile(row: {
   target_ranking: number | null
   setup_step: string
   completed_at: string | null
+  load_factor?: number | null
 }): UpplanProfile {
   return {
     status: oneOf(STATUSES, row.status) ? row.status : "lise",
@@ -84,6 +87,7 @@ export function toUpplanProfile(row: {
     target_ranking: row.target_ranking,
     setup_step: oneOf(SETUP_STEPS, row.setup_step) ? row.setup_step : "profil",
     completed_at: row.completed_at,
+    load_factor: typeof row.load_factor === "number" && row.load_factor > 0 && row.load_factor <= 1 ? row.load_factor : 1,
   }
 }
 

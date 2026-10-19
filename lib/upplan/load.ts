@@ -5,7 +5,7 @@ import { todayDayOfWeek } from "@/lib/days"
 import { mapProgramItem, PROGRAM_ITEM_COLUMNS, type RawProgramItem } from "@/lib/program/map-item"
 import type { ProgramItem } from "@/components/program/weekly-program-board"
 import { istanbulDateStr, istanbulWeekStartStr } from "@/lib/tz"
-import { TREND_WEEKS } from "@/lib/upplan/config"
+import { TODAY_NOTICE_LIMIT, TREND_WEEKS } from "@/lib/upplan/config"
 import {
   isMasteryConfidence,
   isMasteryLabel,
@@ -34,7 +34,7 @@ type Client = SupabaseClient<Database>
 export async function loadUpplanProfile(supabase: Client, studentId: string): Promise<UpplanProfile | null> {
   const { data, error } = await supabase
     .from("student_upplan_profile")
-    .select("status, grade, segment, alan, availability, focus_minutes, target_department, target_ranking, setup_step, completed_at")
+    .select("status, grade, segment, alan, availability, focus_minutes, target_department, target_ranking, setup_step, completed_at, load_factor")
     .eq("student_id", studentId)
     .maybeSingle()
   if (error) console.error("loadUpplanProfile", error)
@@ -222,8 +222,15 @@ export async function loadMasteryMap(supabase: Client, studentId: string): Promi
 // Bugün ekranı
 // ─────────────────────────────────────────────────────────────────────────
 
+export type TodayNotice = { id: string; kind: string; message: string }
+
 export type TodayData = {
   setupDone: boolean
+  notices: TodayNotice[]
+  /** Onay bekleyen program taslağı (bu ya da gelecek hafta). */
+  pendingDraftWeek: string | null
+  /** Yol haritası üretildikten sonra deneme girildi. */
+  roadmapUpdatePrompt: boolean
   hasProfile: boolean
   today: string
   weekStart: string
@@ -270,7 +277,10 @@ export async function loadToday(supabase: Client, studentId: string, now: Date =
   const weekStart = istanbulWeekStartStr(now)
   const dow = todayDayOfWeek(new Date(`${today}T12:00:00`))
 
-  const [profile, { data: program }, { data: rows }, overconfident, lastExam] = await Promise.all([
+  const nextWeek = new Date(`${weekStart}T12:00:00Z`)
+  nextWeek.setUTCDate(nextWeek.getUTCDate() + 7)
+  const nextWeekStart = nextWeek.toISOString().slice(0, 10)
+  const [profile, { data: program }, { data: rows }, overconfident, lastExam, { data: notices }, { data: drafts }, { data: rm }, { data: latestExam }] = await Promise.all([
     loadUpplanProfile(supabase, studentId),
     supabase
       .from("weekly_programs")
@@ -281,6 +291,21 @@ export async function loadToday(supabase: Client, studentId: string, now: Date =
     supabase.rpc("student_mastery_map", { p_student_id: studentId }),
     loadOverconfident(supabase, studentId),
     loadLastExamSignal(supabase, studentId),
+    supabase
+      .from("upplan_notifications")
+      .select("id, kind, message")
+      .eq("student_id", studentId)
+      .is("read_at", null)
+      .order("created_at", { ascending: false })
+      .limit(TODAY_NOTICE_LIMIT),
+    supabase
+      .from("upplan_program_drafts")
+      .select("week_start, status")
+      .eq("student_id", studentId)
+      .in("week_start", [weekStart, nextWeekStart])
+      .eq("status", "taslak"),
+    supabase.from("upplan_roadmaps").select("status, generated_at").eq("student_id", studentId).maybeSingle(),
+    supabase.from("exams").select("created_at").eq("student_id", studentId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ])
 
   const weekItems = ((program?.weekly_program_items ?? []) as RawProgramItem[]).map(mapProgramItem)
@@ -308,6 +333,10 @@ export async function loadToday(supabase: Client, studentId: string, now: Date =
 
   return {
     setupDone: !!profile?.completed_at,
+    notices: notices ?? [],
+    pendingDraftWeek: (drafts ?? []).map((d) => d.week_start).sort()[0] ?? null,
+    roadmapUpdatePrompt:
+      rm?.status === "onaylandi" && !!latestExam?.created_at && latestExam.created_at > (rm.generated_at ?? ""),
     hasProfile: !!profile,
     today,
     weekStart,

@@ -1601,6 +1601,8 @@ export type Database = {
           created_at: string
           focus_minutes: number
           grade: number | null
+          last_weekly_run_at: string | null
+          load_factor: number
           segment: string
           setup_step: string
           status: string
@@ -1616,6 +1618,8 @@ export type Database = {
           created_at?: string
           focus_minutes?: number
           grade?: number | null
+          last_weekly_run_at?: string | null
+          load_factor?: number
           segment: string
           setup_step?: string
           status: string
@@ -1631,6 +1635,8 @@ export type Database = {
           created_at?: string
           focus_minutes?: number
           grade?: number | null
+          last_weekly_run_at?: string | null
+          load_factor?: number
           segment?: string
           setup_step?: string
           status?: string
@@ -1865,6 +1871,7 @@ export type Database = {
       topic_assignments: {
         Row: {
           baslangic_tarihi: string
+          block_type: string | null
           coach_id: string | null
           created_at: string | null
           created_by: string | null
@@ -1874,16 +1881,20 @@ export type Database = {
           hedef_sure_dk: number | null
           id: string
           notes: string | null
+          origin: string | null
           origin_coach_id: string | null
           origin_role: string | null
+          plan_order: number | null
           son_tarih: string
           status: Database["public"]["Enums"]["assignment_status"]
           student_id: string
           topic_id: string
           updated_at: string | null
+          wave: number | null
         }
         Insert: {
           baslangic_tarihi?: string
+          block_type?: string | null
           coach_id?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -1893,16 +1904,20 @@ export type Database = {
           hedef_sure_dk?: number | null
           id?: string
           notes?: string | null
+          origin?: string | null
           origin_coach_id?: string | null
           origin_role?: string | null
+          plan_order?: number | null
           son_tarih: string
           status?: Database["public"]["Enums"]["assignment_status"]
           student_id: string
           topic_id: string
           updated_at?: string | null
+          wave?: number | null
         }
         Update: {
           baslangic_tarihi?: string
+          block_type?: string | null
           coach_id?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -1912,13 +1927,16 @@ export type Database = {
           hedef_sure_dk?: number | null
           id?: string
           notes?: string | null
+          origin?: string | null
           origin_coach_id?: string | null
           origin_role?: string | null
+          plan_order?: number | null
           son_tarih?: string
           status?: Database["public"]["Enums"]["assignment_status"]
           student_id?: string
           topic_id?: string
           updated_at?: string | null
+          wave?: number | null
         }
         Relationships: [
           {
@@ -1951,6 +1969,35 @@ export type Database = {
           },
           {
             foreignKeyName: "topic_assignments_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_exam_weights: {
+        Row: {
+          avg_questions: number
+          exam: string
+          topic_id: string
+          updated_at: string
+        }
+        Insert: {
+          avg_questions: number
+          exam: string
+          topic_id: string
+          updated_at?: string
+        }
+        Update: {
+          avg_questions?: number
+          exam?: string
+          topic_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_exam_weights_topic_id_fkey"
             columns: ["topic_id"]
             isOneToOne: false
             referencedRelation: "topics"
@@ -2011,6 +2058,131 @@ export type Database = {
         }
         Relationships: []
       }
+      upplan_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          message: string
+          read_at: string | null
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          message: string
+          read_at?: string | null
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          message?: string
+          read_at?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upplan_notifications_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      upplan_program_drafts: {
+        Row: {
+          decided_at: string | null
+          decided_by: string | null
+          generated_at: string
+          items: Json
+          meta: Json
+          status: string
+          student_id: string
+          week_start: string
+        }
+        Insert: {
+          decided_at?: string | null
+          decided_by?: string | null
+          generated_at?: string
+          items: Json
+          meta?: Json
+          status: string
+          student_id: string
+          week_start: string
+        }
+        Update: {
+          decided_at?: string | null
+          decided_by?: string | null
+          generated_at?: string
+          items?: Json
+          meta?: Json
+          status?: string
+          student_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upplan_program_drafts_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upplan_program_drafts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      upplan_roadmaps: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          generated_at: string
+          payload: Json
+          status: string
+          student_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          generated_at?: string
+          payload: Json
+          status: string
+          student_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          generated_at?: string
+          payload?: Json
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upplan_roadmaps_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upplan_roadmaps_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_ui_preferences: {
         Row: {
           scope: string
@@ -2035,7 +2207,9 @@ export type Database = {
       weekly_program_items: {
         Row: {
           aciklama: string | null
+          assignment_id: string | null
           baslik: string | null
+          block_type: string | null
           carried_from_item_id: string | null
           completed_at: string | null
           created_at: string | null
@@ -2055,7 +2229,9 @@ export type Database = {
         }
         Insert: {
           aciklama?: string | null
+          assignment_id?: string | null
           baslik?: string | null
+          block_type?: string | null
           carried_from_item_id?: string | null
           completed_at?: string | null
           created_at?: string | null
@@ -2075,7 +2251,9 @@ export type Database = {
         }
         Update: {
           aciklama?: string | null
+          assignment_id?: string | null
           baslik?: string | null
+          block_type?: string | null
           carried_from_item_id?: string | null
           completed_at?: string | null
           created_at?: string | null
@@ -2506,7 +2684,7 @@ export type Database = {
     Enums: {
       appointment_status: "planlandi" | "tamamlandi" | "iptal" | "gelmedi"
       appointment_type: "tanitim" | "koc_gorusme" | "veli_gorusme" | "ozel"
-      assignment_status: "aktif" | "tamamlandi" | "iptal"
+      assignment_status: "aktif" | "tamamlandi" | "iptal" | "sirada" | "zaman_kalirsa"
       blog_post_status: "draft" | "published" | "archived"
       resource_type: "soru_bankasi" | "konu_anlatimi" | "deneme" | "foy"
     }
@@ -2638,7 +2816,7 @@ export const Constants = {
     Enums: {
       appointment_status: ["planlandi", "tamamlandi", "iptal", "gelmedi"],
       appointment_type: ["tanitim", "koc_gorusme", "veli_gorusme", "ozel"],
-      assignment_status: ["aktif", "tamamlandi", "iptal"],
+      assignment_status: ["aktif", "tamamlandi", "iptal", "sirada", "zaman_kalirsa"],
       blog_post_status: ["draft", "published", "archived"],
       resource_type: ["soru_bankasi", "konu_anlatimi", "deneme", "foy"],
     },
