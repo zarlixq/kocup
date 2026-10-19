@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { assignCoach } from "@/app/mudur/ogrenciler/actions"
+import { AlertTriangle } from "lucide-react"
+import { assignCoach, previewCoachChange, type CoachChangePreview } from "@/app/mudur/ogrenciler/actions"
 
 const UNASSIGN_VALUE = "__unassign__"
 
@@ -42,6 +43,22 @@ export function AssignCoachDialog({
 }: Props) {
   const [isPending, startTransition] = useTransition()
   const [value, setValue] = useState<string>(currentCoachId ?? "")
+  const [preview, setPreview] = useState<CoachChangePreview | null>(null)
+  const [previewing, startPreview] = useTransition()
+
+  // Mevcut koçtan farklı bir seçim → devir etkisini önceden göster.
+  function handleSelect(next: string) {
+    setValue(next)
+    setPreview(null)
+    if (!currentCoachId || next === currentCoachId) return
+    startPreview(async () => {
+      const res = await previewCoachChange(studentId)
+      if (res.success && res.data) setPreview(res.data)
+      else toast.error(res.error ?? "Etki hesaplanamadı.")
+    })
+  }
+
+  const changing = !!currentCoachId && !!value && value !== currentCoachId
 
   function handleSubmit() {
     if (!value) {
@@ -72,7 +89,7 @@ export function AssignCoachDialog({
 
         <div className="space-y-2 py-2">
           <Label>Koç</Label>
-          <Select value={value} onValueChange={setValue}>
+          <Select value={value} onValueChange={handleSelect}>
             <SelectTrigger>
               <SelectValue placeholder="Koç seçin..." />
             </SelectTrigger>
@@ -95,16 +112,37 @@ export function AssignCoachDialog({
           </Select>
         </div>
 
+        {changing && (
+          <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            {previewing || !preview ? (
+              <span>Değişikliğin etkisi hesaplanıyor...</span>
+            ) : (
+              <ul className="space-y-0.5">
+                <li>
+                  <span className="font-semibold">{preview.appointments} gelecek randevu iptal edilecek.</span>
+                </li>
+                <li>
+                  {preview.goals} aktif hedef ve {preview.items} gelecek program kalemi öğrenciye devredilecek.
+                </li>
+                <li className="text-xs text-amber-800">
+                  Eski koç bu öğrencinin verilerini artık göremeyecek. Geçmiş kayıtlar olduğu gibi kalır.
+                </li>
+              </ul>
+            )}
+          </div>
+        )}
+
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
             Vazgeç
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isPending}
+            disabled={isPending || (changing && (previewing || !preview))}
             className="bg-[#1B6B8A] hover:bg-[#155a75]"
           >
-            {isPending ? "Kaydediliyor..." : "Kaydet"}
+            {isPending ? "Kaydediliyor..." : changing ? "Onayla ve değiştir" : "Kaydet"}
           </Button>
         </DialogFooter>
       </DialogContent>

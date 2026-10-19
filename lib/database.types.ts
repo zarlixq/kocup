@@ -2326,6 +2326,15 @@ export type Database = {
         Args: { p_new_coach_id: string | null; p_student_id: string }
         Returns: undefined
       }
+      coach_change_preview: {
+        Args: { p_student_id: string }
+        Returns: {
+          appointments: number
+          current_coach_id: string | null
+          goals: number
+          items: number
+        }[]
+      }
       compute_topic_mastery: {
         Args: { p_as_of?: string; p_student_id: string; p_topic_id: string }
         Returns: {

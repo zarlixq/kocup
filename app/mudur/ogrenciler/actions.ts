@@ -47,6 +47,25 @@ export async function assignCoach(
   return { success: true }
 }
 
+export type CoachChangePreview = { goals: number; items: number; appointments: number }
+
+/** Koç değişirse ne olacak? (onay dialogu) — devir trigger'ıyla aynı koşullar (migration 210). */
+export async function previewCoachChange(
+  studentId: string,
+): Promise<{ success: boolean; error?: string; data?: CoachChangePreview }> {
+  const auth = await requireAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("coach_change_preview", { p_student_id: studentId })
+  if (error || !data?.[0]) {
+    console.error("Koç değişikliği önizleme hatası:", error)
+    return { success: false, error: "Etki hesaplanamadı, tekrar deneyin." }
+  }
+  const { goals, items, appointments } = data[0]
+  return { success: true, data: { goals, items, appointments } }
+}
+
 const updateSchema = z.object({
   full_name: z.string().trim().min(3),
   phone: z.string().trim().optional().nullable(),
