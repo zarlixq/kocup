@@ -264,6 +264,7 @@ function AssignmentCard({
   const barColor = progressBarColor(row.derived, row.pct)
   const isActive = row.derived === "aktif" || row.derived === "gecikti"
   const isOwn = row.created_by_role === "student"
+  const isUpplan = row.created_by_role === "ai"
   const acc = accuracyOf(row.dogru_sayisi, row.cozulen_soru)
   const targets = { hedefSoru: row.hedef_soru, hedefDogruluk: row.hedef_dogruluk, dogru: row.dogru_sayisi }
 
@@ -273,7 +274,9 @@ function AssignmentCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs text-zinc-500 uppercase tracking-wide">{row.subject_name}</span>
-            {isOwn ? (
+            {isUpplan ? (
+              <OwnerBadge role="ai" label="UpPlan" />
+            ) : isOwn ? (
               <OwnerBadge role="student" label="Kendi hedefin" />
             ) : (
               (hasCoach || row.coach_name) && (

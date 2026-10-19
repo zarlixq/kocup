@@ -55,7 +55,8 @@ async function loadSubjects(supabase: Client): Promise<SubjectRow[]> {
 export type ScanSubject = {
   id: string
   name: string
-  topics: { id: string; name: string }[]
+  /** grade: konunun sınıf seviyesi (topics.grade, migration 212); bilinmiyorsa null. */
+  topics: { id: string; name: string; grade: number | null }[]
 }
 
 export type ScanData = {
@@ -64,16 +65,18 @@ export type ScanData = {
 }
 
 export async function loadScanData(supabase: Client, studentId: string, profile: UpplanProfile): Promise<ScanData> {
-  const [subjects, topics, { data: rows }] = await Promise.all([
+  const [subjects, topics, { data: rows }, { data: graded }] = await Promise.all([
     loadSubjects(supabase),
     fetchActiveTopics(supabase),
     supabase.from("student_topic_self_assessment").select("topic_id, status").eq("student_id", studentId),
+    supabase.from("topics").select("id, grade").not("grade", "is", null),
   ])
+  const gradeOf = new Map((graded ?? []).map((g) => [g.id, g.grade]))
   const scoped = scopeSubjects(profile, subjects)
-  const bySubject = new Map<string, { id: string; name: string }[]>()
+  const bySubject = new Map<string, ScanSubject["topics"]>()
   for (const t of topics) {
     const list = bySubject.get(t.subject_id) ?? []
-    list.push({ id: t.id, name: t.name })
+    list.push({ id: t.id, name: t.name, grade: gradeOf.get(t.id) ?? null })
     bySubject.set(t.subject_id, list)
   }
   const statuses: Record<string, SelfAssessment> = {}

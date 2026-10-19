@@ -55,7 +55,8 @@ export async function loadAssignmentsWithProgress(
     // Yol haritası kuyruğundaki (açılmamış) hedefler ilerleme ekranlarına girmez.
     .not("status", "in", `(${QUEUED_STATUSES.join(",")})`)
   if (opts.studentId) q = q.eq("student_id", opts.studentId)
-  if (opts.coachScopeId) q = q.or(`coach_id.eq.${opts.coachScopeId},created_by_role.eq.student`)
+  // Koç görünümü: kendi atamaları + öğrencinin kendi hedefleri + öğrencinin aktif UpPlan hedefleri ('ai').
+  if (opts.coachScopeId) q = q.or(`coach_id.eq.${opts.coachScopeId},created_by_role.in.(student,ai)`)
 
   const { data: assignments, error } = await q
   if (error) {
@@ -130,4 +131,23 @@ export async function loadAssignmentsWithProgress(
       toplam_sure_dk: p.sure,
     }
   })
+}
+
+/**
+ * UpPlan kuyruğu özeti (sirada / zaman_kalirsa): hedef ekranlarında bu satırlar
+ * listelenmez; koç/müdür öğrenci detayında yalnız sayı olarak gösterilir.
+ */
+export async function loadQueuedSummary(
+  supabase: Client,
+  studentId: string,
+): Promise<{ sirada: number; zaman_kalirsa: number }> {
+  const { data, error } = await supabase
+    .from("topic_assignments")
+    .select("status")
+    .eq("student_id", studentId)
+    .in("status", [...QUEUED_STATUSES])
+  if (error) console.error("loadQueuedSummary", error)
+  const out = { sirada: 0, zaman_kalirsa: 0 }
+  for (const r of data ?? []) if (r.status === "sirada" || r.status === "zaman_kalirsa") out[r.status] += 1
+  return out
 }

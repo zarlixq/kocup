@@ -216,3 +216,5 @@ export const KONU_CALISMA_QUESTION_SHARE = 0.5
 export const TODAY_NOTICE_LIMIT = 3
 /** Bir dalgada (aynı anda aktif) aynı dersten en fazla konu — çeşitlilik ve günlük ders sınırıyla uyum. */
 export const MAX_ACTIVE_PER_SUBJECT = 2
+/** Konu taramasında sınıf bazlı toplu "görmedim" butonları (topics.grade). */
+export const SCAN_BULK_GRADES = [11, 12] as const

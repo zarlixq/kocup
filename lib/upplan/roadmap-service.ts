@@ -291,6 +291,7 @@ export async function applyRoadmap(admin: Client, studentId: string, approvedBy:
   for (const r of upRows ?? []) if (r.status !== "tamamlandi" && r.status !== "iptal") upByTopic.set(r.topic_id, r)
 
   const inserts: Database["public"]["Tables"]["topic_assignments"]["Insert"][] = []
+  const updates: Record<string, unknown>[] = []
   for (const it of payload.items) {
     if (it.existing && it.existing.source !== "ai") continue // öğrenci/koç hedefi: dokunma
     const fields = {
@@ -305,15 +306,12 @@ export async function applyRoadmap(admin: Client, studentId: string, approvedBy:
     if (prev) {
       upByTopic.delete(it.topic_id)
       const keepActive = prev.status === "aktif"
-      const { error } = await admin
-        .from("topic_assignments")
-        .update({
-          ...fields,
-          // Çalışılmakta olan hedefin başlangıcı korunur, yalnız sıra/hedef güncellenir.
-          ...(keepActive ? {} : { status: it.status, baslangic_tarihi: it.start, son_tarih: it.end }),
-        })
-        .eq("id", prev.id)
-      if (error) return { error: "Yol haritası uygulanamadı." }
+      updates.push({
+        id: prev.id,
+        ...fields,
+        // Çalışılmakta olan hedefin başlangıcı korunur, yalnız sıra/hedef güncellenir.
+        ...(keepActive ? {} : { status: it.status, baslangic_tarihi: it.start, son_tarih: it.end < it.start ? it.start : it.end }),
+      })
     } else if (!it.existing) {
       inserts.push({
         student_id: studentId,
@@ -327,6 +325,13 @@ export async function applyRoadmap(admin: Client, studentId: string, approvedBy:
         son_tarih: it.end < it.start ? it.start : it.end,
         ...fields,
       })
+    }
+  }
+  if (updates.length) {
+    const { error } = await admin.rpc("upplan_bulk_update_goals", { p_student_id: studentId, p_rows: updates as Json })
+    if (error) {
+      console.error("applyRoadmap update", error)
+      return { error: "Yol haritası uygulanamadı." }
     }
   }
   if (inserts.length) {
@@ -439,17 +444,17 @@ export async function redateQueue(admin: Client, studentId: string, today = ista
   )
   const shifted: { name: string; days: number }[] = []
   const overflowed: string[] = []
+  const rowsOut: Record<string, unknown>[] = []
   for (const q of queue) {
     const s = sched.get(q.id)!
     const name = q.topics?.name ?? "Konu"
     const days = daysBetweenIso(q.son_tarih, s.end)
     if (days >= BIG_SHIFT_DAYS) shifted.push({ name, days })
     if (!s.fits) overflowed.push(name)
-    await admin
-      .from("topic_assignments")
-      .update({ wave: s.wave + 1, baslangic_tarihi: s.start, son_tarih: s.end, ...(s.fits ? {} : { status: "zaman_kalirsa" as const }) })
-      .eq("id", q.id)
+    rowsOut.push({ id: q.id, wave: s.wave + 1, baslangic_tarihi: s.start, son_tarih: s.end, ...(s.fits ? {} : { status: "zaman_kalirsa" }) })
   }
+  const { error } = await admin.rpc("upplan_bulk_update_goals", { p_student_id: studentId, p_rows: rowsOut as Json })
+  if (error) console.error("redateQueue", error)
   return { shifted, overflowed }
 }
 

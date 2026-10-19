@@ -2008,6 +2008,7 @@ export type Database = {
       topics: {
         Row: {
           created_at: string | null
+          grade: number | null
           id: string
           is_active: boolean
           name: string
@@ -2016,6 +2017,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          grade?: number | null
           id?: string
           is_active?: boolean
           name: string
@@ -2024,6 +2026,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          grade?: number | null
           id?: string
           is_active?: boolean
           name?: string
@@ -2661,9 +2664,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      upplan_bulk_update_goals: {
+        Args: { p_rows: Json; p_student_id: string }
+        Returns: number
+      }
       upplan_cfg: { Args: { p_key: string }; Returns: number }
       upplan_confidence: { Args: { p_evidence_w: number }; Returns: string }
       upplan_penalty: { Args: { p_error_type: string | null }; Returns: number }
+      upplan_set_plan_orders: {
+        Args: { p_ids: string[]; p_orders: number[]; p_student_id: string }
+        Returns: number
+      }
       upplan_recompute_student: {
         Args: { p_student_id: string }
         Returns: number

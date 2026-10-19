@@ -453,7 +453,10 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     const reasons: string[] = []
     if (ex) reasons.push(ex.source === "coach" ? "Koçundan devralınan hedef" : "Kendi eklediğin hedef")
     const deps = (dependentsOf.get(id) ?? []).filter((d) => nodes.has(d))
-    if (deps.length) reasons.push(`${t.topic_name} önce, çünkü ${joinNames(deps.slice(0, 3).map((d) => nameOf(d, t)))} konusunun ön koşulu`)
+    if (deps.length) {
+      const shown = deps.slice(0, 3).map((d) => nameOf(d, t))
+      reasons.push(`${t.topic_name} önce, çünkü ${joinNames(shown)} ${shown.length > 1 ? "konularının" : "konusunun"} ön koşulu`)
+    }
     if (topExamWrongBySubject.get(t.subject_id) === id) {
       reasons.push(`Denemende ${t.subject_name} dersinde en çok net ${t.topic_name} konusunda gitti`)
     }

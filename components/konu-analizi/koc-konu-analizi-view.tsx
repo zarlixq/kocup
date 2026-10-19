@@ -251,6 +251,7 @@ export function KocKonuAnaliziView({
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="font-medium text-zinc-900">{r.topic_name}</span>
                       {r.created_by_role === "student" && <OwnerBadge role="student" />}
+                      {r.created_by_role === "ai" && <OwnerBadge role="ai" label="UpPlan" />}
                     </div>
                   </TableCell>
                   <TableCell className="text-sm tabular-nums whitespace-nowrap">
@@ -279,12 +280,13 @@ export function KocKonuAnaliziView({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {/* Öğrencinin kendi hedefi: koç düzenleyemez, yalnızca silebilir. */}
-                        {canManage && r.created_by_role !== "student" && (
+                        {canManage && r.created_by_role === "coach" && (
                           <DropdownMenuItem onClick={() => setEditRow(r)}>
                             Düzenle / Sil
                           </DropdownMenuItem>
                         )}
-                        {canManage && r.created_by_role === "student" && (
+                        {/* Öğrencinin kendi / UpPlan hedefi: koç düzenleyemez, yalnızca silebilir (DB guard). */}
+                        {canManage && r.created_by_role !== "coach" && (
                           <DropdownMenuItem variant="destructive" onClick={() => setDeleteRow(r)}>
                             Sil
                           </DropdownMenuItem>

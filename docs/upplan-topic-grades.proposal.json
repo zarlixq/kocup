@@ -1,0 +1,1832 @@
+[
+  {
+    "topic_id": "951863f1-8da0-4bac-92b6-e95d783ef1df",
+    "subject": "TYT Türkçe",
+    "topic": "Sözcükte Anlam",
+    "grade": 9
+  },
+  {
+    "topic_id": "5b6e177d-135a-4e8a-be76-65eb0775759d",
+    "subject": "TYT Türkçe",
+    "topic": "Cümlede Anlam",
+    "grade": 9
+  },
+  {
+    "topic_id": "0bf91481-e716-452d-b27a-32cbfa01af26",
+    "subject": "TYT Türkçe",
+    "topic": "Paragraf",
+    "grade": 9
+  },
+  {
+    "topic_id": "12a451d9-592b-55d4-9c9b-8763a4809d99",
+    "subject": "TYT Türkçe",
+    "topic": "Sözel Mantık",
+    "grade": 9
+  },
+  {
+    "topic_id": "f49f5171-7af4-416b-8f35-ace4821f2a16",
+    "subject": "TYT Türkçe",
+    "topic": "İsim (Ad) ve Türleri",
+    "grade": 10
+  },
+  {
+    "topic_id": "242b6ae0-9ddc-44d6-bf63-e3fd80b938e8",
+    "subject": "TYT Türkçe",
+    "topic": "Sıfat (Önad)",
+    "grade": 10
+  },
+  {
+    "topic_id": "37dbaddd-5aa3-4372-9d3a-cd29cd1799f6",
+    "subject": "TYT Türkçe",
+    "topic": "Zamir (Adıl)",
+    "grade": 10
+  },
+  {
+    "topic_id": "ca270246-36cc-41b3-9fd3-9ddef1a20cd6",
+    "subject": "TYT Türkçe",
+    "topic": "Zarf (Belirteç)",
+    "grade": 10
+  },
+  {
+    "topic_id": "53e77e42-fc0c-4946-80fb-cb5b679bbffe",
+    "subject": "TYT Türkçe",
+    "topic": "Edat, Bağlaç, Ünlem",
+    "grade": 10
+  },
+  {
+    "topic_id": "ba9d1028-be68-4453-bf28-0b74270f58f7",
+    "subject": "TYT Türkçe",
+    "topic": "Fiil (Eylem)",
+    "grade": 11
+  },
+  {
+    "topic_id": "438d343b-26b8-40ad-bd0a-874bfef66a90",
+    "subject": "TYT Türkçe",
+    "topic": "Fiilimsi",
+    "grade": 11
+  },
+  {
+    "topic_id": "f7f1818e-82e1-4430-94df-9caf6536e591",
+    "subject": "TYT Türkçe",
+    "topic": "Cümlenin Öğeleri",
+    "grade": 11
+  },
+  {
+    "topic_id": "1d2165d0-a419-4677-8aec-e3bad850e1b8",
+    "subject": "TYT Türkçe",
+    "topic": "Cümle Türleri",
+    "grade": 11
+  },
+  {
+    "topic_id": "7130719f-cd50-4aba-97c6-fc88c0f32614",
+    "subject": "TYT Türkçe",
+    "topic": "Ses Bilgisi",
+    "grade": 9
+  },
+  {
+    "topic_id": "a1507d4b-d78f-4b44-803f-c15caa849c09",
+    "subject": "TYT Türkçe",
+    "topic": "Sözcükte Yapı",
+    "grade": 9
+  },
+  {
+    "topic_id": "6e712de3-c154-4640-ae56-492ad1f9f665",
+    "subject": "TYT Türkçe",
+    "topic": "Yazım Kuralları",
+    "grade": 9
+  },
+  {
+    "topic_id": "18150c47-306d-4b79-9ceb-3a02295217cf",
+    "subject": "TYT Türkçe",
+    "topic": "Noktalama İşaretleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "de5bad6e-106e-49f6-9524-e308a29bb1f4",
+    "subject": "TYT Türkçe",
+    "topic": "Anlatım Bozuklukları",
+    "grade": 12
+  },
+  {
+    "topic_id": "79f63842-3cd2-4a61-983c-975ec51acfc1",
+    "subject": "TYT Türkçe",
+    "topic": "Deyimler ve Atasözleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "0fb737ae-2197-4d1d-8b7d-6f868a645d81",
+    "subject": "TYT Türkçe",
+    "topic": "Metin Türleri ve Anlatım",
+    "grade": 9
+  },
+  {
+    "topic_id": "a18628ee-f1df-48a0-bde5-bd6a99c49f0e",
+    "subject": "TYT Matematik",
+    "topic": "Temel Kavramlar",
+    "grade": 9
+  },
+  {
+    "topic_id": "85758574-704f-42ae-8e50-55e68e7a4c26",
+    "subject": "TYT Matematik",
+    "topic": "Sayı Basamakları",
+    "grade": 9
+  },
+  {
+    "topic_id": "568b596f-e70c-4f6c-be50-599dbad1f1b5",
+    "subject": "TYT Matematik",
+    "topic": "Bölme ve Bölünebilme",
+    "grade": 9
+  },
+  {
+    "topic_id": "c1dd343b-9bbc-4d8e-943e-e54e40e8b0da",
+    "subject": "TYT Matematik",
+    "topic": "EBOB - EKOK",
+    "grade": 9
+  },
+  {
+    "topic_id": "b26ad181-9db5-4903-9e1e-86ea11dd9e2f",
+    "subject": "TYT Matematik",
+    "topic": "Rasyonel Sayılar",
+    "grade": 9
+  },
+  {
+    "topic_id": "7685bd2c-dd59-464a-aa47-ca553b12ff3a",
+    "subject": "TYT Matematik",
+    "topic": "Basit Eşitsizlikler",
+    "grade": 9
+  },
+  {
+    "topic_id": "c4ac7faa-eca8-4694-bf7f-e07bc8635a8f",
+    "subject": "TYT Matematik",
+    "topic": "Mutlak Değer",
+    "grade": 9
+  },
+  {
+    "topic_id": "f0919e24-a4d3-4c5c-a653-92cf9d4181ba",
+    "subject": "TYT Matematik",
+    "topic": "Üslü Sayılar",
+    "grade": 9
+  },
+  {
+    "topic_id": "8da495f4-dcc8-4615-8368-2f30c1e67d7d",
+    "subject": "TYT Matematik",
+    "topic": "Köklü Sayılar",
+    "grade": 9
+  },
+  {
+    "topic_id": "4b3121a0-b0fc-4ec9-aacb-7aaba50677ec",
+    "subject": "TYT Matematik",
+    "topic": "Çarpanlara Ayırma",
+    "grade": 10
+  },
+  {
+    "topic_id": "a74b5ce5-a2af-4ab0-b720-8b908cb08bbc",
+    "subject": "TYT Matematik",
+    "topic": "Oran - Orantı",
+    "grade": 9
+  },
+  {
+    "topic_id": "0729796f-7bb7-4ba2-b9de-bc9681d760da",
+    "subject": "TYT Matematik",
+    "topic": "Denklem Çözme",
+    "grade": 9
+  },
+  {
+    "topic_id": "928df317-425c-4ddd-8e12-e987c9ce48bc",
+    "subject": "TYT Matematik",
+    "topic": "Sayı ve Kesir Problemleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "c5c28958-c77c-4710-82de-5e8d1569a800",
+    "subject": "TYT Matematik",
+    "topic": "Yaş ve Yüzde Problemleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "dcb3db1b-7912-4dee-83f5-dc85355c03a0",
+    "subject": "TYT Matematik",
+    "topic": "Kar - Zarar ve Faiz Problemleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "a50be65e-0e36-43e5-9e44-b0bd22bafb7f",
+    "subject": "TYT Matematik",
+    "topic": "Karışım Problemleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "b15ae493-ba00-42f2-aab4-f7f59f163f53",
+    "subject": "TYT Matematik",
+    "topic": "İşçi - Havuz Problemleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "6d9ea046-91a8-4903-b23d-5c4d722567af",
+    "subject": "TYT Matematik",
+    "topic": "Hareket Problemleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "9d8a2c41-8d7e-534e-88f0-f94abda1d362",
+    "subject": "TYT Matematik",
+    "topic": "Grafik ve Tablo Problemleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "ecd5a174-c265-53e9-bf0f-dd5da3458b41",
+    "subject": "TYT Matematik",
+    "topic": "Rutin Olmayan Problemler",
+    "grade": 9
+  },
+  {
+    "topic_id": "95920512-de89-411e-b57d-a5ba5412143e",
+    "subject": "TYT Matematik",
+    "topic": "Kümeler",
+    "grade": 9
+  },
+  {
+    "topic_id": "f1ebee29-0cc5-469c-8d3d-ac135ba486e3",
+    "subject": "TYT Matematik",
+    "topic": "Mantık",
+    "grade": 9
+  },
+  {
+    "topic_id": "f1337dc6-d9cf-4132-ba9b-f9928e5063dd",
+    "subject": "TYT Matematik",
+    "topic": "Fonksiyonlar",
+    "grade": 10
+  },
+  {
+    "topic_id": "853f373e-9cca-4623-bd04-d6f7b8678f34",
+    "subject": "TYT Matematik",
+    "topic": "Polinomlar",
+    "grade": 10
+  },
+  {
+    "topic_id": "186002f7-2b9d-4d63-a82e-4683d9aa22f7",
+    "subject": "TYT Matematik",
+    "topic": "2. Dereceden Denklemler",
+    "grade": 10
+  },
+  {
+    "topic_id": "099104c7-266e-4991-b786-616900d41360",
+    "subject": "TYT Matematik",
+    "topic": "Permütasyon - Kombinasyon",
+    "grade": 10
+  },
+  {
+    "topic_id": "15cee892-4a4a-4c32-a832-b588d43dcf1f",
+    "subject": "TYT Matematik",
+    "topic": "Olasılık",
+    "grade": 10
+  },
+  {
+    "topic_id": "e5414cd6-c704-4608-a9c2-4681a44bcce8",
+    "subject": "TYT Matematik",
+    "topic": "Veri ve İstatistik",
+    "grade": 9
+  },
+  {
+    "topic_id": "426e57e2-8229-42df-91b3-3c7b87806904",
+    "subject": "TYT Geometri",
+    "topic": "Temel Geometri Kavramları",
+    "grade": 9
+  },
+  {
+    "topic_id": "2d628cf2-3b1a-4f59-818c-4bdbc42a3b9e",
+    "subject": "TYT Geometri",
+    "topic": "Açılar",
+    "grade": 9
+  },
+  {
+    "topic_id": "c6eaea45-26d4-42ce-a804-81daba8028a7",
+    "subject": "TYT Geometri",
+    "topic": "Üçgenler",
+    "grade": 9
+  },
+  {
+    "topic_id": "c4f83af0-8813-4c0b-bfdd-14dc5d144890",
+    "subject": "TYT Geometri",
+    "topic": "Üçgenlerde Eşlik ve Benzerlik",
+    "grade": 9
+  },
+  {
+    "topic_id": "58a68338-c387-59b8-86c9-7d923491a178",
+    "subject": "TYT Geometri",
+    "topic": "Açıortay ve Kenarortay",
+    "grade": 9
+  },
+  {
+    "topic_id": "f96c6943-164f-5f7e-81c8-2b65018fb69d",
+    "subject": "TYT Geometri",
+    "topic": "Dik Üçgen ve Trigonometrik Oranlar",
+    "grade": 9
+  },
+  {
+    "topic_id": "4e0efa60-416c-4ce8-805d-31491f2d4a8b",
+    "subject": "TYT Geometri",
+    "topic": "Özel Üçgenler",
+    "grade": 9
+  },
+  {
+    "topic_id": "b5248ac8-7c31-4d14-b076-254eff470a5b",
+    "subject": "TYT Geometri",
+    "topic": "Dörtgenler",
+    "grade": 10
+  },
+  {
+    "topic_id": "17839b0a-0306-4c9e-b897-ff438adcda4d",
+    "subject": "TYT Geometri",
+    "topic": "Çokgenler",
+    "grade": 10
+  },
+  {
+    "topic_id": "e5163c94-f7e1-4446-ad2f-387c06fc167a",
+    "subject": "TYT Geometri",
+    "topic": "Çember ve Daire",
+    "grade": 11
+  },
+  {
+    "topic_id": "fa0223f8-2450-477e-90ce-68a346c30539",
+    "subject": "TYT Geometri",
+    "topic": "Çemberde Açılar ve Yaylar",
+    "grade": 11
+  },
+  {
+    "topic_id": "632d6fdd-f894-4c67-9ef0-f6a965e69351",
+    "subject": "TYT Geometri",
+    "topic": "Katı Cisimler",
+    "grade": 10
+  },
+  {
+    "topic_id": "be44ce23-cc15-4900-a77d-408fd0e6ff72",
+    "subject": "TYT Geometri",
+    "topic": "Alan ve Çevre Hesapları",
+    "grade": 10
+  },
+  {
+    "topic_id": "fbbf79a5-e185-4040-95d4-59d0ed51bb03",
+    "subject": "TYT Geometri",
+    "topic": "Dönüşüm Geometrisi",
+    "grade": 10
+  },
+  {
+    "topic_id": "ee4326de-e5bf-40ab-bc77-7d5420e0b8b5",
+    "subject": "TYT Fizik",
+    "topic": "Fizik Bilimine Giriş",
+    "grade": 9
+  },
+  {
+    "topic_id": "aa9f708a-ddf3-4061-9b5d-7c7adbe1bd9e",
+    "subject": "TYT Fizik",
+    "topic": "Madde ve Özellikleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "95756367-dc8e-4c10-9073-fc02d9143e9c",
+    "subject": "TYT Fizik",
+    "topic": "Basınç ve Kaldırma Kuvveti",
+    "grade": 10
+  },
+  {
+    "topic_id": "7b5f7552-695f-4423-9545-125f21446ed8",
+    "subject": "TYT Fizik",
+    "topic": "Hareket",
+    "grade": 9
+  },
+  {
+    "topic_id": "56d3ce76-6664-4890-b514-4a92e006beaf",
+    "subject": "TYT Fizik",
+    "topic": "Kuvvet ve Hareket",
+    "grade": 9
+  },
+  {
+    "topic_id": "785c921d-2ef6-4b43-a92b-0f70cf5abddb",
+    "subject": "TYT Fizik",
+    "topic": "Enerji",
+    "grade": 9
+  },
+  {
+    "topic_id": "e11e8090-2753-426a-b848-0e7e3e4d5611",
+    "subject": "TYT Fizik",
+    "topic": "Isı ve Sıcaklık",
+    "grade": 9
+  },
+  {
+    "topic_id": "2e9d4d46-8212-41cf-a15e-8aec8d97ac88",
+    "subject": "TYT Fizik",
+    "topic": "Elektrostatik",
+    "grade": 9
+  },
+  {
+    "topic_id": "ad5361ec-37a1-4652-b4d3-e6f0e5ef754a",
+    "subject": "TYT Fizik",
+    "topic": "Elektrik Akımı",
+    "grade": 10
+  },
+  {
+    "topic_id": "36f3c4b6-f106-425a-bebf-0b9243630b10",
+    "subject": "TYT Fizik",
+    "topic": "Manyetizma",
+    "grade": 10
+  },
+  {
+    "topic_id": "5b92e849-299f-4ff0-a311-33bb0c4665da",
+    "subject": "TYT Fizik",
+    "topic": "Dalgalar",
+    "grade": 10
+  },
+  {
+    "topic_id": "cfa6e5e9-a6e5-4412-8e7d-e2d094602c52",
+    "subject": "TYT Fizik",
+    "topic": "Optik",
+    "grade": 10
+  },
+  {
+    "topic_id": "04213204-d558-4bbf-985f-1998a03fdf30",
+    "subject": "TYT Kimya",
+    "topic": "Kimya Bilimine Giriş",
+    "grade": 9
+  },
+  {
+    "topic_id": "9657f8d8-3f89-44a0-910f-9b17d6e081d6",
+    "subject": "TYT Kimya",
+    "topic": "Atom ve Periyodik Tablo",
+    "grade": 9
+  },
+  {
+    "topic_id": "8ab3a70a-e0cb-45f9-8b3e-20984eccb8bd",
+    "subject": "TYT Kimya",
+    "topic": "Kimyasal Bağlar",
+    "grade": 9
+  },
+  {
+    "topic_id": "bd3b7df6-2ab1-40e8-bf5a-cd6dcbb102db",
+    "subject": "TYT Kimya",
+    "topic": "Maddenin Halleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "97c36c14-9395-5e8e-ad7f-7930c2a92d11",
+    "subject": "TYT Kimya",
+    "topic": "Doğa ve Kimya",
+    "grade": 9
+  },
+  {
+    "topic_id": "2e5293c0-e280-4d17-8055-07e8a5060d4e",
+    "subject": "TYT Kimya",
+    "topic": "Mol Kavramı ve Kimyasal Hesaplamalar",
+    "grade": 10
+  },
+  {
+    "topic_id": "9abc2d40-2b04-490a-8e94-f8c52c4b71ba",
+    "subject": "TYT Kimya",
+    "topic": "Kimyasal Tepkimeler",
+    "grade": 10
+  },
+  {
+    "topic_id": "b1ae4b05-0f6c-473a-8c62-5823fc9f063b",
+    "subject": "TYT Kimya",
+    "topic": "Karışımlar",
+    "grade": 10
+  },
+  {
+    "topic_id": "5366e75b-6862-4079-8808-ec64c344692a",
+    "subject": "TYT Kimya",
+    "topic": "Çözeltiler",
+    "grade": 10
+  },
+  {
+    "topic_id": "2017b7e2-3e21-4964-8f45-7b1b83034aae",
+    "subject": "TYT Kimya",
+    "topic": "Asitler, Bazlar ve Tuzlar",
+    "grade": 10
+  },
+  {
+    "topic_id": "07e3c0f6-c1dc-451d-b137-c69b2b601101",
+    "subject": "TYT Kimya",
+    "topic": "Endüstride ve Çevrede Kimya",
+    "grade": 10
+  },
+  {
+    "topic_id": "0f37b9a2-e342-4cc6-ada8-f56c5c3dc164",
+    "subject": "TYT Biyoloji",
+    "topic": "Canlıların Ortak Özellikleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "cf5e3066-7e74-439c-b53e-382a38fa01b9",
+    "subject": "TYT Biyoloji",
+    "topic": "Canlıların Temel Bileşenleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "4ee6269c-a3c6-4cd4-9f48-2c0afc1cf395",
+    "subject": "TYT Biyoloji",
+    "topic": "Hücre",
+    "grade": 9
+  },
+  {
+    "topic_id": "337a8fe8-6e13-4a2a-ba8d-5c1b6caca7c9",
+    "subject": "TYT Biyoloji",
+    "topic": "Hücre Zarı ve Madde Geçişi",
+    "grade": 9
+  },
+  {
+    "topic_id": "d48bc495-a367-421c-963b-364d545150fc",
+    "subject": "TYT Biyoloji",
+    "topic": "Hücre Organelleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "bf0baf85-d7c0-4963-b486-a4a45d4c8161",
+    "subject": "TYT Biyoloji",
+    "topic": "Canlıların Çeşitliliği ve Sınıflandırılması",
+    "grade": 9
+  },
+  {
+    "topic_id": "5903d5ad-e274-4c9c-84b2-d59478e9fda8",
+    "subject": "TYT Biyoloji",
+    "topic": "Bölünme - Mitoz",
+    "grade": 10
+  },
+  {
+    "topic_id": "35b35908-1a5b-418e-b67c-d60154f09009",
+    "subject": "TYT Biyoloji",
+    "topic": "Bölünme - Mayoz",
+    "grade": 10
+  },
+  {
+    "topic_id": "74b20881-788a-449b-aa40-6e83a3c88ab2",
+    "subject": "TYT Biyoloji",
+    "topic": "Üreme ve Gelişme",
+    "grade": 10
+  },
+  {
+    "topic_id": "40d9ec55-fa53-4395-9780-c95f58d2486a",
+    "subject": "TYT Biyoloji",
+    "topic": "Mendel Genetiği",
+    "grade": 10
+  },
+  {
+    "topic_id": "9f3d3465-83e6-4daa-b8f6-07f6d6f79e1a",
+    "subject": "TYT Biyoloji",
+    "topic": "Kan Grupları ve Eşey Bağlantılı Kalıtım",
+    "grade": 10
+  },
+  {
+    "topic_id": "d62364bf-eff3-460e-8cb8-4a05fd64d024",
+    "subject": "TYT Biyoloji",
+    "topic": "Mutasyon ve Modifikasyon",
+    "grade": 10
+  },
+  {
+    "topic_id": "fedb5c0e-0a46-4d46-94a9-6359d5a740e6",
+    "subject": "TYT Biyoloji",
+    "topic": "Ekosistem ve Ekoloji",
+    "grade": 10
+  },
+  {
+    "topic_id": "b4b3bb10-8d8b-4943-aa31-58d562980e8b",
+    "subject": "TYT Biyoloji",
+    "topic": "Güncel Çevre Sorunları",
+    "grade": 10
+  },
+  {
+    "topic_id": "260c9f9f-4634-49d7-9b7a-2654873d83ca",
+    "subject": "TYT Tarih",
+    "topic": "Tarih Bilimine Giriş",
+    "grade": 9
+  },
+  {
+    "topic_id": "f5ef36d9-8405-4607-a69e-03fe4c59057b",
+    "subject": "TYT Tarih",
+    "topic": "Uygarlığın Doğuşu",
+    "grade": 9
+  },
+  {
+    "topic_id": "1ef10997-5e42-428d-9547-d766bcd81440",
+    "subject": "TYT Tarih",
+    "topic": "İlk Çağ Uygarlıkları",
+    "grade": 9
+  },
+  {
+    "topic_id": "fada27d0-a548-44cb-8b51-8c0aec10d9f1",
+    "subject": "TYT Tarih",
+    "topic": "İlk Türk Devletleri (Orta Asya)",
+    "grade": 9
+  },
+  {
+    "topic_id": "9f92ebab-6b1a-44f4-9ec0-e7f191d0ca60",
+    "subject": "TYT Tarih",
+    "topic": "İslamiyet'in Doğuşu ve Yayılması",
+    "grade": 9
+  },
+  {
+    "topic_id": "81cbfc8f-67a6-4298-9637-4e418d20cb26",
+    "subject": "TYT Tarih",
+    "topic": "Türklerin İslamiyet'i Kabulü",
+    "grade": 9
+  },
+  {
+    "topic_id": "a31f1bc6-fd5d-4595-bf92-4742bc9986c8",
+    "subject": "TYT Tarih",
+    "topic": "İlk Müslüman Türk Devletleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "2989e557-b46b-4bff-9b57-cea2957a4fa5",
+    "subject": "TYT Tarih",
+    "topic": "Anadolu'da Türk Beylikleri ve Selçuklular",
+    "grade": 10
+  },
+  {
+    "topic_id": "c19a92cf-242c-49e7-a6d3-6d894f9a9e22",
+    "subject": "TYT Tarih",
+    "topic": "Osmanlı Devleti Kuruluş ve Yükselme",
+    "grade": 10
+  },
+  {
+    "topic_id": "0761defd-6733-4f99-aab5-8c971eb536ea",
+    "subject": "TYT Tarih",
+    "topic": "Osmanlı Devleti Duraklama ve Gerileme",
+    "grade": 11
+  },
+  {
+    "topic_id": "5eb1ebb7-eaa7-4b96-83e3-64de2b17684d",
+    "subject": "TYT Tarih",
+    "topic": "Osmanlı Devleti Çöküş Dönemi",
+    "grade": 11
+  },
+  {
+    "topic_id": "d82e7a67-ce4f-491d-9d30-0e799a81fef3",
+    "subject": "TYT Tarih",
+    "topic": "Birinci Dünya Savaşı",
+    "grade": 12
+  },
+  {
+    "topic_id": "4fd8893a-0b8b-4fb5-b487-df77a0187c94",
+    "subject": "TYT Tarih",
+    "topic": "Kurtuluş Savaşı",
+    "grade": 12
+  },
+  {
+    "topic_id": "075100df-5fb8-4c43-ab1d-ca2a62743889",
+    "subject": "TYT Tarih",
+    "topic": "Atatürk İlkeleri ve İnkılapları",
+    "grade": 12
+  },
+  {
+    "topic_id": "09db05c0-e466-4598-a651-e7afa6cfb96a",
+    "subject": "TYT Coğrafya",
+    "topic": "Doğa ve İnsan",
+    "grade": 9
+  },
+  {
+    "topic_id": "dcfaa4a8-0eee-4104-9aea-027ec1162c11",
+    "subject": "TYT Coğrafya",
+    "topic": "Dünya'nın Şekli ve Hareketleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "bf12f7dd-901f-4d58-af54-779119c6fe5e",
+    "subject": "TYT Coğrafya",
+    "topic": "Harita Bilgisi",
+    "grade": 9
+  },
+  {
+    "topic_id": "b7817bd2-9733-43db-8f2e-bb5c28a37355",
+    "subject": "TYT Coğrafya",
+    "topic": "Kayaçlar ve Mineraller",
+    "grade": 10
+  },
+  {
+    "topic_id": "c225aa70-a440-4a75-a7ef-e6c307db4703",
+    "subject": "TYT Coğrafya",
+    "topic": "İç Kuvvetler ve Yer Şekilleri",
+    "grade": 10
+  },
+  {
+    "topic_id": "9bcf39c6-9adc-4b06-880f-ae81508898c2",
+    "subject": "TYT Coğrafya",
+    "topic": "Dış Kuvvetler ve Yer Şekilleri",
+    "grade": 10
+  },
+  {
+    "topic_id": "a4b6fd53-b480-454c-9811-cd23aaa91fdb",
+    "subject": "TYT Coğrafya",
+    "topic": "Atmosfer ve İklim",
+    "grade": 9
+  },
+  {
+    "topic_id": "6a1bd922-f099-45c6-a908-74d2b5f7db08",
+    "subject": "TYT Coğrafya",
+    "topic": "Yeryüzünde Su (Hidrosfer)",
+    "grade": 10
+  },
+  {
+    "topic_id": "fc7e451f-5e03-46b9-aed7-1e3244409f9e",
+    "subject": "TYT Coğrafya",
+    "topic": "Toprak",
+    "grade": 10
+  },
+  {
+    "topic_id": "9eccec49-24bf-4653-9bb3-fe674cb06768",
+    "subject": "TYT Coğrafya",
+    "topic": "Biyoçeşitlilik",
+    "grade": 10
+  },
+  {
+    "topic_id": "cc172c0f-fc23-4070-8fd0-efff4c9c96cb",
+    "subject": "TYT Coğrafya",
+    "topic": "Nüfus",
+    "grade": 10
+  },
+  {
+    "topic_id": "ecac72fe-d288-46ea-9154-cf66a1b869fa",
+    "subject": "TYT Coğrafya",
+    "topic": "Göç",
+    "grade": 10
+  },
+  {
+    "topic_id": "2995e56e-15a3-4894-af03-1be1197ce186",
+    "subject": "TYT Coğrafya",
+    "topic": "Yerleşme",
+    "grade": 9
+  },
+  {
+    "topic_id": "718fcf42-4311-4c6b-934d-a129f061875b",
+    "subject": "TYT Coğrafya",
+    "topic": "Türkiye'nin Coğrafi Özellikleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "4e425c8c-b645-4672-9bbb-52bd2d51e025",
+    "subject": "TYT Coğrafya",
+    "topic": "Türkiye'de Ekonomik Faaliyetler",
+    "grade": 10
+  },
+  {
+    "topic_id": "a0cfda0e-588b-54f1-ab76-999b3be984c5",
+    "subject": "TYT Coğrafya",
+    "topic": "Doğal Afetler",
+    "grade": 10
+  },
+  {
+    "topic_id": "ffcad1e1-0175-4cae-9c0a-3514d5f6a638",
+    "subject": "TYT Felsefe",
+    "topic": "Felsefeye Giriş",
+    "grade": 10
+  },
+  {
+    "topic_id": "c82eed8f-435f-57fb-b41e-b8a4caebdb2f",
+    "subject": "TYT Felsefe",
+    "topic": "Felsefe ile Düşünme",
+    "grade": 10
+  },
+  {
+    "topic_id": "ea681972-7219-4b32-9258-63490e044811",
+    "subject": "TYT Felsefe",
+    "topic": "Bilgi Felsefesi",
+    "grade": 10
+  },
+  {
+    "topic_id": "1d17e820-5d24-59ee-93de-246fa5fe5463",
+    "subject": "TYT Felsefe",
+    "topic": "Bilim Felsefesi",
+    "grade": 10
+  },
+  {
+    "topic_id": "ad96c502-2bed-49b5-8c8a-130d2e70ac9e",
+    "subject": "TYT Felsefe",
+    "topic": "Varlık Felsefesi",
+    "grade": 10
+  },
+  {
+    "topic_id": "7427b37a-ed56-43ac-8c69-61b9c6d93293",
+    "subject": "TYT Felsefe",
+    "topic": "Ahlak Felsefesi",
+    "grade": 10
+  },
+  {
+    "topic_id": "33269580-39ae-423c-96ae-f8d02f5b3e32",
+    "subject": "TYT Felsefe",
+    "topic": "Siyaset Felsefesi",
+    "grade": 10
+  },
+  {
+    "topic_id": "83b975bf-3f5f-40a1-809c-2de6a34eb8a6",
+    "subject": "TYT Felsefe",
+    "topic": "Estetik",
+    "grade": 10
+  },
+  {
+    "topic_id": "7d86c596-ad4a-45e4-8b88-5ae08e9c0def",
+    "subject": "TYT Felsefe",
+    "topic": "Din Felsefesi",
+    "grade": 10
+  },
+  {
+    "topic_id": "eb3850ce-11a8-4d0f-b68c-65a57a957ac6",
+    "subject": "TYT Din Kültürü",
+    "topic": "İslam'ın Temel Kaynakları",
+    "grade": 9
+  },
+  {
+    "topic_id": "9af4bfe2-49f1-4bcc-ade4-f1f71ee9ae25",
+    "subject": "TYT Din Kültürü",
+    "topic": "Hz. Muhammed'in Hayatı",
+    "grade": 9
+  },
+  {
+    "topic_id": "5dacaa60-aa98-4e4f-b590-672086711d28",
+    "subject": "TYT Din Kültürü",
+    "topic": "İslam'ın Temel İnanç Esasları",
+    "grade": 9
+  },
+  {
+    "topic_id": "ac90375a-b0a6-4f57-9f45-bcec7ecd80f5",
+    "subject": "TYT Din Kültürü",
+    "topic": "İslam'da İbadet",
+    "grade": 9
+  },
+  {
+    "topic_id": "198f6bab-0e7b-44f0-bfd7-c991a6371dbe",
+    "subject": "TYT Din Kültürü",
+    "topic": "İslam'da Ahlak",
+    "grade": 10
+  },
+  {
+    "topic_id": "9dda7774-cc51-41b6-959e-c532eabbdd50",
+    "subject": "TYT Din Kültürü",
+    "topic": "Kur'an ve Yorumu",
+    "grade": 10
+  },
+  {
+    "topic_id": "2c538228-c89a-4074-af3a-9a8833d72531",
+    "subject": "TYT Din Kültürü",
+    "topic": "Laiklik ve Din",
+    "grade": 10
+  },
+  {
+    "topic_id": "87809a5b-45e5-4971-9800-9aada1c26dc9",
+    "subject": "TYT Din Kültürü",
+    "topic": "Diğer Din ve İnanışlar",
+    "grade": 10
+  },
+  {
+    "topic_id": "7afac6da-bf6e-4bde-b746-e35a12c9c8c2",
+    "subject": "TYT Din Kültürü",
+    "topic": "İslam Düşünce Akımları",
+    "grade": 10
+  },
+  {
+    "topic_id": "13e5e335-fe9b-44b7-8b3f-f0ce863bd438",
+    "subject": "AYT Matematik",
+    "topic": "Fonksiyonlar ve Özellikleri",
+    "grade": 11
+  },
+  {
+    "topic_id": "a8822698-b146-4ce9-8850-114043833f18",
+    "subject": "AYT Matematik",
+    "topic": "Trigonometri",
+    "grade": 11
+  },
+  {
+    "topic_id": "0bab5a40-87bf-4f5b-962d-7dc70e96b0f0",
+    "subject": "AYT Matematik",
+    "topic": "Logaritma",
+    "grade": 12
+  },
+  {
+    "topic_id": "aed895a6-ba55-452f-98ee-64255ba74a86",
+    "subject": "AYT Matematik",
+    "topic": "Karmaşık Sayılar",
+    "grade": 10
+  },
+  {
+    "topic_id": "e20b676c-9c54-4d58-a7bb-a956b00b4244",
+    "subject": "AYT Matematik",
+    "topic": "Polinomlar",
+    "grade": 10
+  },
+  {
+    "topic_id": "f9e9e770-8c99-485b-afcb-b6bc64bcca1a",
+    "subject": "AYT Matematik",
+    "topic": "2. Dereceden Fonksiyonlar ve Denklemler",
+    "grade": 11
+  },
+  {
+    "topic_id": "24776f24-b995-55de-8470-b8ab070d6093",
+    "subject": "AYT Matematik",
+    "topic": "İkinci Dereceden Eşitsizlikler ve Sistemler",
+    "grade": 11
+  },
+  {
+    "topic_id": "a5b6d015-cdaf-456a-acbc-addb016f4036",
+    "subject": "AYT Matematik",
+    "topic": "Aritmetik Diziler",
+    "grade": 12
+  },
+  {
+    "topic_id": "7f5a0889-9fd4-43b3-9c06-51ae3f7398c9",
+    "subject": "AYT Matematik",
+    "topic": "Geometrik Diziler",
+    "grade": 12
+  },
+  {
+    "topic_id": "04be154d-06d4-4b07-b1ee-fefafb5812f0",
+    "subject": "AYT Matematik",
+    "topic": "Limit ve Süreklilik",
+    "grade": 12
+  },
+  {
+    "topic_id": "ba044a1b-4a6e-47d6-a96a-da87082aea94",
+    "subject": "AYT Matematik",
+    "topic": "Türev",
+    "grade": 12
+  },
+  {
+    "topic_id": "75f3cec9-5846-4226-8157-da300eea9281",
+    "subject": "AYT Matematik",
+    "topic": "İntegral",
+    "grade": 12
+  },
+  {
+    "topic_id": "b42329fe-f442-4e7f-bdc9-a18210260343",
+    "subject": "AYT Matematik",
+    "topic": "Permütasyon ve Kombinasyon",
+    "grade": 10
+  },
+  {
+    "topic_id": "45beece1-1ea6-4d68-8639-8037e73f5b17",
+    "subject": "AYT Matematik",
+    "topic": "Binom Açılımı",
+    "grade": 10
+  },
+  {
+    "topic_id": "4aaa2fa7-c8a1-4228-9ff8-30b7ad2f3da1",
+    "subject": "AYT Matematik",
+    "topic": "Olasılık",
+    "grade": 11
+  },
+  {
+    "topic_id": "6af6bb13-a98e-51a1-9be3-4527af2aab24",
+    "subject": "AYT Geometri",
+    "topic": "Çember ve Daire",
+    "grade": 11
+  },
+  {
+    "topic_id": "d2fda1b7-6faa-4920-a159-fbb326259d5d",
+    "subject": "AYT Geometri",
+    "topic": "Analitik Geometri - Nokta",
+    "grade": 11
+  },
+  {
+    "topic_id": "f4ede116-6658-4415-a54d-0b73c47b5f1d",
+    "subject": "AYT Geometri",
+    "topic": "Analitik Geometri - Doğru",
+    "grade": 11
+  },
+  {
+    "topic_id": "9b58eab8-968d-472a-a7ac-727b03d6a593",
+    "subject": "AYT Geometri",
+    "topic": "Analitik Geometri - Çember",
+    "grade": 12
+  },
+  {
+    "topic_id": "f275d46d-4935-4faa-9151-d4ecac48af28",
+    "subject": "AYT Geometri",
+    "topic": "Uzay Geometri",
+    "grade": 11
+  },
+  {
+    "topic_id": "8bb342d7-6aa0-4351-be51-a8a38d1b8dcd",
+    "subject": "AYT Geometri",
+    "topic": "Katı Cisimler - Yüzey Alanı",
+    "grade": 11
+  },
+  {
+    "topic_id": "62c27775-8d64-45c1-beee-a18ff47c729a",
+    "subject": "AYT Geometri",
+    "topic": "Katı Cisimler - Hacim",
+    "grade": 11
+  },
+  {
+    "topic_id": "95395deb-c50b-4ffe-9636-63869936d014",
+    "subject": "AYT Geometri",
+    "topic": "Dönüşüm Geometrisi",
+    "grade": 12
+  },
+  {
+    "topic_id": "edd8f81c-4bcd-41dd-ae17-df40c1f8923b",
+    "subject": "AYT Fizik",
+    "topic": "Vektörler",
+    "grade": 11
+  },
+  {
+    "topic_id": "3f86196e-8750-5274-b3c3-3e91030aa3fd",
+    "subject": "AYT Fizik",
+    "topic": "Bağıl Hareket",
+    "grade": 11
+  },
+  {
+    "topic_id": "b514a12e-fa61-4be6-9aee-752c8a2987ae",
+    "subject": "AYT Fizik",
+    "topic": "Kuvvet, Tork ve Denge",
+    "grade": 11
+  },
+  {
+    "topic_id": "e9a1d284-482b-4ec8-9ce3-bf48d157acfb",
+    "subject": "AYT Fizik",
+    "topic": "Kütle Merkezi",
+    "grade": 11
+  },
+  {
+    "topic_id": "d94807cd-2e58-4ee7-a2af-7531b5f2e4bc",
+    "subject": "AYT Fizik",
+    "topic": "Basit Makineler",
+    "grade": 11
+  },
+  {
+    "topic_id": "b99d11de-020f-4d22-bff8-3bbb09ae751f",
+    "subject": "AYT Fizik",
+    "topic": "Doğrusal Hareket",
+    "grade": 11
+  },
+  {
+    "topic_id": "5d414422-6314-4ab5-8a47-e1972f63c605",
+    "subject": "AYT Fizik",
+    "topic": "Newton'un Hareket Yasaları",
+    "grade": 11
+  },
+  {
+    "topic_id": "121dbd6f-549e-42bf-bd71-d1ba5c9e2bcb",
+    "subject": "AYT Fizik",
+    "topic": "İş, Güç ve Enerji",
+    "grade": 11
+  },
+  {
+    "topic_id": "6677af38-4f73-4d52-bb3c-16385302c648",
+    "subject": "AYT Fizik",
+    "topic": "Atışlar",
+    "grade": 11
+  },
+  {
+    "topic_id": "23058924-b30b-407e-83fc-4b73e459fe8b",
+    "subject": "AYT Fizik",
+    "topic": "İtme - Momentum",
+    "grade": 11
+  },
+  {
+    "topic_id": "474091a0-1f22-4a9f-b57d-b5709bc8f437",
+    "subject": "AYT Fizik",
+    "topic": "Elektrik Alan ve Potansiyel",
+    "grade": 11
+  },
+  {
+    "topic_id": "cd22d89c-e0d0-5c46-8701-39b54e52b378",
+    "subject": "AYT Fizik",
+    "topic": "Sığa (Kondansatörler)",
+    "grade": 11
+  },
+  {
+    "topic_id": "0867d93a-fee1-4df7-8e68-9d95601c10b4",
+    "subject": "AYT Fizik",
+    "topic": "Manyetik Alan",
+    "grade": 11
+  },
+  {
+    "topic_id": "b8fd2c32-de76-4b1a-8b6d-1cadf6146cc6",
+    "subject": "AYT Fizik",
+    "topic": "İndüksiyon",
+    "grade": 11
+  },
+  {
+    "topic_id": "eac8abd9-d8c2-42bd-9bb9-0db744b4173e",
+    "subject": "AYT Fizik",
+    "topic": "Alternatif Akım",
+    "grade": 11
+  },
+  {
+    "topic_id": "3c62fe7a-309b-4410-a996-6fc9e5bbc07a",
+    "subject": "AYT Fizik",
+    "topic": "Transformatörler",
+    "grade": 11
+  },
+  {
+    "topic_id": "9d9eb7cd-e35c-59d4-aefe-2aa3f34e2c7f",
+    "subject": "AYT Fizik",
+    "topic": "Düzgün Çembersel Hareket",
+    "grade": 12
+  },
+  {
+    "topic_id": "0119df27-b6c6-5e60-b5b9-e694a10d6304",
+    "subject": "AYT Fizik",
+    "topic": "Dönerek Öteleme ve Açısal Momentum",
+    "grade": 12
+  },
+  {
+    "topic_id": "23101438-910c-5b73-8805-ac8243c618a3",
+    "subject": "AYT Fizik",
+    "topic": "Kütle Çekim ve Kepler Yasaları",
+    "grade": 12
+  },
+  {
+    "topic_id": "9e9c6f70-926b-5d31-8ce9-5ade4356824f",
+    "subject": "AYT Fizik",
+    "topic": "Basit Harmonik Hareket",
+    "grade": 12
+  },
+  {
+    "topic_id": "e83dd3f1-c094-430a-8d52-e77919b73ea1",
+    "subject": "AYT Fizik",
+    "topic": "Dalga Mekaniği",
+    "grade": 12
+  },
+  {
+    "topic_id": "0fd00d45-08ea-44e9-81f2-70ae7109229b",
+    "subject": "AYT Fizik",
+    "topic": "Atom Fiziği",
+    "grade": 12
+  },
+  {
+    "topic_id": "2b6cebb0-05a4-4c13-b779-7cdc93faba98",
+    "subject": "AYT Fizik",
+    "topic": "Modern Fizik",
+    "grade": 12
+  },
+  {
+    "topic_id": "5e34e178-3365-4e58-b478-ff24c1aa048e",
+    "subject": "AYT Fizik",
+    "topic": "Modern Fiziğin Teknolojideki Uygulamaları",
+    "grade": 12
+  },
+  {
+    "topic_id": "8a2c6b6c-d0c6-5aa5-88b1-71aeb0a3e518",
+    "subject": "AYT Kimya",
+    "topic": "Modern Atom Teorisi",
+    "grade": 11
+  },
+  {
+    "topic_id": "f0573b56-2d13-5f71-94a1-01d724d3d1d7",
+    "subject": "AYT Kimya",
+    "topic": "Gazlar",
+    "grade": 11
+  },
+  {
+    "topic_id": "533bfad2-b399-5568-b6c2-b57141015a69",
+    "subject": "AYT Kimya",
+    "topic": "Sıvı Çözeltiler ve Çözünürlük",
+    "grade": 11
+  },
+  {
+    "topic_id": "1bc32954-f351-435f-846f-7371ac6c7822",
+    "subject": "AYT Kimya",
+    "topic": "Kimya ve Enerji",
+    "grade": 11
+  },
+  {
+    "topic_id": "34ed4fa4-c798-4029-ba5e-dfdf67f70d7c",
+    "subject": "AYT Kimya",
+    "topic": "Kimyasal Kinetik",
+    "grade": 11
+  },
+  {
+    "topic_id": "922f17e7-5e83-4907-b00f-3e9897d20876",
+    "subject": "AYT Kimya",
+    "topic": "Kimyasal Denge",
+    "grade": 11
+  },
+  {
+    "topic_id": "4a67ae99-e067-43bc-8ba6-30a0a62339c3",
+    "subject": "AYT Kimya",
+    "topic": "Asit - Baz Dengesi",
+    "grade": 11
+  },
+  {
+    "topic_id": "6979c8d9-c978-4d76-bd4c-8e69582c3aba",
+    "subject": "AYT Kimya",
+    "topic": "Çözünürlük Dengesi",
+    "grade": 11
+  },
+  {
+    "topic_id": "d2cdbe5e-673d-446d-8d22-1881c4970dd0",
+    "subject": "AYT Kimya",
+    "topic": "Elektrokimya",
+    "grade": 12
+  },
+  {
+    "topic_id": "880e0536-4594-42b7-a310-30a66f19e694",
+    "subject": "AYT Kimya",
+    "topic": "Organik Kimyaya Giriş",
+    "grade": 12
+  },
+  {
+    "topic_id": "041d884c-e600-4394-86c1-7e4e83cc6ecb",
+    "subject": "AYT Kimya",
+    "topic": "Hidrokarbonlar - Alkanlar",
+    "grade": 12
+  },
+  {
+    "topic_id": "add191df-88ae-4423-b5ca-ed922a99d7e5",
+    "subject": "AYT Kimya",
+    "topic": "Hidrokarbonlar - Alkenler ve Alkinler",
+    "grade": 12
+  },
+  {
+    "topic_id": "659a1673-7c82-4129-9a64-352fe6a67f44",
+    "subject": "AYT Kimya",
+    "topic": "Hidrokarbonlar - Aromatikler",
+    "grade": 12
+  },
+  {
+    "topic_id": "0b942447-abfa-4608-b5b3-77c05c16d8b5",
+    "subject": "AYT Kimya",
+    "topic": "Fonksiyonlu Organik Bileşikler",
+    "grade": 12
+  },
+  {
+    "topic_id": "3158c526-f950-45a0-82c0-9cfdb1c5933c",
+    "subject": "AYT Kimya",
+    "topic": "Karbonhidratlar, Yağlar ve Proteinler",
+    "grade": 12
+  },
+  {
+    "topic_id": "ad515af5-2669-4eac-9106-c8aceda52499",
+    "subject": "AYT Kimya",
+    "topic": "Polimerler",
+    "grade": 12
+  },
+  {
+    "topic_id": "ce58bbe2-2a66-4c20-a5e5-8f2ec8a08516",
+    "subject": "AYT Kimya",
+    "topic": "Nükleer Tepkimeler",
+    "grade": 12
+  },
+  {
+    "topic_id": "7ffc2311-6bc6-4ca9-b1b6-4d0fc2f44b11",
+    "subject": "AYT Biyoloji",
+    "topic": "Sinir Sistemi",
+    "grade": 11
+  },
+  {
+    "topic_id": "179faf19-da4f-4767-baac-15e13b1e4ffc",
+    "subject": "AYT Biyoloji",
+    "topic": "Endokrin (Hormonal) Sistem",
+    "grade": 11
+  },
+  {
+    "topic_id": "eb7ef959-26bf-5c7c-ab8b-5c7e3d457253",
+    "subject": "AYT Biyoloji",
+    "topic": "Duyu Organları",
+    "grade": 11
+  },
+  {
+    "topic_id": "4bfb3f2b-c01b-5240-bdc5-650ebe6f3ae3",
+    "subject": "AYT Biyoloji",
+    "topic": "Destek ve Hareket Sistemi",
+    "grade": 11
+  },
+  {
+    "topic_id": "32ff35e5-6d3b-422c-8d1b-64f7fce8d7c4",
+    "subject": "AYT Biyoloji",
+    "topic": "Sindirim Sistemi",
+    "grade": 11
+  },
+  {
+    "topic_id": "73820732-b256-4ca5-a1c3-8fd6cf4e8ea9",
+    "subject": "AYT Biyoloji",
+    "topic": "Dolaşım Sistemi",
+    "grade": 11
+  },
+  {
+    "topic_id": "b381f784-da54-4380-94c9-0d7d4aeb6a95",
+    "subject": "AYT Biyoloji",
+    "topic": "Bağışıklık Sistemi",
+    "grade": 11
+  },
+  {
+    "topic_id": "01fa24e8-1119-4728-a798-01d3d84367e2",
+    "subject": "AYT Biyoloji",
+    "topic": "Solunum Sistemi",
+    "grade": 11
+  },
+  {
+    "topic_id": "5fcfe7b1-bb8e-4cba-b1e7-e7b9d10432c5",
+    "subject": "AYT Biyoloji",
+    "topic": "Boşaltım Sistemi",
+    "grade": 11
+  },
+  {
+    "topic_id": "42db825f-6814-443e-a43e-f480c083720a",
+    "subject": "AYT Biyoloji",
+    "topic": "Üreme Sistemi ve Embriyoloji",
+    "grade": 11
+  },
+  {
+    "topic_id": "118b4e5f-84bd-5b67-9c89-63610dbdc6e0",
+    "subject": "AYT Biyoloji",
+    "topic": "Komünite ve Popülasyon Ekolojisi",
+    "grade": 11
+  },
+  {
+    "topic_id": "066cb12a-8e94-5295-8ccb-0e86c60419d0",
+    "subject": "AYT Biyoloji",
+    "topic": "Genden Proteine (Nükleik Asitler ve Protein Sentezi)",
+    "grade": 12
+  },
+  {
+    "topic_id": "923883c0-0b4b-4ed1-9021-425238fa8d02",
+    "subject": "AYT Biyoloji",
+    "topic": "Biyoteknoloji ve Gen Mühendisliği",
+    "grade": 12
+  },
+  {
+    "topic_id": "8c13d428-b668-51f8-a16c-bb1f2fbdaed0",
+    "subject": "AYT Biyoloji",
+    "topic": "Canlılarda Enerji Dönüşümleri",
+    "grade": 12
+  },
+  {
+    "topic_id": "6863e22d-16d4-413d-8d8d-8641c2778486",
+    "subject": "AYT Biyoloji",
+    "topic": "Bitki Biyolojisi",
+    "grade": 12
+  },
+  {
+    "topic_id": "ebd67001-4fde-4e8d-8a76-7061f6f95c95",
+    "subject": "AYT Edebiyat",
+    "topic": "İslamiyet Öncesi Türk Edebiyatı",
+    "grade": 10
+  },
+  {
+    "topic_id": "29522b79-0085-46e5-951d-97c68119f059",
+    "subject": "AYT Edebiyat",
+    "topic": "İslamiyet'e Geçiş Dönemi Türk Edebiyatı",
+    "grade": 10
+  },
+  {
+    "topic_id": "6ba27c0e-773f-4df2-95d3-a4c5ace4ffd4",
+    "subject": "AYT Edebiyat",
+    "topic": "Divan Edebiyatı",
+    "grade": 10
+  },
+  {
+    "topic_id": "7c3274d6-1086-4835-a711-1d045e32f26a",
+    "subject": "AYT Edebiyat",
+    "topic": "Halk Edebiyatı",
+    "grade": 10
+  },
+  {
+    "topic_id": "9e8b672e-1be5-46c5-80fc-4ad1b2b28890",
+    "subject": "AYT Edebiyat",
+    "topic": "Tanzimat Edebiyatı (1. Dönem)",
+    "grade": 11
+  },
+  {
+    "topic_id": "f350bc4d-8502-4cef-a866-2a9f69ebd0a8",
+    "subject": "AYT Edebiyat",
+    "topic": "Tanzimat Edebiyatı (2. Dönem)",
+    "grade": 11
+  },
+  {
+    "topic_id": "d4eee9db-51b5-4354-8a5c-69a9fde108c0",
+    "subject": "AYT Edebiyat",
+    "topic": "Servet-i Fünun Edebiyatı",
+    "grade": 11
+  },
+  {
+    "topic_id": "b48b1db3-c90b-4816-b0df-a1f38c63f3a4",
+    "subject": "AYT Edebiyat",
+    "topic": "Fecr-i Ati Edebiyatı",
+    "grade": 11
+  },
+  {
+    "topic_id": "ec1d30f7-cf55-45ba-ad2c-96a9915737a8",
+    "subject": "AYT Edebiyat",
+    "topic": "Milli Edebiyat Dönemi",
+    "grade": 11
+  },
+  {
+    "topic_id": "dbe50a20-05f2-4f90-926c-38055e60fdde",
+    "subject": "AYT Edebiyat",
+    "topic": "Cumhuriyet Dönemi Türk Edebiyatı (1923-1950)",
+    "grade": 12
+  },
+  {
+    "topic_id": "2a0670da-ac1e-4c5b-bc01-344b65b19b9d",
+    "subject": "AYT Edebiyat",
+    "topic": "Cumhuriyet Dönemi Türk Edebiyatı (1950 Sonrası)",
+    "grade": 12
+  },
+  {
+    "topic_id": "79187402-b630-41b4-b611-53cab43de745",
+    "subject": "AYT Edebiyat",
+    "topic": "Şiir Bilgisi (Biçim ve İçerik)",
+    "grade": 9
+  },
+  {
+    "topic_id": "82272bbe-8112-48c2-a2db-add975e285ba",
+    "subject": "AYT Edebiyat",
+    "topic": "Düz Yazı (Nesir) Türleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "82f43ded-a700-40e9-b2d2-a5bc1b86d7ba",
+    "subject": "AYT Edebiyat",
+    "topic": "Tiyatro Türleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "5b3715bf-3ab1-4853-94be-b9862d972c69",
+    "subject": "AYT Edebiyat",
+    "topic": "Söz Sanatları",
+    "grade": 9
+  },
+  {
+    "topic_id": "a4f22017-75f9-4fa2-8841-f99d5a521bb3",
+    "subject": "AYT Edebiyat",
+    "topic": "Türkçenin Tarihi Gelişimi",
+    "grade": 10
+  },
+  {
+    "topic_id": "d6b7e5fe-de53-48df-85e4-a7691c6ded8d",
+    "subject": "AYT Tarih",
+    "topic": "Tarih Felsefesi ve Tarih Yazımı",
+    "grade": 9
+  },
+  {
+    "topic_id": "4d1dbdc2-ad59-4641-8030-d065ddc63f6e",
+    "subject": "AYT Tarih",
+    "topic": "Orta Asya Türk Tarihi",
+    "grade": 9
+  },
+  {
+    "topic_id": "cfbe46f1-d545-476d-92e3-7ada1880b969",
+    "subject": "AYT Tarih",
+    "topic": "İslam Medeniyeti",
+    "grade": 9
+  },
+  {
+    "topic_id": "5e2c26d6-f264-49bc-8712-2d9f34523e74",
+    "subject": "AYT Tarih",
+    "topic": "Türk - İslam Devletleri",
+    "grade": 9
+  },
+  {
+    "topic_id": "96a987e8-806a-4ccb-baa1-30cdbdd4a899",
+    "subject": "AYT Tarih",
+    "topic": "Selçuklu Devleti",
+    "grade": 10
+  },
+  {
+    "topic_id": "02e0491e-3f99-496e-9c44-b1c7c0aa8c5f",
+    "subject": "AYT Tarih",
+    "topic": "Osmanlı Devleti Kuruluş",
+    "grade": 10
+  },
+  {
+    "topic_id": "cae8f415-763a-45f4-90ae-5b6e2838b262",
+    "subject": "AYT Tarih",
+    "topic": "Osmanlı Devleti Yükselme",
+    "grade": 10
+  },
+  {
+    "topic_id": "cc489709-ea52-4732-bf3d-80bb9b7c67bf",
+    "subject": "AYT Tarih",
+    "topic": "Osmanlı Devleti Duraklama",
+    "grade": 11
+  },
+  {
+    "topic_id": "9bc9be38-f437-47f1-ad83-1a6f6125a0bd",
+    "subject": "AYT Tarih",
+    "topic": "Osmanlı Devleti Gerileme",
+    "grade": 11
+  },
+  {
+    "topic_id": "8103b7a4-23cc-4802-9c55-0c1b97e73147",
+    "subject": "AYT Tarih",
+    "topic": "Osmanlı Devleti Çöküş",
+    "grade": 11
+  },
+  {
+    "topic_id": "b6dfa693-d78b-4161-a014-46136a5ff551",
+    "subject": "AYT Tarih",
+    "topic": "Birinci Dünya Savaşı",
+    "grade": 12
+  },
+  {
+    "topic_id": "e277fde9-72bb-4238-919e-7f70fd93143f",
+    "subject": "AYT Tarih",
+    "topic": "Milli Mücadele",
+    "grade": 12
+  },
+  {
+    "topic_id": "92becefa-f816-44ac-9191-9470c4235f8f",
+    "subject": "AYT Tarih",
+    "topic": "Türk İnkılabı",
+    "grade": 12
+  },
+  {
+    "topic_id": "279a3e75-262c-41bf-b1a4-0a0ba51b03d4",
+    "subject": "AYT Tarih",
+    "topic": "Atatürk Dönemi Türk Dış Politikası",
+    "grade": 12
+  },
+  {
+    "topic_id": "a167f71f-f57d-46d6-aa4a-793637031df5",
+    "subject": "AYT Tarih",
+    "topic": "İkinci Dünya Savaşı ve Türkiye",
+    "grade": 12
+  },
+  {
+    "topic_id": "015d443a-b3ca-438c-8f78-c6c535508b73",
+    "subject": "AYT Tarih",
+    "topic": "Soğuk Savaş Dönemi",
+    "grade": 12
+  },
+  {
+    "topic_id": "9e1fcb07-82d3-4b4d-9bf0-bf19c02969c5",
+    "subject": "AYT Tarih",
+    "topic": "Yakın Dönem Türkiye Tarihi",
+    "grade": 12
+  },
+  {
+    "topic_id": "78b3cfb6-de23-4dd9-8c77-f53c71a0c73d",
+    "subject": "AYT Tarih",
+    "topic": "Uluslararası İlişkiler ve Küreselleşme",
+    "grade": 12
+  },
+  {
+    "topic_id": "247bf439-5331-442d-910c-bba712375755",
+    "subject": "AYT Coğrafya",
+    "topic": "Doğal Sistemler",
+    "grade": 11
+  },
+  {
+    "topic_id": "e8b34710-4f26-49c3-afd2-07a13252be36",
+    "subject": "AYT Coğrafya",
+    "topic": "Beşeri Sistemler",
+    "grade": 11
+  },
+  {
+    "topic_id": "3b529c8a-00aa-4777-a8e8-2e55e01c4667",
+    "subject": "AYT Coğrafya",
+    "topic": "Ekonomik Faaliyetler",
+    "grade": 11
+  },
+  {
+    "topic_id": "ad4b90f3-f941-41e1-bfe6-8e581ca08448",
+    "subject": "AYT Coğrafya",
+    "topic": "Küresel Ortam: Bölgeler ve Ülkeler",
+    "grade": 12
+  },
+  {
+    "topic_id": "5de3b348-05ab-411b-84b8-0b5ef66e5916",
+    "subject": "AYT Coğrafya",
+    "topic": "Çevre ve Toplum",
+    "grade": 11
+  },
+  {
+    "topic_id": "fe7eec30-a46a-4b22-8d68-e04b5e228f3a",
+    "subject": "AYT Coğrafya",
+    "topic": "Kalkınma ve Çevre",
+    "grade": 12
+  },
+  {
+    "topic_id": "462fbbd7-9a27-4f23-855e-7727dcf92ba6",
+    "subject": "AYT Coğrafya",
+    "topic": "Marmara ve Ege Bölgesi Coğrafyası",
+    "grade": 12
+  },
+  {
+    "topic_id": "33a94459-809c-4a9f-b92e-7cd0b937c768",
+    "subject": "AYT Coğrafya",
+    "topic": "Akdeniz ve Güneydoğu Anadolu Bölgesi Coğrafyası",
+    "grade": 12
+  },
+  {
+    "topic_id": "19df1bfe-3cfc-4a59-9f5a-4a943aaf946f",
+    "subject": "AYT Coğrafya",
+    "topic": "İç Anadolu Bölgesi Coğrafyası",
+    "grade": 12
+  },
+  {
+    "topic_id": "b04e6c44-490c-4d0c-8f15-b4fd64ccadae",
+    "subject": "AYT Coğrafya",
+    "topic": "Karadeniz Bölgesi Coğrafyası",
+    "grade": 12
+  },
+  {
+    "topic_id": "0b49bfaa-3f0c-4fcd-9515-41a362aae329",
+    "subject": "AYT Coğrafya",
+    "topic": "Doğu Anadolu Bölgesi Coğrafyası",
+    "grade": 12
+  },
+  {
+    "topic_id": "06167466-c6ac-4116-8aed-81e0eb52f6ee",
+    "subject": "AYT Coğrafya",
+    "topic": "Türkiye'nin Genel Ekonomik Coğrafyası",
+    "grade": 11
+  },
+  {
+    "topic_id": "8f682fe2-d44d-416c-9645-c58759ba8226",
+    "subject": "AYT Felsefe",
+    "topic": "Felsefeye Giriş ve Tarihsel Gelişim",
+    "grade": 11
+  },
+  {
+    "topic_id": "8c32b99b-7c90-4f1b-a025-5acd6378dd64",
+    "subject": "AYT Felsefe",
+    "topic": "Varlık Felsefesi (Ontoloji)",
+    "grade": 10
+  },
+  {
+    "topic_id": "a111ad19-31a2-492b-96b6-c1f376eeda28",
+    "subject": "AYT Felsefe",
+    "topic": "Bilgi Felsefesi (Epistemoloji)",
+    "grade": 10
+  },
+  {
+    "topic_id": "4ce579c0-8796-4d10-acc9-86bcced02dc0",
+    "subject": "AYT Felsefe",
+    "topic": "Ahlak Felsefesi (Etik)",
+    "grade": 10
+  },
+  {
+    "topic_id": "d31ca558-c330-4a08-9293-daeef972eb4a",
+    "subject": "AYT Felsefe",
+    "topic": "Siyaset Felsefesi",
+    "grade": 10
+  },
+  {
+    "topic_id": "a1c5a946-841a-403f-8942-da5c531734aa",
+    "subject": "AYT Felsefe",
+    "topic": "Sanat Felsefesi (Estetik)",
+    "grade": 10
+  },
+  {
+    "topic_id": "7182ff4b-285c-46b3-9de4-8aa1e9915d3c",
+    "subject": "AYT Felsefe",
+    "topic": "Din Felsefesi",
+    "grade": 10
+  },
+  {
+    "topic_id": "fad8c723-4894-4c88-b2cd-d826e39c4393",
+    "subject": "AYT Felsefe",
+    "topic": "Bilim Felsefesi",
+    "grade": 10
+  },
+  {
+    "topic_id": "929c8546-b05f-4740-9753-123b41223577",
+    "subject": "AYT Felsefe",
+    "topic": "Psikolojiye Giriş",
+    "grade": 11
+  },
+  {
+    "topic_id": "d11d8d3b-b92d-4efd-939f-13227e6be075",
+    "subject": "AYT Felsefe",
+    "topic": "Psikolojinin Temel Süreçleri (Algı, Dikkat)",
+    "grade": 11
+  },
+  {
+    "topic_id": "8be17c09-4986-48dc-8138-614280bc7a76",
+    "subject": "AYT Felsefe",
+    "topic": "Öğrenme ve Bellek",
+    "grade": 11
+  },
+  {
+    "topic_id": "9c15f070-fa98-48e6-ab3c-c0d1ecfe289e",
+    "subject": "AYT Felsefe",
+    "topic": "Motivasyon ve Duygu",
+    "grade": 11
+  },
+  {
+    "topic_id": "291d52b6-ffcf-40b1-ae67-8a7a6ba9f98c",
+    "subject": "AYT Felsefe",
+    "topic": "Sosyal Psikoloji",
+    "grade": 11
+  },
+  {
+    "topic_id": "5a9cbb5f-3bee-4d7b-a3c9-ba84b2c00353",
+    "subject": "AYT Felsefe",
+    "topic": "Psikoloji ve Ruh Sağlığı",
+    "grade": 11
+  },
+  {
+    "topic_id": "4ce32be5-5d8f-437f-8fef-bfff92aafd72",
+    "subject": "AYT Felsefe",
+    "topic": "Mantığa Giriş ve Klasik Mantık",
+    "grade": 12
+  },
+  {
+    "topic_id": "b3be16e8-6dd0-517a-b31f-ddb35765036a",
+    "subject": "AYT Felsefe",
+    "topic": "Mantık ve Dil",
+    "grade": 12
+  },
+  {
+    "topic_id": "5594ffef-48f1-4c6a-8947-623608d64a0a",
+    "subject": "AYT Felsefe",
+    "topic": "Sembolik Mantık",
+    "grade": 12
+  },
+  {
+    "topic_id": "6b2b4092-28a0-5024-8a65-549f82445128",
+    "subject": "AYT Sosyoloji",
+    "topic": "Sosyolojiye Giriş",
+    "grade": 11
+  },
+  {
+    "topic_id": "30b0f06d-aff0-5936-ad48-0176b01280f7",
+    "subject": "AYT Sosyoloji",
+    "topic": "Birey ve Toplum",
+    "grade": 11
+  },
+  {
+    "topic_id": "0090fd8d-e230-5d80-a032-4dca2cdb4ebe",
+    "subject": "AYT Sosyoloji",
+    "topic": "Toplumsal Yapı",
+    "grade": 11
+  },
+  {
+    "topic_id": "618dc201-0ddd-5626-acd8-e166c37d1a84",
+    "subject": "AYT Sosyoloji",
+    "topic": "Toplumsal Değişme ve Gelişme",
+    "grade": 11
+  },
+  {
+    "topic_id": "37e11da7-0f19-5208-98ab-6eff064534dd",
+    "subject": "AYT Sosyoloji",
+    "topic": "Toplum ve Kültür",
+    "grade": 11
+  },
+  {
+    "topic_id": "8de5db41-117a-55c5-99d8-09ba587afe70",
+    "subject": "AYT Sosyoloji",
+    "topic": "Toplumsal Kurumlar",
+    "grade": 11
+  },
+  {
+    "topic_id": "9e1b6cb8-ce18-54a9-9966-f22540c96726",
+    "subject": "AYT Din Kültürü",
+    "topic": "Dünya ve Ahiret",
+    "grade": 11
+  },
+  {
+    "topic_id": "ef12c5d8-5958-534b-aae4-129e72201c4d",
+    "subject": "AYT Din Kültürü",
+    "topic": "Kur'an'a Göre Hz. Muhammed",
+    "grade": 11
+  },
+  {
+    "topic_id": "2968f13b-69bf-514e-a527-634e76767c43",
+    "subject": "AYT Din Kültürü",
+    "topic": "Kur'an'da Bazı Kavramlar",
+    "grade": 11
+  },
+  {
+    "topic_id": "89e9a937-2cc8-5241-9aa5-81234ad46d9c",
+    "subject": "AYT Din Kültürü",
+    "topic": "İnançla İlgili Meseleler",
+    "grade": 11
+  },
+  {
+    "topic_id": "bda6abf7-3996-5547-b266-2a44a0410949",
+    "subject": "AYT Din Kültürü",
+    "topic": "Yahudilik ve Hristiyanlık",
+    "grade": 11
+  },
+  {
+    "topic_id": "e32af65b-e23e-58a7-9204-6c7999ad1199",
+    "subject": "AYT Din Kültürü",
+    "topic": "İslam ve Bilim",
+    "grade": 12
+  },
+  {
+    "topic_id": "16b71d6d-3071-524e-8ccd-9f63d5c2817a",
+    "subject": "AYT Din Kültürü",
+    "topic": "Anadolu'da İslam",
+    "grade": 12
+  },
+  {
+    "topic_id": "72801729-da6d-4ee1-9f93-80e882804588",
+    "subject": "AYT Din Kültürü",
+    "topic": "Tasavvuf",
+    "grade": 12
+  },
+  {
+    "topic_id": "3202aa96-8ee6-568f-aeb7-b30715484cd2",
+    "subject": "AYT Din Kültürü",
+    "topic": "Güncel Dini Meseleler",
+    "grade": 12
+  },
+  {
+    "topic_id": "b36ed864-2893-5e92-bdac-c7804d917ff2",
+    "subject": "AYT Din Kültürü",
+    "topic": "Hint ve Çin Dinleri",
+    "grade": 12
+  }
+]

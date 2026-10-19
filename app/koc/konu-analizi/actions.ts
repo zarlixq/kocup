@@ -133,8 +133,8 @@ export async function deleteAssignment(id: string): Promise<ActionResult> {
     .maybeSingle()
   if (!existing) return { success: false, error: "Atama bulunamadı" }
 
-  if (existing.created_by_role === "student") {
-    // Öğrencinin kendi hedefi: öğrencinin şu anki koçu silebilir (RLS: coach_delete_student_goals).
+  if (existing.created_by_role === "student" || existing.created_by_role === "ai") {
+    // Öğrencinin kendi / UpPlan hedefi: öğrencinin şu anki koçu silebilir (RLS: coach_delete_student_goals).
     const { data: student } = await supabase
       .from("students")
       .select("coach_id")

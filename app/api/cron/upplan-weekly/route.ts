@@ -15,10 +15,12 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = supabaseAdmin()
-  const { data: profiles, error } = await admin
-    .from("student_upplan_profile")
-    .select("student_id")
-    .not("completed_at", "is", null)
+  // ?student=<id> (tekrarlanabilir): yalnız bu öğrencileri işle — lokal uçtan uca
+  // test gerçek öğrencilere dokunmasın diye. Vercel Cron parametresiz çağırır.
+  const only = req.nextUrl.searchParams.getAll("student")
+  let q = admin.from("student_upplan_profile").select("student_id").not("completed_at", "is", null)
+  if (only.length) q = q.in("student_id", only)
+  const { data: profiles, error } = await q
   if (error) {
     console.error("upplan-weekly profiller", error)
     return NextResponse.json({ error: "Profiller okunamadı" }, { status: 500 })

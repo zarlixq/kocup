@@ -91,7 +91,7 @@ export async function runWeeklyUpdate(admin: Client, studentId: string, now = ne
         notices.push({
           student_id: studentId,
           kind: "yuk_azaldi",
-          message: `Bu hafta programının %${Math.round((compliance ?? 0) * 100)}'ini tamamladın; gelecek haftanın yükünü biraz azalttık.`,
+          message: `Bu hafta programındaki çalışmaların %${Math.round((compliance ?? 0) * 100)} kadarını tamamladın; gelecek haftanın yükünü biraz azalttık.`,
         })
       }
     } else {

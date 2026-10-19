@@ -111,6 +111,24 @@ describe("scheduleWeek", () => {
     expect(rev.hedef_soru).toBeLessThanOrEqual(20)
   })
 
+  it("az acil dersi haftanın başında da yerleştirir; ders sınırı yüzünden blok dışarıda kalmaz", () => {
+    // Uçtan uca testte görülen durum: acil dersler hafta başını doldurunca az acil
+    // ders hafta sonuna yığılıyor, günde 2 blok sınırına takılıp sığmıyordu.
+    const sub = (s: string, id: string, son: string) => goal(id, { subject_id: s, son_tarih: son, remaining_questions: 600 })
+    const r = scheduleWeek({
+      ...base,
+      availability: { ...AVAIL, "6": range(8, 20), "7": range(8, 20) },
+      goals: [
+        sub("mat", "m1", "2026-10-24"), sub("mat", "m2", "2026-10-25"),
+        sub("geo", "g1", "2026-10-24"), sub("geo", "g2", "2026-10-25"),
+        sub("tur", "t1", "2026-11-20"), sub("tur", "t2", "2026-11-30"),
+        sub("bio", "b1", "2026-12-20"), sub("bio", "b2", "2026-12-30"),
+      ],
+    })
+    expect(r.meta.unplaced).toBe(0)
+    expect(r.meta.blockCount).toBe(r.meta.capacityBlocks)
+  })
+
   it("yük çarpanı blok sayısını azaltır", () => {
     const goals = [goal("a", { remaining_questions: 1000, son_tarih: "2026-10-25" }), goal("b", { remaining_questions: 1000, son_tarih: "2026-10-25" })]
     const full = scheduleWeek({ ...base, goals })

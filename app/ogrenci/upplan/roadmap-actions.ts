@@ -95,9 +95,14 @@ export async function setQueueOrder(ids: unknown): Promise<ActionResult> {
     if (!rows || rows.length !== parsed.data.length) return { success: false, error: "Konu bulunamadı." }
     // Mevcut plan_order değerleri yeni sıraya dağıtılır (diğer sekmelerin sırası bozulmaz).
     const slots = rows.map((r) => r.plan_order ?? 0).sort((a, b) => a - b)
-    for (const [i, id] of parsed.data.entries()) {
-      const { error } = await auth.supabase.from("topic_assignments").update({ plan_order: slots[i] }).eq("id", id)
-      if (error) return { success: false, error: "Sıra kaydedilemedi." }
+    const { error } = await auth.supabase.rpc("upplan_set_plan_orders", {
+      p_student_id: auth.userId,
+      p_ids: parsed.data,
+      p_orders: parsed.data.map((_, i) => slots[i]),
+    })
+    if (error) {
+      console.error("setQueueOrder", error)
+      return { success: false, error: "Sıra kaydedilemedi." }
     }
     await redateQueue(supabaseAdmin(), auth.userId)
     revalidateRoadmap(auth.userId)

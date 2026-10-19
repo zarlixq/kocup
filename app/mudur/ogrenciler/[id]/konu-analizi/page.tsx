@@ -5,7 +5,8 @@ import {
   type AssignmentRow,
 } from "@/components/konu-analizi/koc-konu-analizi-view"
 import { StudentTopicAnalysis } from "@/components/konu-analizi/student-topic-analysis"
-import { loadAssignmentsWithProgress } from "@/lib/assignments/load"
+import { QueuedSummaryNote } from "@/components/konu-analizi/queued-summary-note"
+import { loadAssignmentsWithProgress, loadQueuedSummary } from "@/lib/assignments/load"
 
 export default async function MudurStudentKonuAnaliziPage({
   params,
@@ -21,6 +22,7 @@ export default async function MudurStudentKonuAnaliziPage({
     { data: subjects },
     { data: topics },
     { data: sessions },
+    queued,
   ] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", id).maybeSingle(),
     loadAssignmentsWithProgress(supabase, { studentId: id }),
@@ -32,6 +34,7 @@ export default async function MudurStudentKonuAnaliziPage({
         "id, assignment_id, date, total_questions, correct, wrong, duration_minutes, subject_id, subjects(name, order)",
       )
       .eq("student_id", id),
+    loadQueuedSummary(supabase, id),
   ])
 
   if (!profile) notFound()
@@ -43,6 +46,7 @@ export default async function MudurStudentKonuAnaliziPage({
       <StudentTopicAnalysis sessions={sessions ?? []} />
       <div>
         <h2 className="text-base font-semibold text-zinc-900 mb-3">Hedefli Atamalar</h2>
+        <QueuedSummaryNote queued={queued} />
         <KocKonuAnaliziView
           rows={rows}
           students={[{ id, full_name: profile.full_name }]}

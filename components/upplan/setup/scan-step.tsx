@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { Check, ChevronDown, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { SCAN_AUTOSAVE_MS } from "@/lib/upplan/config"
+import { SCAN_AUTOSAVE_MS, SCAN_BULK_GRADES } from "@/lib/upplan/config"
 import { SELF_ASSESSMENTS, SELF_ASSESSMENT_LABEL, type SelfAssessment } from "@/lib/upplan/mastery"
 import type { ScanData } from "@/lib/upplan/load"
 import { advanceSetup, saveSelfAssessments } from "@/app/ogrenci/upplan/actions"
@@ -32,6 +32,8 @@ export function ScanStep({ data, nextHref, isSetup }: { data: ScanData; nextHref
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const total = data.subjects.reduce((n, s) => n + s.topics.length, 0)
+  // Sınıf bazlı toplu işlem: kapsamdaki o sınıf konuları (topics.grade).
+  const gradeIds = (g: number) => data.subjects.flatMap((s) => s.topics.filter((t) => t.grade === g).map((t) => t.id))
   const marked = data.subjects.reduce((n, s) => n + s.topics.filter((t) => statuses[t.id]).length, 0)
   const pct = total ? Math.round((marked / total) * 100) : 0
 
@@ -105,6 +107,26 @@ export function ScanStep({ data, nextHref, isSetup }: { data: ScanData; nextHref
           <div className="h-full rounded-full bg-[#1B6B8A] transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
+
+      {SCAN_BULK_GRADES.some((g) => gradeIds(g).length > 0) && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-zinc-50 px-3 py-2.5 text-xs">
+          <span className="text-zinc-500">Toplu:</span>
+          {SCAN_BULK_GRADES.map((g) => {
+            const ids = gradeIds(g)
+            if (ids.length === 0) return null
+            return (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setMany(ids, "hic_gormedim")}
+                className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 font-medium text-zinc-700 hover:border-zinc-400"
+              >
+                {g}. sınıf konularını görmedim <span className="tabular-nums text-zinc-400">({ids.length})</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <p className="text-sm text-zinc-500">
         Emin olmadığın konuyu &quot;Eksik&quot; işaretle. Sonradan istediğin zaman değiştirebilirsin; soru çözdükçe skorun zaten

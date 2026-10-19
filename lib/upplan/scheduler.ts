@@ -128,6 +128,30 @@ type Ticket =
   | { kind: "goal"; goal: ProgramGoal; lecture: boolean; urgency: number }
   | { kind: "review"; review: ProgramReview }
 
+/**
+ * Ders×gün yerleşim uygunluğu (kaynak→ders→gün→hedef akışı, min-cut): her gün alt kümesi D için
+ * Σ_{d∈D} boş(d) + Σ_s min(kalan(s), Σ_{d∉D} hak(d,s)) ≥ Σ_s kalan(s). Gün ≤ 7 → en fazla 128 alt küme.
+ */
+function placeable(counts: Map<string, number>, days: { left: number; room: (subject: string) => number }[]): boolean {
+  const subs = Array.from(counts).filter(([, n]) => n > 0)
+  const total = subs.reduce((t, [, n]) => t + n, 0)
+  for (let mask = 0; mask < 1 << days.length; mask++) {
+    let cut = 0
+    days.forEach((d, i) => {
+      if (mask & (1 << i)) cut += d.left
+    })
+    for (const [s, n] of subs) {
+      let room = 0
+      days.forEach((d, i) => {
+        if (!(mask & (1 << i))) room += d.room(s)
+      })
+      cut += Math.min(n, room)
+    }
+    if (cut < total) return false
+  }
+  return true
+}
+
 // ── Ana fonksiyon ───────────────────────────────────────────────────────
 export function scheduleWeek(input: ScheduleInput): ScheduleResult {
   const focus = input.focusMinutes
@@ -197,6 +221,13 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
     .filter((x) => x.need > 0)
 
   // Kapasite sınırlıysa aciliyet ağırlıklı dağıtım: her adımda urgency/(verilen+1) en büyük olana.
+  // Günde dersten en fazla MAX_SUBJECT_BLOCKS_PER_DAY blok kuralıyla yerleşemeyecek bilet verilmez
+  // (yoksa acil dersler kapasiteyi alır, biletler sığmaz, az acil ders boş kalır).
+  const perDayPositions = new Map<number, number>()
+  for (const p of positions) perDayPositions.set(p.day, (perDayPositions.get(p.day) ?? 0) + 1)
+  const weekDays = Array.from(perDayPositions.values()).map((left) => ({ left, room: () => MAX_SUBJECT_BLOCKS_PER_DAY }))
+  const subjectGiven = new Map<string, number>()
+  for (const t of tickets) if (t.kind === "review") subjectGiven.set(t.review.subject_id, (subjectGiven.get(t.review.subject_id) ?? 0) + 1)
   const budget = Math.max(capacityBlocks - tickets.length, 0)
   const given = new Map<string, number>()
   for (let k = 0; k < budget; k++) {
@@ -206,13 +237,15 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
       const gv = given.get(x.g.assignment_id) ?? 0
       if (gv >= x.need) continue
       const p = x.urgency / (gv + 1)
-      if (p > bestP) {
-        bestP = p
-        best = x
-      }
+      if (p <= bestP) continue
+      const counts = new Map(subjectGiven).set(x.g.subject_id, (subjectGiven.get(x.g.subject_id) ?? 0) + 1)
+      if (!placeable(counts, weekDays)) continue
+      bestP = p
+      best = x
     }
     if (!best) break
     given.set(best.g.assignment_id, (given.get(best.g.assignment_id) ?? 0) + 1)
+    subjectGiven.set(best.g.subject_id, (subjectGiven.get(best.g.subject_id) ?? 0) + 1)
   }
   for (const x of demand) {
     const n = given.get(x.g.assignment_id) ?? 0
@@ -225,15 +258,28 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
   const subjectOf = (t: Ticket) => (t.kind === "goal" ? t.goal.subject_id : t.review.subject_id)
   const keyOf = (t: Ticket) => (t.kind === "goal" ? t.goal.assignment_id : `r:${t.review.topic_id}`)
   let remaining = [...tickets]
+  const posLeft = new Map<number, number>()
+  for (const p of positions) posLeft.set(p.day, (posLeft.get(p.day) ?? 0) + 1)
   for (const pos of positions) {
     if (remaining.length === 0) break
+    posLeft.set(pos.day, posLeft.get(pos.day)! - 1)
     const date = addDaysIso(input.weekStart, pos.day - 1)
-    const ok = remaining.filter((t) => {
+    let ok = remaining.filter((t) => {
       if ((perDaySubject.get(`${pos.day}:${subjectOf(t)}`) ?? 0) >= MAX_SUBJECT_BLOCKS_PER_DAY) return false
       if (t.kind === "review" && t.review.due > date) return false
       return true
     })
     if (ok.length === 0) continue
+    // Kalan biletlerin sonraki pozisyonlara hâlâ sığabildiği dersler tercih edilir.
+    const counts = new Map<string, number>()
+    for (const t of remaining) counts.set(subjectOf(t), (counts.get(subjectOf(t)) ?? 0) + 1)
+    const keeps = new Set<string>()
+    for (const sub of new Set(ok.map(subjectOf))) {
+      const used = (d: number, x: string) => (perDaySubject.get(`${d}:${x}`) ?? 0) + (d === pos.day && x === sub ? 1 : 0)
+      const days = Array.from(posLeft, ([d, left]) => ({ left, room: (x: string) => Math.max(MAX_SUBJECT_BLOCKS_PER_DAY - used(d, x), 0) }))
+      if (placeable(new Map(counts).set(sub, counts.get(sub)! - 1), days)) keeps.add(sub)
+    }
+    if (keeps.size) ok = ok.filter((t) => keeps.has(subjectOf(t)))
     const score = (t: Ticket) => {
       let s = t.kind === "review" ? 2 : t.urgency
       if (pos.first && t.kind === "goal" && t.goal.block_type === "konu_calisma") s += 10
