@@ -286,6 +286,71 @@ export type Database = {
           },
         ]
       }
+      coach_assignment_history: {
+        Row: {
+          appointments_cancelled: number
+          created_at: string
+          goals_transferred: number
+          id: string
+          items_transferred: number
+          new_coach_id: string | null
+          old_coach_id: string | null
+          performed_by: string | null
+          student_id: string
+        }
+        Insert: {
+          appointments_cancelled?: number
+          created_at?: string
+          goals_transferred?: number
+          id?: string
+          items_transferred?: number
+          new_coach_id?: string | null
+          old_coach_id?: string | null
+          performed_by?: string | null
+          student_id: string
+        }
+        Update: {
+          appointments_cancelled?: number
+          created_at?: string
+          goals_transferred?: number
+          id?: string
+          items_transferred?: number
+          new_coach_id?: string | null
+          old_coach_id?: string | null
+          performed_by?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_assignment_history_new_coach_id_fkey"
+            columns: ["new_coach_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_assignment_history_old_coach_id_fkey"
+            columns: ["old_coach_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_assignment_history_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_assignment_history_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       demo_appointments: {
         Row: {
           created_at: string
@@ -1374,6 +1439,93 @@ export type Database = {
           },
         ]
       }
+      student_topic_mastery: {
+        Row: {
+          breakdown: Json
+          confidence: string
+          evidence_n: number
+          evidence_w: number
+          last_practiced_at: string | null
+          mastery: number
+          student_id: string
+          topic_id: string
+          updated_at: string
+        }
+        Insert: {
+          breakdown?: Json
+          confidence: string
+          evidence_n?: number
+          evidence_w?: number
+          last_practiced_at?: string | null
+          mastery: number
+          student_id: string
+          topic_id: string
+          updated_at?: string
+        }
+        Update: {
+          breakdown?: Json
+          confidence?: string
+          evidence_n?: number
+          evidence_w?: number
+          last_practiced_at?: string | null
+          mastery?: number
+          student_id?: string
+          topic_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_topic_mastery_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_topic_mastery_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_topic_self_assessment: {
+        Row: {
+          status: string
+          student_id: string
+          topic_id: string
+          updated_at: string
+        }
+        Insert: {
+          status: string
+          student_id: string
+          topic_id: string
+          updated_at?: string
+        }
+        Update: {
+          status?: string
+          student_id?: string
+          topic_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_topic_self_assessment_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_topic_self_assessment_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_topics: {
         Row: {
           created_at: string | null
@@ -1437,6 +1589,62 @@ export type Database = {
             columns: ["topic_id"]
             isOneToOne: false
             referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_upplan_profile: {
+        Row: {
+          alan: string | null
+          availability: Json
+          completed_at: string | null
+          created_at: string
+          focus_minutes: number
+          grade: number | null
+          segment: string
+          setup_step: string
+          status: string
+          student_id: string
+          target_department: string | null
+          target_ranking: number | null
+          updated_at: string
+        }
+        Insert: {
+          alan?: string | null
+          availability?: Json
+          completed_at?: string | null
+          created_at?: string
+          focus_minutes?: number
+          grade?: number | null
+          segment: string
+          setup_step?: string
+          status: string
+          student_id: string
+          target_department?: string | null
+          target_ranking?: number | null
+          updated_at?: string
+        }
+        Update: {
+          alan?: string | null
+          availability?: Json
+          completed_at?: string | null
+          created_at?: string
+          focus_minutes?: number
+          grade?: number | null
+          segment?: string
+          setup_step?: string
+          status?: string
+          student_id?: string
+          target_department?: string | null
+          target_ranking?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_upplan_profile_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1666,6 +1874,8 @@ export type Database = {
           hedef_sure_dk: number | null
           id: string
           notes: string | null
+          origin_coach_id: string | null
+          origin_role: string | null
           son_tarih: string
           status: Database["public"]["Enums"]["assignment_status"]
           student_id: string
@@ -1683,6 +1893,8 @@ export type Database = {
           hedef_sure_dk?: number | null
           id?: string
           notes?: string | null
+          origin_coach_id?: string | null
+          origin_role?: string | null
           son_tarih: string
           status?: Database["public"]["Enums"]["assignment_status"]
           student_id: string
@@ -1700,6 +1912,8 @@ export type Database = {
           hedef_sure_dk?: number | null
           id?: string
           notes?: string | null
+          origin_coach_id?: string | null
+          origin_role?: string | null
           son_tarih?: string
           status?: Database["public"]["Enums"]["assignment_status"]
           student_id?: string
@@ -1717,6 +1931,13 @@ export type Database = {
           {
             foreignKeyName: "topic_assignments_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_assignments_origin_coach_id_fkey"
+            columns: ["origin_coach_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1772,6 +1993,24 @@ export type Database = {
           },
         ]
       }
+      upplan_config: {
+        Row: {
+          key: string
+          note: string | null
+          value: number
+        }
+        Insert: {
+          key: string
+          note?: string | null
+          value: number
+        }
+        Update: {
+          key?: string
+          note?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
       user_ui_preferences: {
         Row: {
           scope: string
@@ -1807,6 +2046,8 @@ export type Database = {
           id: string
           is_completed: boolean
           order_index: number
+          origin_coach_id: string | null
+          origin_role: string | null
           program_id: string
           start_time: string | null
           subject_id: string | null
@@ -1825,6 +2066,8 @@ export type Database = {
           id?: string
           is_completed?: boolean
           order_index?: number
+          origin_coach_id?: string | null
+          origin_role?: string | null
           program_id: string
           start_time?: string | null
           subject_id?: string | null
@@ -1843,6 +2086,8 @@ export type Database = {
           id?: string
           is_completed?: boolean
           order_index?: number
+          origin_coach_id?: string | null
+          origin_role?: string | null
           program_id?: string
           start_time?: string | null
           subject_id?: string | null
@@ -1854,6 +2099,13 @@ export type Database = {
             columns: ["carried_from_item_id"]
             isOneToOne: false
             referencedRelation: "weekly_program_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_program_items_origin_coach_id_fkey"
+            columns: ["origin_coach_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1921,7 +2173,8 @@ export type Database = {
       wrong_answers: {
         Row: {
           created_at: string
-          error_type: string
+          error_type: string | null
+          exam_id: string | null
           id: string
           knowledge_atom_id: string | null
           note: string | null
@@ -1933,7 +2186,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          error_type: string
+          error_type?: string | null
+          exam_id?: string | null
           id?: string
           knowledge_atom_id?: string | null
           note?: string | null
@@ -1945,7 +2199,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          error_type?: string
+          error_type?: string | null
+          exam_id?: string | null
           id?: string
           knowledge_atom_id?: string | null
           note?: string | null
@@ -1956,6 +2211,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "wrong_answers_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wrong_answers_knowledge_atom_id_fkey"
             columns: ["knowledge_atom_id"]
@@ -2060,12 +2322,31 @@ export type Database = {
           views: number
         }[]
       }
+      change_student_coach: {
+        Args: { p_new_coach_id: string | null; p_student_id: string }
+        Returns: undefined
+      }
+      compute_topic_mastery: {
+        Args: { p_as_of?: string; p_student_id: string; p_topic_id: string }
+        Returns: {
+          breakdown: Json
+          evidence_n: number
+          evidence_w: number
+          has_assessment: boolean
+          last_practiced_at: string
+          mastery: number
+        }[]
+      }
       current_user_org_id: { Args: never; Returns: string }
       current_user_role: { Args: never; Returns: string }
       delete_coach_safely: { Args: { coach_uuid: string }; Returns: undefined }
       delete_student_safely: {
         Args: { student_uuid: string }
         Returns: undefined
+      }
+      effective_mastery: {
+        Args: { p_as_of?: string; p_last: string | null; p_stored: number }
+        Returns: number
       }
       exam_belongs_to_visible_student: {
         Args: { p_exam_id: string }
@@ -2083,6 +2364,18 @@ export type Database = {
         }[]
       }
       party_application_count: { Args: never; Returns: number }
+      recompute_student_mastery: {
+        Args: { p_student_id: string }
+        Returns: number
+      }
+      recompute_topic_mastery: {
+        Args: { p_student_id: string; p_topic_id: string }
+        Returns: undefined
+      }
+      set_exam_wrong_answers: {
+        Args: { p_exam_id: string; p_items: Json }
+        Returns: undefined
+      }
       set_session_wrong_answers: {
         Args: { p_items: Json; p_session_id: string; p_topic_id?: string }
         Returns: undefined
@@ -2126,6 +2419,39 @@ export type Database = {
           week_start: string
         }[]
       }
+      student_mastery_map: {
+        Args: { p_student_id: string }
+        Returns: {
+          breakdown: Json
+          confidence: string
+          effective: number
+          evidence_n: number
+          forgetting: boolean
+          label: string
+          last_practiced_at: string | null
+          stored: number
+          subject_id: string
+          topic_id: string
+        }[]
+      }
+      student_mastery_trend: {
+        Args: { p_student_id: string; p_weeks?: number }
+        Returns: {
+          subject_id: string
+          sum_effective: number
+          topic_count: number
+          week_end: string
+        }[]
+      }
+      student_overconfident_topics: {
+        Args: { p_student_id: string }
+        Returns: {
+          effective: number
+          subject_name: string
+          topic_id: string
+          topic_name: string
+        }[]
+      }
       student_scoreboard_stats: {
         Args: { p_since: string }
         Returns: {
@@ -2147,6 +2473,13 @@ export type Database = {
           p_siralama?: number
         }
         Returns: undefined
+      }
+      upplan_cfg: { Args: { p_key: string }; Returns: number }
+      upplan_confidence: { Args: { p_evidence_w: number }; Returns: string }
+      upplan_penalty: { Args: { p_error_type: string | null }; Returns: number }
+      upplan_recompute_student: {
+        Args: { p_student_id: string }
+        Returns: number
       }
       weekly_program_compliance: {
         Args: { p_student_id?: string; p_week_start: string }

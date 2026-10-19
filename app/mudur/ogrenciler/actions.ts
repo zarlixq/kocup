@@ -27,15 +27,18 @@ export async function assignCoach(
   const auth = await requireAdmin()
   if (!auth.ok) return { success: false, error: auth.error }
 
-  const admin = supabaseAdmin()
-  const { error } = await admin
-    .from("students")
-    .update({ coach_id: coachId })
-    .eq("id", studentId)
+  // Oturum client'ı: RPC yetkiyi kontrol eder; students.coach_id trigger'ı
+  // eski koçun aktif hedef/gelecek kalemlerini öğrenciye devreder, gelecek
+  // randevularını iptal eder ve coach_assignment_history'ye yazar (migration 206).
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("change_student_coach", {
+    p_student_id: studentId,
+    p_new_coach_id: coachId,
+  })
 
   if (error) {
     console.error("Koç atama hatası:", error)
-    return { success: false, error: "Koç atanamadı, tekrar deneyin." }
+    return { success: false, error: error.code === "P0001" ? error.message : "Koç atanamadı, tekrar deneyin." }
   }
 
   revalidatePath("/mudur/ogrenciler")

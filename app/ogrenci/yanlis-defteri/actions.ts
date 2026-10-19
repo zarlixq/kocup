@@ -108,7 +108,8 @@ export async function saveSessionWrongs(
 }
 
 const updateSchema = z.object({
-  error_type: z.enum(ERROR_TYPES),
+  // null yalnız deneme yanlışında geçerli (DB CHECK, migration 208).
+  error_type: z.enum(ERROR_TYPES).nullable(),
   knowledge_atom_id: z.string().uuid().nullable(),
   note: z
     .string()

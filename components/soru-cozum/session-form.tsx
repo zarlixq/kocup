@@ -31,7 +31,10 @@ export type SessionInitial = {
   resource_id: string | null
 }
 
-type Mode = { kind: "create" } | { kind: "edit"; sessionId: string; initial: SessionInitial; locked: boolean }
+type Mode =
+  // preset: UpPlan tekrar önerisi gibi "o konu seçili" açılışlar.
+  | { kind: "create"; presetTopicId?: string | null; presetTotal?: number | null }
+  | { kind: "edit"; sessionId: string; initial: SessionInitial; locked: boolean }
 
 const COUNT_FIELDS: { key: CountField; label: string; tone: string }[] = [
   { key: "total", label: "Soru", tone: "text-zinc-900" },
@@ -57,7 +60,13 @@ export function SessionForm({ data, mode }: { data: SessionFormData; mode: Mode 
   const subjectById = useMemo(() => new Map(data.subjects.map((s) => [s.id, s])), [data.subjects])
   const topicById = useMemo(() => new Map(data.topics.map((t) => [t.id, t])), [data.topics])
 
-  const initialSubject = initial ? subjectById.get(initial.subject_id) : undefined
+  const presetTopic = mode.kind === "create" && mode.presetTopicId ? topicById.get(mode.presetTopicId) : undefined
+  const presetTotal = mode.kind === "create" && mode.presetTotal ? String(mode.presetTotal) : ""
+  const initialSubject = initial
+    ? subjectById.get(initial.subject_id)
+    : presetTopic
+      ? subjectById.get(presetTopic.subject_id)
+      : undefined
   const initialExamKey = initialSubject ? subjectExamKey(initialSubject) : null
   const examOptions = useMemo(
     () => examOptionsFor(data.grade, data.subjects, initialExamKey),
@@ -65,12 +74,12 @@ export function SessionForm({ data, mode }: { data: SessionFormData; mode: Mode 
   )
 
   const [examKey, setExamKey] = useState<string>(initialExamKey ?? examOptions[0]?.key ?? "")
-  const [subjectId, setSubjectId] = useState<string | null>(initial?.subject_id ?? null)
-  const [topicId, setTopicId] = useState<string | null>(initial?.topic_id ?? null)
+  const [subjectId, setSubjectId] = useState<string | null>(initial?.subject_id ?? initialSubject?.id ?? null)
+  const [topicId, setTopicId] = useState<string | null>(initial?.topic_id ?? (initialSubject ? presetTopic?.id : null) ?? null)
   const [raw, setRaw] = useState<Raw>(
     initial
       ? { total: String(initial.total), correct: String(initial.correct), wrong: String(initial.wrong), empty: String(initial.empty) }
-      : EMPTY_RAW,
+      : { ...EMPTY_RAW, total: presetTotal },
   )
   const [date, setDate] = useState(initial?.date ?? today)
   const [duration, setDuration] = useState(initial?.duration_minutes != null ? String(initial.duration_minutes) : "")

@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
+import { ERROR_TYPES } from "@/lib/yanlis-defteri/constants"
+import { loadOverconfident } from "@/lib/upplan/load"
+import type { OverconfidentTopic } from "@/lib/upplan/today"
 
 const resultSchema = z.object({
   subject_id: z.string().uuid(),
@@ -24,6 +27,15 @@ const examSchema = z.object({
 export type CreateExamInput = z.infer<typeof examSchema>
 
 export async function createExamAction(input: unknown) {
+  return createExam(input, "")
+}
+
+// UpPlan kurulumundan gelen deneme: yanlış paneli bitince kuruluma döner.
+export async function createExamFromUpplanAction(input: unknown) {
+  return createExam(input, "&from=upplan")
+}
+
+async function createExam(input: unknown, redirectSuffix: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Oturum bulunamadı." }
@@ -78,10 +90,11 @@ export async function createExamAction(input: unknown) {
   revalidatePath("/ogrenci/denemelerim")
   revalidatePath("/ogrenci")
   // PDF (varsa) client tarafında storage'a yüklenir; yönlendirmeyi client yapar.
+  // Detay sayfası yanlış panelini açık getirir (yanlışlar konulara dağıtılsın).
   return {
     examId: exam.id,
     studentId: user.id,
-    redirectTo: `/ogrenci/denemelerim/${exam.id}`,
+    redirectTo: `/ogrenci/denemelerim/${exam.id}?yanlislar=1${redirectSuffix}`,
   }
 }
 
@@ -166,4 +179,61 @@ export async function deleteExamAction(examId: string) {
   revalidatePath("/ogrenci")
   revalidatePath(`/koc/ogrenciler/${user.id}/denemeler`)
   redirect("/ogrenci/denemelerim")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Deneme → yanlış defteri (migration 208)
+// ─────────────────────────────────────────────────────────────────────────
+
+const examWrongItemsSchema = z
+  .array(
+    z.object({
+      topic_id: z.string().uuid(),
+      error_type: z.enum(ERROR_TYPES).nullable(),
+      knowledge_atom_id: z.string().uuid().nullable(),
+      count: z.number().int().min(0).max(200),
+    }),
+  )
+  .max(500)
+
+type ExamWrongsResult = { success: boolean; error?: string; data?: { overconfident: OverconfidentTopic[] } }
+
+// DB'nin Türkçe iş kuralı mesajları (RPC raise / CHECK) kullanıcıya gösterilir.
+function dbMessage(error: { code?: string; message: string }, fallback: string) {
+  if (error.code === "23514" || error.code === "23503" || error.code === "P0001") return error.message
+  return fallback
+}
+
+export async function saveExamWrongsAction(examId: string, items: unknown): Promise<ExamWrongsResult> {
+  try {
+    if (!z.string().uuid().safeParse(examId).success) return { success: false, error: "Deneme bulunamadı." }
+    const parsed = examWrongItemsSchema.safeParse(items)
+    if (!parsed.success) return { success: false, error: "Geçersiz yanlış listesi." }
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: "Oturum bulunamadı." }
+
+    // Uzlaştırma tek transaction'da; ustalık skoru trigger'la güncellenir.
+    const { error } = await supabase.rpc("set_exam_wrong_answers", { p_exam_id: examId, p_items: parsed.data })
+    if (error) {
+      console.error("saveExamWrongsAction", error)
+      return { success: false, error: dbMessage(error, "Yanlışlar kaydedilemedi, tekrar dene.") }
+    }
+
+    // "Biliyorum" dediği ama bu denemeden sonra skoru eşik altına düşen konular.
+    const topicIds = new Set(parsed.data.filter((i) => i.count > 0).map((i) => i.topic_id))
+    const overconfident = (await loadOverconfident(supabase, user.id)).filter((t) => topicIds.has(t.topic_id))
+
+    revalidatePath(`/ogrenci/denemelerim/${examId}`)
+    revalidatePath("/ogrenci")
+    revalidatePath("/ogrenci/upplan")
+    revalidatePath("/ogrenci/yanlis-defteri")
+    revalidatePath(`/koc/ogrenciler/${user.id}/upplan`)
+    revalidatePath(`/koc/ogrenciler/${user.id}/acik-haritasi`)
+    return { success: true, data: { overconfident } }
+  } catch (e) {
+    console.error("saveExamWrongsAction", e)
+    return { success: false, error: "Bir hata oluştu, tekrar deneyin." }
+  }
 }

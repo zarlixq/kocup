@@ -9,6 +9,8 @@ import { DeleteExamButton } from "@/components/ogrenci/delete-exam-button"
 import { ExamPdfButton } from "@/components/denemeler/exam-pdf-button"
 import { Button } from "@/components/ui/button"
 import { EditedBadge } from "@/components/shared/edited-badge"
+import { ExamWrongsPanel } from "@/components/upplan/exam-wrongs-panel"
+import { loadExamWrongContext } from "@/lib/upplan/exam-wrongs-load"
 
 const examTypeLabel: Record<string, string> = {
   tyt: "TYT",
@@ -16,8 +18,15 @@ const examTypeLabel: Record<string, string> = {
   tyt_ayt: "TYT + AYT",
 }
 
-export default async function ExamDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ExamDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ yanlislar?: string; from?: string }>
+}) {
   const { id } = await params
+  const sp = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -29,6 +38,9 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ id:
     .maybeSingle()
 
   if (!exam) notFound()
+
+  // Koçun girdiği denemelerde de yanlışları öğrenci dağıtır (RLS: wrong_answers öğrenciye özel).
+  const wrongCtx = await loadExamWrongContext(supabase, user!.id, exam.id)
 
   const totalNet = (exam.exam_results ?? []).reduce((s, r) => s + Number(r.net ?? 0), 0)
   const totalCorrect = (exam.exam_results ?? []).reduce((s, r) => s + r.correct, 0)
@@ -98,6 +110,10 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ id:
           </TableBody>
         </Table>
       </div>
+
+      {wrongCtx && (
+        <ExamWrongsPanel ctx={wrongCtx} defaultOpen={sp.yanlislar === "1"} fromUpplan={sp.from === "upplan"} />
+      )}
     </div>
   )
 }

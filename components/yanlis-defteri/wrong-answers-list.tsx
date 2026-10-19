@@ -33,9 +33,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   ERROR_TYPES,
-  ERROR_TYPE_COLOR,
   ERROR_TYPE_LABEL,
   UNKNOWN_TYPES,
+  UNTYPED_LABEL,
+  errorTypeColor,
+  errorTypeLabel,
+  isErrorType,
   type ErrorType,
 } from "@/lib/yanlis-defteri/constants"
 import { deleteWrongAnswer, updateWrongAnswer } from "@/app/ogrenci/yanlis-defteri/actions"
@@ -43,7 +46,9 @@ import { deleteWrongAnswer, updateWrongAnswer } from "@/app/ogrenci/yanlis-defte
 export type WrongListItem = {
   id: string
   date: string
-  error_type: ErrorType
+  error_type: ErrorType | null
+  /** Deneme kaynaklı yanlışta deneme adı (tipsiz olabilir). */
+  exam_name: string | null
   note: string | null
   topic_id: string
   topic_name: string
@@ -55,6 +60,11 @@ export type WrongListItem = {
 export type WrongListGroup = { date: string; label: string; items: WrongListItem[] }
 
 const NO_ATOM = "__none__"
+const NO_TYPE = "__untyped__"
+
+function isUnknown(t: ErrorType | null) {
+  return t !== null && UNKNOWN_TYPES.includes(t)
+}
 
 export function WrongAnswersList({
   groups,
@@ -87,15 +97,16 @@ export function WrongAnswersList({
           <ul className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
             {g.items.map((w) => (
               <li key={w.id} className="flex items-start gap-3 px-4 py-3">
-                <span aria-hidden className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: ERROR_TYPE_COLOR[w.error_type] }} />
+                <span aria-hidden className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: errorTypeColor(w.error_type) }} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="text-sm font-medium text-zinc-900">{ERROR_TYPE_LABEL[w.error_type]}</span>
+                    <span className="text-sm font-medium text-zinc-900">{errorTypeLabel(w.error_type)}</span>
                     <span className="text-xs text-zinc-500">
                       {w.subject_name} · {w.topic_name}
                     </span>
+                    {w.exam_name && <span className="text-xs text-[#1B6B8A]">Deneme: {w.exam_name}</span>}
                   </div>
-                  {UNKNOWN_TYPES.includes(w.error_type) && (
+                  {isUnknown(w.error_type) && (
                     <div className="mt-0.5 text-xs">
                       {w.atom_name ? (
                         <span className="text-orange-700">Bilgi: {w.atom_name}</span>
@@ -140,8 +151,8 @@ export function WrongAnswersList({
           <AlertDialogHeader>
             <AlertDialogTitle>Yanlış kaydını sil?</AlertDialogTitle>
             <AlertDialogDescription>
-              {del && `${ERROR_TYPE_LABEL[del.error_type]} · ${del.topic_name}`} kaydı yanlış defterinden silinecek. Soru
-              çözüm kaydın değişmez.
+              {del && `${errorTypeLabel(del.error_type)} · ${del.topic_name}`} kaydı yanlış defterinden silinecek.{" "}
+              {del?.exam_name ? "Deneme sonucun değişmez." : "Soru çözüm kaydın değişmez."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -172,11 +183,11 @@ function EditWrongDialog({
   atoms: { id: string; name: string }[]
   onClose: () => void
 }) {
-  const [type, setType] = useState<ErrorType>(item.error_type)
+  const [type, setType] = useState<ErrorType | null>(item.error_type)
   const [atomId, setAtomId] = useState<string>(item.atom_id ?? NO_ATOM)
   const [note, setNote] = useState(item.note ?? "")
   const [pending, start] = useTransition()
-  const unknown = UNKNOWN_TYPES.includes(type)
+  const unknown = isUnknown(type)
 
   function save() {
     start(async () => {
@@ -204,11 +215,13 @@ function EditWrongDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Hata tipi</Label>
-            <Select value={type} onValueChange={(v) => setType(v as ErrorType)}>
+            <Select value={type ?? NO_TYPE} onValueChange={(v) => setType(isErrorType(v) ? v : null)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                {/* Tipsiz yalnız deneme yanlışında mümkün (DB CHECK). */}
+                {item.exam_name !== null && <SelectItem value={NO_TYPE}>{UNTYPED_LABEL}</SelectItem>}
                 {ERROR_TYPES.map((t) => (
                   <SelectItem key={t} value={t}>
                     {ERROR_TYPE_LABEL[t]}

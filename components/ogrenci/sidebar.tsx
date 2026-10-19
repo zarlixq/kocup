@@ -19,6 +19,7 @@ import {
   UserCog,
   User,
   Settings,
+  Sparkles,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -37,6 +38,7 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { href: "/ogrenci", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/ogrenci/upplan", label: "UpPlan", icon: Sparkles },
   { href: "/ogrenci/konularim", label: "Konularım", icon: BookOpen },
   { href: "/ogrenci/program", label: "Program", icon: Calendar },
   { href: "/ogrenci/etut", label: "Etüt", icon: CalendarClock },

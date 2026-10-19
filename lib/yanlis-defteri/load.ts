@@ -229,7 +229,9 @@ export type WrongListData = {
   items: {
     id: string
     date: string
-    error_type: ErrorType
+    error_type: ErrorType | null
+    /** Deneme kaynaklı yanlışta deneme adı. */
+    exam_name: string | null
     note: string | null
     topic_id: string
     topic_name: string
@@ -251,7 +253,7 @@ export async function loadWrongList(supabase: Client, studentId: string): Promis
     supabase
       .from("wrong_answers")
       .select(
-        "id, error_type, note, created_at, topic_id, knowledge_atom_id, knowledge_atoms(name), topics(name, subjects(name)), study_sessions(date)",
+        "id, error_type, note, created_at, topic_id, knowledge_atom_id, knowledge_atoms(name), topics(name, subjects(name)), study_sessions(date), exams(name, date)",
       )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false })
@@ -267,11 +269,12 @@ export async function loadWrongList(supabase: Client, studentId: string): Promis
   ])
 
   const items = (rows ?? [])
-    .filter((r) => isErrorType(r.error_type))
+    .filter((r) => r.error_type === null || isErrorType(r.error_type))
     .map((r) => ({
       id: r.id,
-      date: r.study_sessions?.date ?? r.created_at.slice(0, 10),
-      error_type: r.error_type as ErrorType,
+      date: r.study_sessions?.date ?? r.exams?.date ?? r.created_at.slice(0, 10),
+      error_type: isErrorType(r.error_type) ? r.error_type : null,
+      exam_name: r.exams?.name ?? null,
       note: r.note,
       topic_id: r.topic_id,
       topic_name: r.topics?.name ?? "—",

@@ -19,6 +19,8 @@ import { getStudentContext, noCoachMessage } from "@/lib/ogrenci/context"
 import { loadAssignmentsWithProgress } from "@/lib/assignments/load"
 import { getStudentComplianceHistory } from "@/lib/analytics/compliance"
 import { buildSubjectRadarData, buildExamTrendData } from "@/lib/charts/builders"
+import { loadToday } from "@/lib/upplan/load"
+import { TodaySection } from "@/components/upplan/today-section"
 
 function initials(name: string) {
   return name
@@ -109,9 +111,10 @@ export default async function OgrenciDashboard() {
   ])
 
   // Hedefler + soru çözümünden otomatik ilerleme (WeeklyTasksCard) ve program uyumu.
-  const [assignments, complianceHistory] = await Promise.all([
+  const [assignments, complianceHistory, today] = await Promise.all([
     loadAssignmentsWithProgress(supabase, { studentId }),
     getStudentComplianceHistory(supabase, studentId),
+    loadToday(supabase, studentId, now),
   ])
   const weeklyTasks: TaskItem[] = assignments
 
@@ -181,6 +184,8 @@ export default async function OgrenciDashboard() {
           </Link>
         )}
       </div>
+
+      <TodaySection data={today} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard

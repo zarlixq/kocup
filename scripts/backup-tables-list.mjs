@@ -11,4 +11,5 @@ export const BACKUP_TABLES = [
   "topics",
   "profiles",
   "students",
+  "appointments",
 ]

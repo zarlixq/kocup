@@ -42,8 +42,20 @@ export const ERROR_TYPE_COLOR: Record<ErrorType, string> = {
 /** "Bilmiyordum" sayılan tipler: Kademe 2'de atom sorulur. */
 export const UNKNOWN_TYPES: readonly ErrorType[] = ["bilgi_eksik", "hic_fikrim_yok"]
 
-export function isErrorType(v: string): v is ErrorType {
-  return (ERROR_TYPES as readonly string[]).includes(v)
+export function isErrorType(v: string | null): v is ErrorType {
+  return v !== null && (ERROR_TYPES as readonly string[]).includes(v)
+}
+
+// Deneme yanlışında hata tipi opsiyonel (wrong_answers.error_type null, migration 208).
+export const UNTYPED_LABEL = "Belirtilmedi"
+export const UNTYPED_COLOR = "#a1a1aa"
+
+export function errorTypeLabel(t: ErrorType | null): string {
+  return t ? ERROR_TYPE_LABEL[t] : UNTYPED_LABEL
+}
+
+export function errorTypeColor(t: ErrorType | null): string {
+  return t ? ERROR_TYPE_COLOR[t] : UNTYPED_COLOR
 }
 
 export type Confidence = "yetersiz" | "dusuk" | "orta" | "yuksek"
