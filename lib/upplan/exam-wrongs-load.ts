@@ -17,6 +17,8 @@ export type ExamWrongContext = {
   examId: string
   subjects: ExamWrongSubject[]
   rows: ExamWrongRow[]
+  /** Mevcut dağıtımdaki atomların adları (atom başka konudan olabilir). */
+  atomNames: Record<string, string>
   distributed: number
   totalWrong: number
 }
@@ -41,7 +43,7 @@ export async function loadExamWrongContext(
 
   const { data: rows } = await supabase
     .from("wrong_answers")
-    .select("topic_id, error_type, knowledge_atom_id")
+    .select("topic_id, error_type, knowledge_atom_id, knowledge_atoms(name)")
     .eq("exam_id", examId)
 
   const existing = rows ?? []
@@ -68,6 +70,9 @@ export async function loadExamWrongContext(
       error_type: isErrorType(r.error_type) ? r.error_type : null,
       knowledge_atom_id: r.knowledge_atom_id,
     })),
+    atomNames: Object.fromEntries(
+      existing.flatMap((r) => (r.knowledge_atom_id && r.knowledge_atoms ? [[r.knowledge_atom_id, r.knowledge_atoms.name]] : [])),
+    ),
     distributed: existing.length,
     totalWrong: subjects.reduce((s, x) => s + x.wrong, 0),
   }

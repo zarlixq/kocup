@@ -21,6 +21,12 @@ export const UPPLAN_SQL_CONFIG = {
   evidence_half_life_days: 21,
   /** Deneme yanlışı kaç soru yanlışı sayılır. */
   exam_wrong_weight: 2,
+  /**
+   * Başka konudaki sorunun yanlışı bu konunun bilgi atomuna bağlıysa (çapraz,
+   * migration 215) bu konuya kaç soru ağırlığında yansır. Sorunun kendi
+   * konusundaki kanıt değişmez; burası yalnız ek, hafif sinyal.
+   */
+  cross_atom_weight: 0.5,
   /** bilgi_eksik / hic_fikrim_yok / belirtilmemiş. */
   penalty_full: 1,
   /** islem_hatasi / dikkat_okuma / sure_yetmedi. */

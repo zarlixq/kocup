@@ -52,6 +52,14 @@ describe("computeMastery — kanıt", () => {
     expect(r.evidenceW).toBe(26)
   })
 
+  it("çapraz yanlış atomun konusuna yarım ağırlıkla yansır (canlı DB testiyle aynı: 30.77)", () => {
+    // Asal Sayılar: tarama yok, 3 çapraz bilgi_eksik/tipsiz yanlış → 100·(5·0.4) / (5 + 1.5)
+    const cross = (errorType: "bilgi_eksik" | null) => ({ kind: "cross_wrong" as const, date: TODAY, errorType })
+    const r = computeMastery(null, [cross("bilgi_eksik"), cross("bilgi_eksik"), cross(null)], TODAY)
+    expect(r.mastery).toBe(30.77)
+    expect(r.evidenceW).toBe(1.5)
+  })
+
   it("eski kanıt yarı ömürle zayıflar (21 gün → yarı ağırlık)", () => {
     const old = { ...session, date: "2026-09-28", typed: ["islem_hatasi" as const] }
     // (15 + 0.5·10.5) / (20 + 0.5·20)

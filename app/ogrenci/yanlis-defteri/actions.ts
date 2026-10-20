@@ -10,9 +10,9 @@ import { todayDayOfWeek } from "@/lib/days"
 import { ensureProgram } from "@/lib/program/ensure-program"
 import { ERROR_TYPES } from "@/lib/yanlis-defteri/constants"
 import {
-  loadAtomsForTopic,
+  loadAtomCatalog,
   loadSessionWrongContext,
-  type AtomOption,
+  type AtomCatalog,
   type SessionWrongContext,
 } from "@/lib/yanlis-defteri/load"
 
@@ -55,12 +55,12 @@ export async function getSessionWrongContext(sessionId: string): Promise<ActionR
   return { success: true, data: ctx }
 }
 
-// Konusuz eski kayıtta panel konu seçtirince atomlar tıklama anında yüklenir.
-export async function getAtomsForTopic(topicId: string): Promise<ActionResult<AtomOption[]>> {
-  if (!z.string().uuid().safeParse(topicId).success) return { success: false, error: "Geçersiz konu." }
+// Atom seçici (AtomPicker) ders grubunun kataloğunu bir kez ister; arama istemcide.
+export async function getAtomCatalog(subjectId: string): Promise<ActionResult<AtomCatalog>> {
+  if (!z.string().uuid().safeParse(subjectId).success) return { success: false, error: "Geçersiz ders." }
   const auth = await requireStudent()
   if (!auth.ok) return { success: false, error: auth.error }
-  return { success: true, data: await loadAtomsForTopic(auth.supabase, topicId) }
+  return { success: true, data: await loadAtomCatalog(auth.supabase, auth.userId, subjectId) }
 }
 
 const itemsSchema = z

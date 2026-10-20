@@ -1835,6 +1835,29 @@ export type Database = {
           },
         ]
       }
+      subject_groups: {
+        Row: {
+          group_key: string
+          subject_id: string
+        }
+        Insert: {
+          group_key: string
+          subject_id: string
+        }
+        Update: {
+          group_key?: string
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subject_groups_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: true
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subjects: {
         Row: {
           color: string
@@ -2570,6 +2593,7 @@ export type Database = {
         Args: { p_items: Json; p_session_id: string; p_topic_id?: string }
         Returns: undefined
       }
+      subject_group_key: { Args: { p_subject_id: string }; Returns: string }
       student_error_distribution: {
         Args: { p_since?: string; p_student_id: string }
         Returns: {
@@ -2579,6 +2603,15 @@ export type Database = {
           subject_name: string
           topic_id: string
           topic_name: string
+        }[]
+      }
+      student_gap_cross_sources: {
+        Args: { p_since?: string; p_student_id: string }
+        Returns: {
+          atom_id: string
+          cnt: number
+          source_topic_id: string
+          source_topic_name: string
         }[]
       }
       student_gap_map: {

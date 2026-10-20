@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/database.types"
 import { fetchActiveTopics, type ActiveTopic } from "@/lib/curriculum/active-topics"
+import { groupSubjectNames } from "@/lib/curriculum/subject-groups"
 import { addDays } from "@/lib/soru-cozum/summary"
 import { istanbulWeekStartStr } from "@/lib/tz"
 import {
@@ -11,20 +12,13 @@ import {
   type ErrorType,
 } from "@/lib/yanlis-defteri/constants"
 import type { WrongRow } from "@/lib/yanlis-defteri/panel-logic"
+import type { CatalogAtom } from "@/lib/yanlis-defteri/atom-search"
 
 type Client = SupabaseClient<Database>
 
 // ─────────────────────────────────────────────────────────────────────────
 // Yanlış giriş paneli bağlamı
 // ─────────────────────────────────────────────────────────────────────────
-
-export type AtomOption = {
-  id: string
-  name: string
-  type: string
-  sort_order: number
-  description: string | null
-}
 
 export type SessionWrongContext = {
   session: {
@@ -38,21 +32,68 @@ export type SessionWrongContext = {
   }
   /** Konusuz eski kayıt → panel önce konu seçtirir (dersin aktif konuları). */
   topicChoices: ActiveTopic[]
-  atoms: AtomOption[]
-  /** Atom id → öğrencinin bu konuda o atoma geçmişte yazdığı yanlış sayısı. */
-  history: Record<string, number>
+  /** Ders grubunun atom kataloğu (arama + konu chip'leri) ve öğrencinin atom geçmişi. */
+  catalog: AtomCatalog
   rows: WrongRow[]
   /** Konuda çözülen toplam soru (güven metni için). */
   topicQuestions: number
 }
 
-export async function loadAtomsForTopic(supabase: Client, topicId: string): Promise<AtomOption[]> {
-  const { data } = await supabase
-    .from("knowledge_atoms")
-    .select("id, name, type, sort_order, description")
-    .eq("topic_id", topicId)
-    .order("sort_order")
-  return data ?? []
+export type AtomCatalog = {
+  atoms: CatalogAtom[]
+  /** Atom id → öğrencinin o atoma geçmişte yazdığı yanlış sayısı (hangi konudaki soruda olursa olsun). */
+  history: Record<string, number>
+}
+
+/**
+ * Ders grubunun (TYT/AYT aynı alan) tüm aktif konularındaki atomlar. Bir kez
+ * yüklenir, arama istemcide yapılır. Konu sırası: grup listesindeki ders
+ * sırası (TYT önce), sonra topics.order.
+ */
+export async function loadAtomCatalog(supabase: Client, studentId: string, subjectId: string): Promise<AtomCatalog> {
+  const { data: subject } = await supabase.from("subjects").select("name").eq("id", subjectId).maybeSingle()
+  const names = subject ? groupSubjectNames(subject.name) : []
+  const { data: subjects } = names.length
+    ? await supabase.from("subjects").select("id, name").in("name", names)
+    : { data: [] as { id: string; name: string }[] }
+  const subjectRank = new Map((subjects ?? []).map((s) => [s.id, names.indexOf(s.name)]))
+
+  const [{ data: topics }, { data: history }] = await Promise.all([
+    supabase
+      .from("topics")
+      .select("id, name, order, subject_id")
+      .in("subject_id", Array.from(subjectRank.keys()))
+      .eq("is_active", true),
+    supabase.from("wrong_answers").select("knowledge_atom_id").eq("student_id", studentId).not("knowledge_atom_id", "is", null),
+  ])
+  const topicById = new Map((topics ?? []).map((t) => [t.id, t]))
+
+  const { data: atoms, error } = topicById.size
+    ? await supabase
+        .from("knowledge_atoms")
+        .select("id, name, type, description, sort_order, topic_id")
+        .in("topic_id", Array.from(topicById.keys()))
+        .order("sort_order")
+        .range(0, 4999)
+    : { data: [], error: null }
+  if (error) console.error("loadAtomCatalog", error)
+
+  const hist: Record<string, number> = {}
+  for (const h of history ?? []) {
+    if (h.knowledge_atom_id) hist[h.knowledge_atom_id] = (hist[h.knowledge_atom_id] ?? 0) + 1
+  }
+
+  return {
+    atoms: (atoms ?? []).map((a) => {
+      const t = topicById.get(a.topic_id)
+      return {
+        ...a,
+        topic_name: t?.name ?? "—",
+        topic_order: (subjectRank.get(t?.subject_id ?? "") ?? 0) * 10000 + (t?.order ?? 0),
+      }
+    }),
+    history: hist,
+  }
 }
 
 export async function loadSessionWrongContext(
@@ -68,27 +109,14 @@ export async function loadSessionWrongContext(
     .maybeSingle()
   if (!s) return null
 
-  const [atoms, { data: rows }, { data: history }, { data: topicSessions }, topicChoices] = await Promise.all([
-    s.topic_id ? loadAtomsForTopic(supabase, s.topic_id) : Promise.resolve([] as AtomOption[]),
+  const [catalog, { data: rows }, { data: topicSessions }, topicChoices] = await Promise.all([
+    loadAtomCatalog(supabase, studentId, s.subject_id),
     supabase.from("wrong_answers").select("error_type, knowledge_atom_id").eq("study_session_id", s.id),
-    s.topic_id
-      ? supabase
-          .from("wrong_answers")
-          .select("knowledge_atom_id")
-          .eq("student_id", studentId)
-          .eq("topic_id", s.topic_id)
-          .not("knowledge_atom_id", "is", null)
-      : Promise.resolve({ data: [] as { knowledge_atom_id: string | null }[] }),
     s.topic_id
       ? supabase.from("study_sessions").select("total_questions").eq("student_id", studentId).eq("topic_id", s.topic_id)
       : Promise.resolve({ data: [] as { total_questions: number }[] }),
     s.topic_id ? Promise.resolve([] as ActiveTopic[]) : fetchActiveTopics(supabase, { subjectId: s.subject_id }),
   ])
-
-  const hist: Record<string, number> = {}
-  for (const h of history ?? []) {
-    if (h.knowledge_atom_id) hist[h.knowledge_atom_id] = (hist[h.knowledge_atom_id] ?? 0) + 1
-  }
 
   return {
     session: {
@@ -101,8 +129,7 @@ export async function loadSessionWrongContext(
       topic_name: s.topics?.name ?? null,
     },
     topicChoices,
-    atoms,
-    history: hist,
+    catalog,
     rows: (rows ?? [])
       .filter((r) => isErrorType(r.error_type))
       .map((r) => ({ error_type: r.error_type as ErrorType, knowledge_atom_id: r.knowledge_atom_id })),
@@ -130,6 +157,8 @@ export type GapAtom = {
   score: number
   confidence: Confidence
   prerequisites: { id: string; name: string }[]
+  /** Bu atoma BAŞKA konulardaki sorulardan gelen yanlışlar (atom kendi konusunda listelenir). */
+  crossSources: { topic_id: string; topic_name: string; count: number }[]
 }
 
 export type ErrorDistRow = {
@@ -157,8 +186,9 @@ const TREND_WEEKS = 4
 const TOP_GAPS = 5
 
 export async function loadGapMap(supabase: Client, studentId: string): Promise<GapMapData> {
-  const [{ data: gap, error: gapErr }, { data: dist }, { data: trend }] = await Promise.all([
+  const [{ data: gap, error: gapErr }, { data: cross }, { data: dist }, { data: trend }] = await Promise.all([
     supabase.rpc("student_gap_map", { p_student_id: studentId }),
+    supabase.rpc("student_gap_cross_sources", { p_student_id: studentId }),
     supabase.rpc("student_error_distribution", { p_student_id: studentId }),
     supabase.rpc("student_gap_trend", { p_student_id: studentId, p_weeks: TREND_WEEKS }),
   ])
@@ -173,6 +203,13 @@ export async function loadGapMap(supabase: Client, studentId: string): Promise<G
   if (missingPrereq.length > 0) {
     const { data } = await supabase.from("knowledge_atoms").select("id, name").in("id", missingPrereq)
     for (const a of data ?? []) nameById.set(a.id, a.name)
+  }
+
+  const crossByAtom = new Map<string, GapAtom["crossSources"]>()
+  for (const c of cross ?? []) {
+    const list = crossByAtom.get(c.atom_id) ?? []
+    list.push({ topic_id: c.source_topic_id, topic_name: c.source_topic_name, count: c.cnt })
+    crossByAtom.set(c.atom_id, list)
   }
 
   const atoms: GapAtom[] = rows.map((r) => ({
@@ -191,6 +228,7 @@ export async function loadGapMap(supabase: Client, studentId: string): Promise<G
     score: Number(r.score),
     confidence: isConfidence(r.confidence) ? r.confidence : "yetersiz",
     prerequisites: (r.prerequisite_ids ?? []).map((id) => ({ id, name: nameById.get(id) ?? "—" })),
+    crossSources: (crossByAtom.get(r.atom_id) ?? []).sort((a, b) => b.count - a.count),
   }))
 
   const top = atoms
@@ -235,11 +273,13 @@ export type WrongListData = {
     note: string | null
     topic_id: string
     topic_name: string
+    subject_id: string
     subject_name: string
     atom_id: string | null
     atom_name: string | null
+    /** Atom başka bir konudansa o konunun adı (aynı konudaysa null). */
+    atom_topic_name: string | null
   }[]
-  atomsByTopic: Record<string, { id: string; name: string }[]>
   /** Yanlışı olup deftere tamamen girilmemiş son soru kayıtları. */
   pendingSessions: { id: string; date: string; label: string; wrong: number; recorded: number }[]
 }
@@ -253,7 +293,7 @@ export async function loadWrongList(supabase: Client, studentId: string): Promis
     supabase
       .from("wrong_answers")
       .select(
-        "id, error_type, note, created_at, topic_id, knowledge_atom_id, knowledge_atoms(name), topics(name, subjects(name)), study_sessions(date), exams(name, date)",
+        "id, error_type, note, created_at, topic_id, knowledge_atom_id, knowledge_atoms(name, topic_id, topics(name)), topics(name, subject_id, subjects(name)), study_sessions(date), exams(name, date)",
       )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false })
@@ -278,17 +318,13 @@ export async function loadWrongList(supabase: Client, studentId: string): Promis
       note: r.note,
       topic_id: r.topic_id,
       topic_name: r.topics?.name ?? "—",
+      subject_id: r.topics?.subject_id ?? "",
       subject_name: r.topics?.subjects?.name ?? "—",
       atom_id: r.knowledge_atom_id,
       atom_name: r.knowledge_atoms?.name ?? null,
+      atom_topic_name:
+        r.knowledge_atoms && r.knowledge_atoms.topic_id !== r.topic_id ? (r.knowledge_atoms.topics?.name ?? null) : null,
     }))
-
-  const topicIds = Array.from(new Set(items.map((i) => i.topic_id)))
-  const { data: atoms } = topicIds.length
-    ? await supabase.from("knowledge_atoms").select("id, name, topic_id").in("topic_id", topicIds).order("sort_order")
-    : { data: [] as { id: string; name: string; topic_id: string }[] }
-  const atomsByTopic: Record<string, { id: string; name: string }[]> = {}
-  for (const a of atoms ?? []) (atomsByTopic[a.topic_id] ??= []).push({ id: a.id, name: a.name })
 
   const pendingSessions = (sessions ?? [])
     .map((s) => {
@@ -304,5 +340,5 @@ export async function loadWrongList(supabase: Client, studentId: string): Promis
     .filter((s) => s.recorded < s.wrong)
     .slice(0, 8)
 
-  return { items, atomsByTopic, pendingSessions }
+  return { items, pendingSessions }
 }

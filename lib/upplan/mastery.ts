@@ -75,6 +75,8 @@ export type MasteryEvidence =
     }
   | { kind: "exam_wrong"; date: string; errorType: ErrorType | null }
   | { kind: "loose_wrong"; date: string; errorType: ErrorType | null }
+  /** Başka konudaki sorunun yanlışı, bu konunun atomuna bağlı (migration 215). */
+  | { kind: "cross_wrong"; date: string; errorType: ErrorType | null }
 
 /** SQL compute_topic_mastery'nin aynası. */
 export function computeMastery(
@@ -97,6 +99,9 @@ export function computeMastery(
     } else if (e.kind === "exam_wrong") {
       n = C.exam_wrong_weight
       f = C.exam_wrong_weight * penalty(e.errorType)
+    } else if (e.kind === "cross_wrong") {
+      n = C.cross_atom_weight
+      f = C.cross_atom_weight * penalty(e.errorType)
     } else {
       n = 1
       f = penalty(e.errorType)
@@ -150,6 +155,8 @@ export type MasteryBreakdown = {
   sessionAccuracy: number | null
   examWrongs: number
   looseWrongs: number
+  /** Başka konulardaki sorularda bu konunun bilgisinden yapılan yanlış. */
+  crossWrongs: number
   wrongsByType: { type: ErrorType | null; count: number }[]
 }
 
@@ -168,6 +175,7 @@ export function parseBreakdown(raw: unknown): MasteryBreakdown {
     sessionAccuracy: typeof o.session_accuracy === "number" ? o.session_accuracy : null,
     examWrongs: num(o.exam_wrongs),
     looseWrongs: num(o.loose_wrongs),
+    crossWrongs: num(o.cross_wrongs),
     wrongsByType: Object.entries(byType)
       .map(([k, v]) => ({ type: isErrorType(k) ? k : null, count: num(v) }))
       .filter((x) => x.count > 0)

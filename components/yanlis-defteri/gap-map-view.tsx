@@ -188,6 +188,11 @@ export function GapMapView({ data, mode, emptyHref }: { data: GapMapData; mode: 
                         <span className="min-w-0 flex-1">
                           <span className={cn("font-medium", a.wrong_count > 0 ? "text-zinc-900" : "text-zinc-500")}>{a.atom_name}</span>
                           <span className="ml-1.5 text-[11px] text-zinc-400">{ATOM_TYPE_LABEL[a.atom_type] ?? a.atom_type}</span>
+                          {a.crossSources.length > 0 && (
+                            <span className="mt-0.5 block text-[11px] text-sky-700">
+                              {crossLabel(a.crossSources)}
+                            </span>
+                          )}
                           {a.prerequisites.length > 0 && a.wrong_count > 0 && (
                             <span className="mt-0.5 block text-[11px] text-amber-700">
                               Önce kontrol et: {a.prerequisites.map((p) => p.name).join(", ")}
@@ -211,7 +216,8 @@ export function GapMapView({ data, mode, emptyHref }: { data: GapMapData; mode: 
       <p className="flex items-start gap-1.5 text-xs text-zinc-500">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         Açık skoru: konuda çözülen soru başına o bilgiye düşen yanlış. Az soru çözülen konularda skor, dersteki genel
-        yanlış oranına doğru dengelenir; 20 sorunun altındaki konular &quot;yetersiz veri&quot; sayılır.
+        yanlış oranına doğru dengelenir; 20 sorunun altındaki konular &quot;yetersiz veri&quot; sayılır. Başka bir konudaki
+        sorunun yanlışı bu bilgiye bağlandıysa, bilginin kendi konusunda sayılır.
       </p>
     </div>
   )
@@ -237,6 +243,7 @@ function GapCard({ atom, rank, mode }: { atom: GapAtom; rank: number; mode: Mode
           </div>
           <div className="mt-0.5 font-semibold text-zinc-900">{atom.atom_name}</div>
           <div className="text-xs text-zinc-500">{atom.topic_name}</div>
+          {atom.crossSources.length > 0 && <div className="mt-0.5 text-[11px] text-sky-700">{crossLabel(atom.crossSources)}</div>}
         </div>
         <ConfidenceChip c={atom.confidence} />
       </div>
@@ -282,6 +289,12 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
       {children}
     </button>
   )
+}
+
+// Atom kendi konusunda listelenir; başka konudaki sorulardan gelen yanlışlar işaretlenir.
+function crossLabel(sources: GapAtom["crossSources"]) {
+  const parts = sources.map((s) => `${s.topic_name} (${s.count})`)
+  return `${parts.join(", ")} konusundaki sorulardan`
 }
 
 function zero(): Record<ErrorType, number> {

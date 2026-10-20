@@ -2,13 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react"
 import { toast } from "sonner"
-import { HelpCircle, Loader2, Minus, ShieldCheck } from "lucide-react"
+import { Minus, ShieldCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { SearchCombobox } from "@/components/soru-cozum/search-combobox"
 import {
-  ATOM_CHIP_LIMIT,
   CONFIDENCE_LABEL,
   CONFIDENCE_TONE,
   ERROR_TYPES,
@@ -24,20 +23,22 @@ import {
   fromRows,
   incrementAtom,
   incrementType,
-  orderAtoms,
   sumCounts,
   toRpcItems,
   unknownTotal,
   type AtomCounts,
   type TypeCounts,
 } from "@/lib/yanlis-defteri/panel-logic"
-import type { AtomOption, SessionWrongContext } from "@/lib/yanlis-defteri/load"
-import { getAtomsForTopic, saveSessionWrongs } from "@/app/ogrenci/yanlis-defteri/actions"
+import type { SessionWrongContext } from "@/lib/yanlis-defteri/load"
+import { saveSessionWrongs } from "@/app/ogrenci/yanlis-defteri/actions"
+import { AtomPicker } from "@/components/yanlis-defteri/atom-picker"
+import { forgetAtomCatalogs } from "@/components/yanlis-defteri/atom-catalog-store"
 
 // Soru kaydı sonrası "Yanlışlarını ekle" paneli.
 //   Kademe 1 (~5 sn): hata tipi başına sayaç, toplam ≤ yanlış sayısı.
 //   Kademe 2: "bilmiyordum" (bilgi eksikliği / hiç fikrim yok) yanlışları için
-//             konunun bilgi atomları; geçmişte en çok yanlış yapılanlar önce.
+//             bilgi atomu: konunun atomları chip olarak, arama ile dersin
+//             (TYT+AYT) tüm konularından (AtomPicker).
 export function WrongAnswersPanel({
   ctx,
   onDone,
@@ -52,29 +53,17 @@ export function WrongAnswersPanel({
   const [types, setTypes] = useState<TypeCounts>(initial.types)
   const [atoms, setAtoms] = useState<AtomCounts>(initial.atoms)
   const [topicId, setTopicId] = useState<string | null>(ctx.session.topic_id)
-  const [atomList, setAtomList] = useState<AtomOption[]>(ctx.atoms)
-  const [showAll, setShowAll] = useState(false)
-  const [loadingAtoms, startAtoms] = useTransition()
   const [saving, startSave] = useTransition()
 
   const max = ctx.session.wrong
   const marked = sumCounts(types)
   const unknown = unknownTotal(types)
   const assigned = sumCounts(atoms)
-  const ordered = useMemo(() => orderAtoms(atomList, ctx.history), [atomList, ctx.history])
-  const visibleAtoms = showAll ? ordered : ordered.slice(0, ATOM_CHIP_LIMIT)
   const confidence = confidenceFor(ctx.topicQuestions)
 
   function pickTopic(id: string | null) {
     setTopicId(id)
     setAtoms({})
-    setAtomList([])
-    if (!id) return
-    startAtoms(async () => {
-      const res = await getAtomsForTopic(id)
-      if (res.success && res.data) setAtomList(res.data)
-      else toast.error(res.error ?? "Bilgi atomları yüklenemedi.")
-    })
   }
 
   function save() {
@@ -86,6 +75,7 @@ export function WrongAnswersPanel({
         return
       }
       toast.success(marked > 0 ? "Yanlışların yanlış defterine eklendi." : "Yanlış kayıtları güncellendi.")
+      forgetAtomCatalogs()
       onDone(true)
     })
   }
@@ -151,67 +141,19 @@ export function WrongAnswersPanel({
               {assigned}/{unknown}
             </span>
           </div>
-          {loadingAtoms ? (
-            <div className="flex items-center gap-2 py-2 text-xs text-zinc-500">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Bilgi atomları yükleniyor…
-            </div>
-          ) : !topicId ? (
+          {!topicId ? (
             <p className="text-xs text-zinc-500">Önce konu seç.</p>
-          ) : atomList.length === 0 ? (
-            <p className="text-xs text-zinc-500">
-              Bu konunun bilgi atomları henüz eklenmedi. Yanlışların &quot;emin değilim&quot; olarak kaydedilir; atomlar
-              eklenince yanlış defterinden atayabilirsin.
-            </p>
           ) : (
-            <>
-              <div className="flex flex-wrap gap-1.5">
-                {visibleAtoms.map((a) => {
-                  const n = atoms[a.id] ?? 0
-                  const past = ctx.history[a.id] ?? 0
-                  return (
-                    <span key={a.id} className="inline-flex items-stretch overflow-hidden rounded-full border bg-white text-xs">
-                      <button
-                        type="button"
-                        title={a.description ?? undefined}
-                        onClick={() => setAtoms(incrementAtom(types, atoms, a.id))}
-                        disabled={assigned >= unknown && n === 0}
-                        className={cn(
-                          "px-2.5 py-1.5 transition-colors disabled:opacity-50",
-                          n > 0 ? "bg-[#F97316] font-medium text-white" : "text-zinc-700 hover:bg-orange-50",
-                        )}
-                      >
-                        {a.name}
-                        {n > 0 && <span className="ml-1 tabular-nums">×{n}</span>}
-                        {n === 0 && past > 0 && <span className="ml-1 text-[10px] text-orange-600">· {past} önceki</span>}
-                      </button>
-                      {n > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setAtoms(decrementAtom(atoms, a.id))}
-                          className="border-l border-orange-300 bg-[#F97316] px-1.5 text-white hover:bg-orange-600"
-                          aria-label={`${a.name} sayısını azalt`}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </button>
-                      )}
-                    </span>
-                  )
-                })}
-                <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-zinc-300 bg-white px-2.5 py-1.5 text-xs text-zinc-500">
-                  <HelpCircle className="h-3 w-3" /> Emin değilim
-                  {unknown - assigned > 0 && <span className="tabular-nums">×{unknown - assigned}</span>}
-                </span>
-              </div>
-              {ordered.length > ATOM_CHIP_LIMIT && (
-                <button
-                  type="button"
-                  onClick={() => setShowAll((v) => !v)}
-                  className="text-xs font-medium text-[#1B6B8A] hover:underline"
-                >
-                  {showAll ? "Daha az göster" : `Tümünü göster (${ordered.length})`}
-                </button>
-              )}
-            </>
+            <AtomPicker
+              subjectId={ctx.session.subject_id}
+              topicId={topicId}
+              counts={atoms}
+              onAdd={(id) => setAtoms(incrementAtom(types, atoms, id))}
+              onRemove={(id) => setAtoms(decrementAtom(atoms, id))}
+              canAdd={assigned < unknown}
+              unsureCount={unknown - assigned}
+              initialCatalog={ctx.catalog}
+            />
           )}
         </section>
       )}

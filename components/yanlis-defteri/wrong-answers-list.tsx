@@ -42,6 +42,8 @@ import {
   type ErrorType,
 } from "@/lib/yanlis-defteri/constants"
 import { deleteWrongAnswer, updateWrongAnswer } from "@/app/ogrenci/yanlis-defteri/actions"
+import { AtomPicker } from "@/components/yanlis-defteri/atom-picker"
+import { forgetAtomCatalogs, loadAtomCatalog } from "@/components/yanlis-defteri/atom-catalog-store"
 
 export type WrongListItem = {
   id: string
@@ -52,29 +54,23 @@ export type WrongListItem = {
   note: string | null
   topic_id: string
   topic_name: string
+  subject_id: string
   subject_name: string
   atom_id: string | null
   atom_name: string | null
+  /** Atom başka bir konudansa o konunun adı. */
+  atom_topic_name: string | null
 }
 
 export type WrongListGroup = { date: string; label: string; items: WrongListItem[] }
 
-const NO_ATOM = "__none__"
 const NO_TYPE = "__untyped__"
 
 function isUnknown(t: ErrorType | null) {
   return t !== null && UNKNOWN_TYPES.includes(t)
 }
 
-export function WrongAnswersList({
-  groups,
-  atomsByTopic,
-  readonly = false,
-}: {
-  groups: WrongListGroup[]
-  atomsByTopic: Record<string, { id: string; name: string }[]>
-  readonly?: boolean
-}) {
+export function WrongAnswersList({ groups, readonly = false }: { groups: WrongListGroup[]; readonly?: boolean }) {
   const [edit, setEdit] = useState<WrongListItem | null>(null)
   const [del, setDel] = useState<WrongListItem | null>(null)
   const [pending, start] = useTransition()
@@ -109,7 +105,10 @@ export function WrongAnswersList({
                   {isUnknown(w.error_type) && (
                     <div className="mt-0.5 text-xs">
                       {w.atom_name ? (
-                        <span className="text-orange-700">Bilgi: {w.atom_name}</span>
+                        <span className="text-orange-700">
+                          Bilgi: {w.atom_name}
+                          {w.atom_topic_name && <span className="text-zinc-500"> · {w.atom_topic_name} konusundan</span>}
+                        </span>
                       ) : (
                         <span className="text-zinc-400">Bilgi atomu seçilmedi</span>
                       )}
@@ -129,7 +128,12 @@ export function WrongAnswersList({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => setEdit(w)}>
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          loadAtomCatalog(w.subject_id)
+                          setEdit(w)
+                        }}
+                      >
                         <Pencil className="h-4 w-4" /> Düzenle
                       </DropdownMenuItem>
                       <DropdownMenuItem variant="destructive" onSelect={() => setDel(w)}>
@@ -144,7 +148,7 @@ export function WrongAnswersList({
         </div>
       ))}
 
-      {edit && <EditWrongDialog item={edit} atoms={atomsByTopic[edit.topic_id] ?? []} onClose={() => setEdit(null)} />}
+      {edit && <EditWrongDialog item={edit} onClose={() => setEdit(null)} />}
 
       <AlertDialog open={!!del} onOpenChange={(o) => !o && !pending && setDel(null)}>
         <AlertDialogContent>
@@ -174,17 +178,9 @@ export function WrongAnswersList({
   )
 }
 
-function EditWrongDialog({
-  item,
-  atoms,
-  onClose,
-}: {
-  item: WrongListItem
-  atoms: { id: string; name: string }[]
-  onClose: () => void
-}) {
+function EditWrongDialog({ item, onClose }: { item: WrongListItem; onClose: () => void }) {
   const [type, setType] = useState<ErrorType | null>(item.error_type)
-  const [atomId, setAtomId] = useState<string>(item.atom_id ?? NO_ATOM)
+  const [atomId, setAtomId] = useState<string | null>(item.atom_id)
   const [note, setNote] = useState(item.note ?? "")
   const [pending, start] = useTransition()
   const unknown = isUnknown(type)
@@ -194,18 +190,19 @@ function EditWrongDialog({
       const res = await updateWrongAnswer(item.id, {
         error_type: type,
         // Atom yalnız "bilmiyordum" tiplerinde anlamlı.
-        knowledge_atom_id: unknown && atomId !== NO_ATOM ? atomId : null,
+        knowledge_atom_id: unknown ? atomId : null,
         note: note.trim() || null,
       })
       if (!res.success) return void toast.error(res.error ?? "Güncellenemedi.")
       toast.success("Güncellendi.")
+      forgetAtomCatalogs()
       onClose()
     })
   }
 
   return (
     <Dialog open onOpenChange={(o) => !o && !pending && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Yanlışı düzenle</DialogTitle>
           <DialogDescription>
@@ -233,23 +230,15 @@ function EditWrongDialog({
           {unknown && (
             <div className="space-y-1.5">
               <Label>Hangi bilgi?</Label>
-              {atoms.length === 0 ? (
-                <p className="text-xs text-zinc-500">Bu konunun bilgi atomları henüz eklenmedi.</p>
-              ) : (
-                <Select value={atomId} onValueChange={setAtomId}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    <SelectItem value={NO_ATOM}>Emin değilim</SelectItem>
-                    {atoms.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <AtomPicker
+                single
+                subjectId={item.subject_id}
+                topicId={item.topic_id}
+                counts={atomId ? { [atomId]: 1 } : {}}
+                onAdd={(id) => setAtomId(id)}
+                onRemove={() => setAtomId(null)}
+                canAdd
+              />
             </div>
           )}
           <div className="space-y-1.5">

@@ -128,7 +128,7 @@ async function RecordsTab({
           </p>
         </div>
       ) : (
-        <WrongAnswersList groups={groups} atomsByTopic={data.atomsByTopic} />
+        <WrongAnswersList groups={groups} />
       )}
     </div>
   )

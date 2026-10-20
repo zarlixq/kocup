@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { AlertTriangle, CheckCircle2, Loader2, Minus, NotebookPen } from "lucide-react"
+import { AlertTriangle, CheckCircle2, ChevronDown, Loader2, Minus, NotebookPen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -29,7 +29,8 @@ import {
 import type { ExamWrongContext } from "@/lib/upplan/exam-wrongs-load"
 import type { OverconfidentTopic } from "@/lib/upplan/today"
 import { saveExamWrongsAction } from "@/app/ogrenci/denemelerim/actions"
-import { getAtomsForTopic } from "@/app/ogrenci/yanlis-defteri/actions"
+import { AtomPicker } from "@/components/yanlis-defteri/atom-picker"
+import { forgetAtomCatalogs, loadAtomCatalog } from "@/components/yanlis-defteri/atom-catalog-store"
 import { advanceSetup } from "@/app/ogrenci/upplan/actions"
 
 const NO_VALUE = "__none__"
@@ -57,12 +58,12 @@ export function ExamWrongsPanel({
   const [open, setOpen] = useState(defaultOpen && ctx.subjects.length > 0)
   const [state, setState] = useState<Record<string, SubjectWrongs>>(initial)
   const [skipped, setSkipped] = useState<Set<string>>(new Set())
-  const [atoms, setAtoms] = useState<Record<string, { id: string; name: string }[]>>({})
-  const [loadingAtom, setLoadingAtom] = useState<string | null>(null)
+  // Bilgi seçicisi açık olan konu (tek seferde bir tane) ve seçilen atomların adları.
+  const [atomOpen, setAtomOpen] = useState<string | null>(null)
+  const [atomNames, setAtomNames] = useState<Record<string, string>>(ctx.atomNames)
   const [overconfident, setOverconfident] = useState<OverconfidentTopic[] | null>(null)
   const [saving, startSave] = useTransition()
   const [finishing, startFinish] = useTransition()
-  const [, startAtoms] = useTransition()
 
   const distributed = Object.values(state).reduce((n, s) => n + subjectTotal(s), 0)
 
@@ -82,15 +83,9 @@ export function ExamWrongsPanel({
     if (!wasSkipped) setState((p) => ({ ...p, [subjectId]: {} }))
   }
 
-  function loadAtoms(topicId: string) {
-    if (atoms[topicId]) return
-    setLoadingAtom(topicId)
-    startAtoms(async () => {
-      const res = await getAtomsForTopic(topicId)
-      setLoadingAtom(null)
-      if (res.success && res.data) setAtoms((p) => ({ ...p, [topicId]: res.data!.map((a) => ({ id: a.id, name: a.name })) }))
-      else toast.error(res.error ?? "Bilgi atomları yüklenemedi.")
-    })
+  function toggleAtoms(subjectId: string, topicId: string) {
+    loadAtomCatalog(subjectId)
+    setAtomOpen((cur) => (cur === topicId ? null : topicId))
   }
 
   function save() {
@@ -99,6 +94,7 @@ export function ExamWrongsPanel({
       if (!res.success) return void toast.error(res.error ?? "Kaydedilemedi.")
       toast.success(distributed > 0 ? "Yanlışların yanlış defterine eklendi." : "Dağıtım güncellendi.")
       setOverconfident(res.data?.overconfident ?? [])
+      forgetAtomCatalogs()
       setOpen(false)
       router.refresh()
     })
@@ -230,66 +226,66 @@ export function ExamWrongsPanel({
                         <p className="text-xs text-zinc-500">İstersen hata tipini ve bilgiyi de seç (opsiyonel).</p>
                         {chosen.map((t) => {
                           const g = sw[t.id].groups[0]
-                          const list = atoms[t.id]
+                          const open = atomOpen === t.id && atomAllowed(g.error_type)
                           return (
-                            <div key={t.id} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_11rem_11rem] sm:items-center">
-                              <div className="truncate text-sm text-zinc-800">
-                                {t.name} <span className="tabular-nums text-zinc-500">×{topicCount(sw[t.id])}</span>
-                              </div>
-                              <Select
-                                value={g.error_type ?? NO_VALUE}
-                                onValueChange={(v) =>
-                                  update(s.id, (x) => setTopicType(x, t.id, isErrorType(v) ? v : null))
-                                }
-                              >
-                                <SelectTrigger className="h-9 bg-white text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value={NO_VALUE}>Hata tipi: {UNTYPED_LABEL}</SelectItem>
-                                  {ERROR_TYPES.map((et) => (
-                                    <SelectItem key={et} value={et}>
-                                      {ERROR_TYPE_LABEL[et]}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {atomAllowed(g.error_type) ? (
-                                list ? (
-                                  list.length === 0 ? (
-                                    <span className="text-xs text-zinc-400">Bilgi atomu yok</span>
-                                  ) : (
-                                    <Select
-                                      value={g.knowledge_atom_id ?? NO_VALUE}
-                                      onValueChange={(v) => update(s.id, (x) => setTopicAtom(x, t.id, v === NO_VALUE ? null : v))}
-                                    >
-                                      <SelectTrigger className="h-9 bg-white text-xs">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent className="max-h-72">
-                                        <SelectItem value={NO_VALUE}>Bilgi: emin değilim</SelectItem>
-                                        {list.map((a) => (
-                                          <SelectItem key={a.id} value={a.id}>
-                                            {a.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  )
-                                ) : (
+                            <div key={t.id} className="space-y-2">
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_11rem_11rem] sm:items-center">
+                                <div className="truncate text-sm text-zinc-800">
+                                  {t.name} <span className="tabular-nums text-zinc-500">×{topicCount(sw[t.id])}</span>
+                                </div>
+                                <Select
+                                  value={g.error_type ?? NO_VALUE}
+                                  onValueChange={(v) =>
+                                    update(s.id, (x) => setTopicType(x, t.id, isErrorType(v) ? v : null))
+                                  }
+                                >
+                                  <SelectTrigger className="h-9 bg-white text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={NO_VALUE}>Hata tipi: {UNTYPED_LABEL}</SelectItem>
+                                    {ERROR_TYPES.map((et) => (
+                                      <SelectItem key={et} value={et}>
+                                        {ERROR_TYPE_LABEL[et]}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {atomAllowed(g.error_type) ? (
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-9 bg-white text-xs"
-                                    onClick={() => loadAtoms(t.id)}
-                                    disabled={loadingAtom === t.id}
+                                    className="h-9 justify-between bg-white text-xs"
+                                    onClick={() => toggleAtoms(s.id, t.id)}
+                                    aria-expanded={open}
                                   >
-                                    {loadingAtom === t.id && <Loader2 className="h-3 w-3 animate-spin" />} Hangi bilgi?
+                                    <span className="truncate">
+                                      {g.knowledge_atom_id
+                                        ? `Bilgi: ${atomNames[g.knowledge_atom_id] ?? "seçili"}`
+                                        : "Hangi bilgi?"}
+                                    </span>
+                                    <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform", open && "rotate-180")} />
                                   </Button>
-                                )
-                              ) : (
-                                <span className="hidden sm:block" />
+                                ) : (
+                                  <span className="hidden sm:block" />
+                                )}
+                              </div>
+                              {open && (
+                                <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-2.5">
+                                  <AtomPicker
+                                    single
+                                    subjectId={s.id}
+                                    topicId={t.id}
+                                    counts={g.knowledge_atom_id ? { [g.knowledge_atom_id]: 1 } : {}}
+                                    onAdd={(id, name) => {
+                                      setAtomNames((p) => ({ ...p, [id]: name }))
+                                      update(s.id, (x) => setTopicAtom(x, t.id, id))
+                                    }}
+                                    onRemove={() => update(s.id, (x) => setTopicAtom(x, t.id, null))}
+                                    canAdd
+                                  />
+                                </div>
                               )}
                             </div>
                           )

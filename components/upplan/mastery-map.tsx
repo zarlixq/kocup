@@ -186,6 +186,9 @@ function TopicReason({ topic }: { topic: MasteryTopic }) {
   }
   if (b.examWrongs > 0) lines.push(`Denemelerde ${b.examWrongs} yanlış (her biri 2 soru ağırlığında)`)
   if (b.looseWrongs > 0) lines.push(`Yanlış defterinde ${b.looseWrongs} bağımsız yanlış`)
+  if (b.crossWrongs > 0) {
+    lines.push(`Başka konulardaki sorularda bu konunun bilgisinden ${b.crossWrongs} yanlış (her biri yarım soru ağırlığında)`)
+  }
   if (c.stored !== c.effective) {
     lines.push(`Kayıtlı skor ${c.stored.toFixed(0)}; son çalışmadan beri geçen süre nedeniyle ${c.effective.toFixed(0)}`)
   }
