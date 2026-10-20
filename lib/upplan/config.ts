@@ -242,7 +242,8 @@ export const SCAN_BULK_GRADES = [11, 12] as const
  * Ders bazlı kapı: AYT dersinin konuları, ilgili TYT dersinin temel konuları
  * tamamlanmadan (tamamlandı ya da etkili ustalık ≥ GATE_MASTERY) açılmaz.
  * Temel konu = AYT dersinin konularının ön koşul zincirindeki bu TYT
- * derslerine ait konular; zincirde yoksa TYT_CORE_TOPICS.
+ * derslerine ait konular. Zincir yoksa ya da eksikse (AYT dersinin atom
+ * verisi olmayan konusu varsa) kapı TYT dersinin TÜM konularıdır.
  */
 export const AYT_PREREQ_SUBJECTS: Record<string, readonly string[]> = {
   "AYT Matematik": ["TYT Matematik"],
@@ -256,32 +257,6 @@ export const AYT_PREREQ_SUBJECTS: Record<string, readonly string[]> = {
   "AYT Felsefe": ["TYT Felsefe"],
   "AYT Sosyoloji": ["TYT Felsefe"],
   "AYT Din Kültürü": ["TYT Din Kültürü"],
-}
-
-/** Ön koşul verisi olmayan TYT dersleri için temel konular (topics.name). */
-export const TYT_CORE_TOPICS: Record<string, readonly string[]> = {
-  "TYT Matematik": [
-    "Temel Kavramlar",
-    "Sayı Basamakları",
-    "Bölme ve Bölünebilme",
-    "Rasyonel Sayılar",
-    "Üslü Sayılar",
-    "Köklü Sayılar",
-    "Çarpanlara Ayırma",
-    "Denklem Çözme",
-    "Fonksiyonlar",
-    "Polinomlar",
-    "2. Dereceden Denklemler",
-  ],
-  "TYT Geometri": ["Açılar", "Üçgenler", "Üçgenlerde Eşlik ve Benzerlik", "Dik Üçgen ve Trigonometrik Oranlar", "Dörtgenler", "Çember ve Daire"],
-  "TYT Fizik": ["Hareket", "Kuvvet ve Hareket", "Enerji", "Elektrostatik", "Elektrik Akımı", "Manyetizma"],
-  "TYT Kimya": ["Atom ve Periyodik Tablo", "Kimyasal Bağlar", "Mol Kavramı ve Kimyasal Hesaplamalar", "Kimyasal Tepkimeler", "Karışımlar"],
-  "TYT Biyoloji": ["Hücre", "Hücre Organelleri", "Bölünme - Mitoz", "Bölünme - Mayoz", "Mendel Genetiği"],
-  "TYT Türkçe": ["Sözcükte Anlam", "Cümlede Anlam", "Metin Türleri ve Anlatım"],
-  "TYT Tarih": ["Tarih Bilimine Giriş", "İlk Türk Devletleri (Orta Asya)", "İlk Müslüman Türk Devletleri", "Osmanlı Devleti Kuruluş ve Yükselme"],
-  "TYT Coğrafya": ["Harita Bilgisi", "Atmosfer ve İklim", "Nüfus", "Türkiye'nin Coğrafi Özellikleri"],
-  "TYT Felsefe": ["Felsefeye Giriş", "Bilgi Felsefesi", "Varlık Felsefesi"],
-  "TYT Din Kültürü": ["İslam'ın Temel İnanç Esasları", "İslam'da İbadet"],
 }
 
 /** Kapı konusu bu etkili ustalıkla geçilmiş sayılır. */
@@ -367,6 +342,39 @@ export const TARGET_MASTERY = 90
  * Tarama yoksa etkili ustalıktan: < 40 → hic_gormedim, < 75 → eksik, yoksa biliyorum.
  */
 export const HOURS_BY_STATE = { hic_gormedim: 5, eksik: 3, biliyorum: 1 } as const
+
+/**
+ * Konu büyüklük çarpanı (gereken saat ve hedef soru bununla ölçeklenir):
+ *   çarpan = dersin tipik konu büyüklüğü × konunun ders ortalamasına göre büyüklüğü
+ *   konunun göreli büyüklüğü, en iyi veriden: atom sayısı / dersin ortalama atom
+ *   sayısı → (yoksa) topic_exam_weights soru sayısı / dersin ortalaması → (yoksa) 1.
+ * Sözel/ezber derslerin konuları kısa, matematik/fizik konuları uzun.
+ */
+export const SUBJECT_TOPIC_SIZE: Record<string, number> = {
+  "TYT Türkçe": 0.8,
+  "TYT Matematik": 1,
+  "TYT Geometri": 1,
+  "TYT Fizik": 1.1,
+  "TYT Kimya": 1,
+  "TYT Biyoloji": 0.8,
+  "TYT Tarih": 0.5,
+  "TYT Coğrafya": 0.5,
+  "TYT Felsefe": 0.5,
+  "TYT Din Kültürü": 0.4,
+  "AYT Matematik": 1.5,
+  "AYT Geometri": 1.2,
+  "AYT Fizik": 1.5,
+  "AYT Kimya": 1.3,
+  "AYT Biyoloji": 1,
+  "AYT Edebiyat": 0.8,
+  "AYT Tarih": 0.7,
+  "AYT Coğrafya": 0.7,
+  "AYT Felsefe": 0.6,
+  "AYT Sosyoloji": 0.5,
+  "AYT Din Kültürü": 0.5,
+}
+export const DEFAULT_TOPIC_SIZE = 1
+export const TOPIC_SIZE_RANGE = { min: 0.3, max: 2.5 } as const
 
 // ── Sürekli pratik ──────────────────────────────────────────────────────
 /**

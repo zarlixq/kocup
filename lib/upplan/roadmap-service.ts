@@ -29,6 +29,7 @@ import {
   buildRoadmap,
   daysBetweenIso,
   subjectCoefficient,
+  topicSizeFactor,
   isGoalComplete,
   minutesPerQuestion,
   needMinutes,
@@ -187,6 +188,17 @@ export async function gatherRoadmapContext(
   // Konu soru sayısı: topic_exam_weights; yoksa yedek (ders soru sayısı / konu sayısı).
   // Puan katsayısı öğrencinin puan türünden (alan; LGS segmentinde LGS).
   const puanTuru = profile.segment === "lgs" ? "LGS" : profile.alan ? (ALAN_PUAN_TURU[profile.alan] ?? null) : null
+  // Konu büyüklüğü: atom sayısı (varsa) dersin ortalamasına göre.
+  const { data: atomRows } = await db.from("knowledge_atoms").select("topic_id").range(0, 9999)
+  const atomCount = new Map<string, number>()
+  for (const a of atomRows ?? []) atomCount.set(a.topic_id, (atomCount.get(a.topic_id) ?? 0) + 1)
+  const subjectAtoms = new Map<string, { sum: number; n: number }>()
+  for (const t of scopeTopics) {
+    const c = atomCount.get(t.id) ?? 0
+    if (!c) continue
+    const cur = subjectAtoms.get(t.subject_id) ?? { sum: 0, n: 0 }
+    subjectAtoms.set(t.subject_id, { sum: cur.sum + c, n: cur.n + 1 })
+  }
   const topicInputs: RoadmapTopicInput[] = scopeTopics.map((t) => {
     const subj = subjectById.get(t.subject_id)!
     const m = mastery.get(t.id)
@@ -201,6 +213,14 @@ export async function gatherRoadmapContext(
       weight: w ?? Math.round((subjectQ / count) * 1000) / 1000,
       weightEstimated: w === undefined,
       coefficient: subjectCoefficient(puanTuru, subj.name),
+      atomCount: atomCount.get(t.id) ?? 0,
+      sizeFactor: topicSizeFactor({
+        subjectName: subj.name,
+        atomCount: atomCount.get(t.id),
+        subjectAvgAtoms: subjectAtoms.get(t.subject_id) ? subjectAtoms.get(t.subject_id)!.sum / subjectAtoms.get(t.subject_id)!.n : undefined,
+        avgQuestions: w ?? null,
+        subjectAvgQuestions: subjectQ / count,
+      }),
       effective: m?.effective ?? NO_DATA_MASTERY,
       assessment: assessment.get(t.id) ?? null,
       examWrongs: m?.examWrongs ?? 0,

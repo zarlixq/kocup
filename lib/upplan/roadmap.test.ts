@@ -4,6 +4,7 @@ import {
   activeSlotsFor,
   blockTypeFor,
   buildRoadmap,
+  topicSizeFactor,
   efficiencyScore,
   hoursNeeded,
   subjectCoefficient,
@@ -256,13 +257,13 @@ describe("TYT → AYT kapısı", () => {
     expect(r.items.find((i) => i.topic_id === "turev")!.status).toBe("aktif")
   })
 
-  it("zincirde TYT konusu yoksa config'teki temel konu listesi kapıdır", () => {
+  it("ön koşul (atom) verisi yoksa kapı TYT dersinin TÜM konuları", () => {
     const r = buildRoadmap({
       ...base,
       topics: [tyt("polinom", { topic_name: "Polinomlar", effective: 30 }), tyt("olasilik", { topic_name: "Olasılık", effective: 30 }), ayt("turev")],
       edges: [],
     })
-    expect(r.items.find((i) => i.topic_id === "turev")!.gate).toEqual(["polinom"])
+    expect(r.items.find((i) => i.topic_id === "turev")!.gate).toEqual(["polinom", "olasilik"])
   })
 
   it("sınava 26 hafta kala kapı kapalı olsa da AYT başlar", () => {
@@ -328,7 +329,8 @@ describe("saat başına puan sıralaması", () => {
       topics: [
         topic("onkosul", { subject_id: "tytmat", subject_name: "TYT Matematik", weight: 0.5, effective: 50, coefficient: 1.39 }),
         topic("bagli", { subject_id: "tytmat", subject_name: "TYT Matematik", weight: 3, effective: 10, coefficient: 1.39 }),
-        topic("ayt", { subject_id: "aytmat", subject_name: "AYT Matematik", weight: 5, effective: 10, coefficient: 2.89 }),
+        // AYT konusunun atom verisi var → kapı yalnız ön koşul zincirindeki TYT konuları.
+        topic("ayt", { subject_id: "aytmat", subject_name: "AYT Matematik", weight: 5, effective: 10, coefficient: 2.89, atomCount: 8 }),
       ],
       edges: [
         { prereq: "onkosul", topic: "bagli" },
@@ -363,5 +365,56 @@ describe("saat başına puan sıralaması", () => {
     expect(p.end).toBe(EXAM)
     expect(r.items.filter((i) => i.status === "aktif" && !i.practice)).toHaveLength(r.activeSlots)
     expect(r.subjectHours?.find((h) => h.subject_name === "TYT Türkçe")!.hours).toBeGreaterThan(0)
+  })
+})
+
+describe("ön koşul verisi olmayan ders ve konu büyüklüğü", () => {
+  const base = { today: TODAY, examDate: EXAM, weeklyMinutes: 600, minutesPerQuestion: 1.5, existing: [], completedTopicIds: [], edges: [] }
+  const tytBio = (id: string) => topic(id, { subject_id: "tytbio", subject_name: "TYT Biyoloji", weight: 0.43, coefficient: 1.07, effective: 45, assessment: "eksik" })
+  const aytBio = (id: string) => topic(id, { subject_id: "aytbio", subject_name: "AYT Biyoloji", weight: 0.87, coefficient: 2.61, effective: 10, assessment: "hic_gormedim" })
+
+  it("ön koşul verisi yokken AYT, TYT dersinin tüm konuları bitmeden açılmaz; TYT konuları AYT'nin verimliliğini devralır", () => {
+    // Dolgu konuları TYT Biyoloji'den verimli, AYT Biyoloji'den verimsiz.
+    const filler = Array.from({ length: 12 }, (_, i) => topic(`f${i}`, { subject_id: `x${i}`, weight: 1, coefficient: 1 }))
+    const r = buildRoadmap({ ...base, topics: [tytBio("b1"), tytBio("b2"), tytBio("b3"), aytBio("a1"), ...filler] })
+    const tyt = r.items.filter((i) => i.subject_name === "TYT Biyoloji")
+    const ayt = r.items.find((i) => i.topic_id === "a1")!
+    expect(ayt.gate!.sort()).toEqual(["b1", "b2", "b3"])
+    expect(ayt.start > tyt.map((i) => i.end).sort().at(-1)!).toBe(true)
+    // Az ağırlıklı TYT Biyoloji konuları, AYT'nin kapısı oldukları için öne çekilir (ilk gün aktif).
+    expect(tyt.filter((i) => i.status === "aktif")).toHaveLength(2)
+    expect(tyt[0].efficiency!).toBeLessThan(r.items.find((i) => i.topic_id === "f0")!.efficiency!)
+  })
+
+  it("plana giren AYT dersinin TYT konusu kapasite yetmese de zaman kalırsa'ya düşmez; plana hiç giremeyen AYT dersi TYT'yi korumaz", () => {
+    // Dolgular AYT Biyoloji'den verimsiz → AYT Biyoloji plana girer, TYT Biyoloji korunur.
+    const filler = Array.from({ length: 60 }, (_, i) => topic(`f${i}`, { subject_id: `x${i % 10}`, weight: 1, coefficient: 1 }))
+    const r = buildRoadmap({ ...base, weeklyMinutes: 200, topics: [tytBio("b1"), tytBio("b2"), aytBio("a1"), ...filler] })
+    expect(r.items.filter((i) => i.status === "zaman_kalirsa").length).toBeGreaterThan(0)
+    expect(r.items.find((i) => i.topic_id === "a1")!.status).not.toBe("zaman_kalirsa")
+    expect(r.items.filter((i) => i.subject_name === "TYT Biyoloji").every((i) => i.status !== "zaman_kalirsa" && i.gate_for === "AYT Biyoloji")).toBe(true)
+    // Dolgular çok verimli → AYT Biyoloji sığmaz, TYT Biyoloji de kendi verimliliğiyle düşer.
+    const strong = Array.from({ length: 60 }, (_, i) => topic(`s${i}`, { subject_id: `x${i % 10}`, weight: 3, coefficient: 1.2 }))
+    const r2 = buildRoadmap({ ...base, weeklyMinutes: 200, topics: [tytBio("b1"), tytBio("b2"), aytBio("a1"), ...strong] })
+    expect(r2.items.find((i) => i.topic_id === "a1")!.status).toBe("zaman_kalirsa")
+    expect(r2.items.filter((i) => i.subject_name === "TYT Biyoloji").every((i) => i.status === "zaman_kalirsa")).toBe(true)
+  })
+
+  it("küçük konu az soru getirse de kısa sürdüğü için büyük konuyla yarışır", () => {
+    // TYT Din (0,56 soru, katsayı 1,27, küçük) ↔ TYT Fizik (0,58 soru, katsayı 1,07, büyük)
+    const din = topic("din", { subject_id: "din", subject_name: "TYT Din Kültürü", weight: 0.56, coefficient: 1.27, effective: 45, assessment: "eksik", sizeFactor: topicSizeFactor({ subjectName: "TYT Din Kültürü" }) })
+    const fiz = topic("fiz", { subject_id: "fiz", subject_name: "TYT Fizik", weight: 0.58, coefficient: 1.07, effective: 45, assessment: "eksik", sizeFactor: topicSizeFactor({ subjectName: "TYT Fizik" }) })
+    const r = buildRoadmap({ ...base, topics: [fiz, din] })
+    const e = (id: string) => r.items.find((i) => i.topic_id === id)!.efficiency!
+    expect(e("din")).toBeGreaterThan(e("fiz"))
+    // Hedef soru da konu büyüklüğüyle ölçeklenir.
+    expect(r.items.find((i) => i.topic_id === "din")!.target_questions).toBeLessThan(r.items.find((i) => i.topic_id === "fiz")!.target_questions)
+  })
+
+  it("büyüklük: atom sayısı > gerçek soru sayısı > ders tipik büyüklüğü; aralıkta sınırlı", () => {
+    expect(topicSizeFactor({ subjectName: "AYT Matematik", atomCount: 15, subjectAvgAtoms: 10 })).toBe(2.25)
+    expect(topicSizeFactor({ subjectName: "AYT Matematik", atomCount: 40, subjectAvgAtoms: 10 })).toBe(2.5)
+    expect(topicSizeFactor({ subjectName: "TYT Tarih", avgQuestions: 0.2, subjectAvgQuestions: 0.4 })).toBe(0.3)
+    expect(topicSizeFactor({ subjectName: "TYT Din Kültürü" })).toBe(0.4)
   })
 })

@@ -26,7 +26,9 @@ import {
   PRACTICE_EXAMS_PER_WEEK,
   PRACTICE_EXAM_MINUTES,
   SHORT_REVIEW_MINUTES,
-  TYT_CORE_TOPICS,
+  DEFAULT_TOPIC_SIZE,
+  SUBJECT_TOPIC_SIZE,
+  TOPIC_SIZE_RANGE,
   UPPLAN_SQL_CONFIG,
   type BlockType,
 } from "@/lib/upplan/config"
@@ -118,6 +120,24 @@ export function efficiencyScore(t: {
   const gain = Math.max(TARGET_MASTERY - clamp(t.effective, 0, 100), 0) / 100
   const raw = (t.weight * t.coefficient * gain * t.netGap * (t.hasConfidentGap ? GAP_MULTIPLIER : 1)) / Math.max(t.hours, 0.25)
   return Math.round(raw * 1000) / 1000
+}
+
+/**
+ * Konu büyüklük çarpanı: dersin tipik konu büyüklüğü × konunun ders içindeki
+ * göreli büyüklüğü (atom sayısı, yoksa gerçek soru sayısı, yoksa 1); aralıkta sınırlı.
+ */
+export function topicSizeFactor(t: {
+  subjectName: string
+  atomCount?: number
+  subjectAvgAtoms?: number
+  avgQuestions?: number | null
+  subjectAvgQuestions?: number
+}): number {
+  const typical = SUBJECT_TOPIC_SIZE[t.subjectName] ?? DEFAULT_TOPIC_SIZE
+  let rel = 1
+  if (t.atomCount && t.subjectAvgAtoms) rel = t.atomCount / t.subjectAvgAtoms
+  else if (t.avgQuestions && t.subjectAvgQuestions) rel = t.avgQuestions / t.subjectAvgQuestions
+  return Math.round(clamp(typical * rel, TOPIC_SIZE_RANGE.min, TOPIC_SIZE_RANGE.max) * 100) / 100
 }
 
 /** Konu hangi sürekli pratik grubunda (yoksa null). */
@@ -268,8 +288,12 @@ export type RoadmapTopicInput = {
   weightEstimated: boolean
   /** Testin net başına puan katsayısı (puan türüne göre; verilmezse 1). */
   coefficient?: number
-  /** Gereken saat (verilmezse hoursNeeded). */
+  /** Gereken saat (verilmezse hoursNeeded × sizeFactor). */
   hours?: number
+  /** Konu büyüklük çarpanı (topicSizeFactor; verilmezse 1): saat ve hedef soru ölçeği. */
+  sizeFactor?: number
+  /** Konunun bilgi atomu sayısı (kapı zinciri güvenilirliği ve büyüklük). */
+  atomCount?: number
   effective: number
   assessment: "hic_gormedim" | "eksik" | "biliyorum" | null
   examWrongs: number
@@ -313,6 +337,10 @@ export type RoadmapItem = {
   gate?: string[]
   /** Saat başına yaklaşık puan. */
   efficiency?: number
+  /** Sıralamada kullanılan verimlilik (ön koşul/kapı devralmalı). */
+  priority?: number
+  /** Bu TYT konusu kapısı kapalı bir AYT dersinin kapısıysa o dersin adı (planda kalır). */
+  gate_for?: string
   /** Sürekli pratik konusu (tamamlanmaz, aktif sınırına sayılmaz, her hafta pratik bloğu). */
   practice?: boolean
 }
@@ -424,7 +452,7 @@ export function scheduleWaves(
  * Dönüş: AYT subject_id → henüz geçilmemiş (tamamlanmamış, etkili < 75) kapı konuları.
  */
 export function computeGates(
-  topics: Pick<RoadmapTopicInput, "topic_id" | "topic_name" | "subject_id" | "subject_name" | "effective">[],
+  topics: Pick<RoadmapTopicInput, "topic_id" | "topic_name" | "subject_id" | "subject_name" | "effective" | "atomCount">[],
   edges: Edge[],
   completed: Set<string>,
 ): Map<string, string[]> {
@@ -448,12 +476,11 @@ export function computeGates(
         stack.push(p)
       }
     }
-    let gate = Array.from(seen).filter((id) => tytNames.includes(byId.get(id)?.subject_name ?? ""))
-    if (gate.length === 0) {
-      gate = topics
-        .filter((t) => tytNames.includes(t.subject_name) && (TYT_CORE_TOPICS[t.subject_name] ?? []).includes(t.topic_name))
-        .map((t) => t.topic_id)
-    }
+    // Zincir ancak AYT dersinin tüm konularında atom (ön koşul) verisi varsa
+    // güvenilir; yoksa ya da eksikse kapı = ilgili TYT dersinin TÜM konuları.
+    const chainComplete = topics.filter((t) => t.subject_id === sid).every((t) => (t.atomCount ?? 0) > 0)
+    let gate = chainComplete ? Array.from(seen).filter((id) => tytNames.includes(byId.get(id)?.subject_name ?? "")) : []
+    if (gate.length === 0) gate = topics.filter((t) => tytNames.includes(t.subject_name)).map((t) => t.topic_id)
     out.set(
       sid,
       gate.filter((id) => !completed.has(id) && (byId.get(id)?.effective ?? 0) < GATE_MASTERY),
@@ -569,56 +596,66 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
 
   const gates = computeGates(input.topics, input.edges, completed)
 
-  const hoursOf = (t: RoadmapTopicInput) => t.hours ?? hoursNeeded(t.assessment, t.effective, input.minutesPerQuestion)
+  const hoursOf = (t: RoadmapTopicInput) =>
+    t.hours ?? Math.round(hoursNeeded(t.assessment, t.effective, input.minutesPerQuestion) * (t.sizeFactor ?? 1) * 100) / 100
   const effOf = (t: RoadmapTopicInput) =>
     efficiencyScore({ weight: t.weight, coefficient: t.coefficient ?? 1, effective: t.effective, netGap: t.netGap, hasConfidentGap: !!t.gapAtom, hours: hoursOf(t) })
   const base = new Map<string, number>()
   for (const t of topics) base.set(t.topic_id, effOf(t))
 
-  // Ön koşul, bağlı konuların en yüksek puanını devralır (memo'lu DFS; graf döngüsüz).
-  const effScore = new Map<string, number>()
-  const resolve = (id: string): number => {
-    const memo = effScore.get(id)
-    if (memo !== undefined) return memo
-    let s = base.get(id) ?? 0
-    for (const d of dependentsOf.get(id) ?? []) s = Math.max(s, resolve(d))
-    effScore.set(id, s)
-    return s
+  // Kapı konusu (TYT), kapısını beklediği AYT dersinin konularını "bağlı" sayar.
+  const gateDependents = new Map<string, string[]>()
+  for (const [sid, gate] of gates) {
+    const ayt = topics.filter((t) => t.subject_id === sid).map((t) => t.topic_id)
+    for (const g of gate) gateDependents.set(g, [...(gateDependents.get(g) ?? []), ...ayt])
   }
-  for (const t of topics) resolve(t.topic_id)
-
-  // Topolojik sıra: hazır olanlar (ön koşulu sıraya girmiş) arasından en yüksek puanlı.
-  const placed = new Set<string>()
-  const order: string[] = []
   // Mevcut hedefler önce (aktif; zaten çalışılıyor).
   const fixed = topics.filter((t) => existingByTopic.has(t.topic_id)).map((t) => t.topic_id)
-  for (const id of fixed) {
-    placed.add(id)
-    order.push(id)
-  }
-  const pending = new Set(topics.map((t) => t.topic_id).filter((id) => !placed.has(id)))
-  while (pending.size) {
-    let best: string | null = null
-    for (const id of pending) {
-      if ((prereqsOf.get(id) ?? []).some((p) => !placed.has(p))) continue
-      if (
-        best === null ||
-        effScore.get(id)! > effScore.get(best)! ||
-        (effScore.get(id) === effScore.get(best) && base.get(id)! > base.get(best)!) ||
-        (effScore.get(id) === effScore.get(best) && base.get(id) === base.get(best) && id < best)
-      )
-        best = id
+
+  // Sıralama (dışarıda sayılan AYT dersleri hariç tutularak):
+  // ön koşul ve kapı konusu, bağlı konuların en yüksek verimliliğini devralır
+  // (memo'lu DFS); topolojik sıra = hazır olanlar arasından en yüksek öncelikli.
+  const rankTopics = (outAyt: Set<string>) => {
+    const effScore = new Map<string, number>()
+    const resolve = (id: string): number => {
+      const memo = effScore.get(id)
+      if (memo !== undefined) return memo
+      effScore.set(id, base.get(id) ?? 0) // döngü savunması
+      let s = base.get(id) ?? 0
+      for (const d of dependentsOf.get(id) ?? []) s = Math.max(s, resolve(d))
+      for (const d of gateDependents.get(id) ?? []) if (!outAyt.has(byId.get(d)?.subject_id ?? "")) s = Math.max(s, resolve(d))
+      effScore.set(id, s)
+      return s
     }
-    if (best === null) best = Array.from(pending).sort()[0] // savunma: döngü kalmışsa
-    pending.delete(best)
-    placed.add(best)
-    order.push(best)
+    for (const t of topics) resolve(t.topic_id)
+    const placed = new Set<string>(fixed)
+    const order: string[] = [...fixed]
+    const pending = new Set(topics.map((t) => t.topic_id).filter((id) => !placed.has(id)))
+    while (pending.size) {
+      let best: string | null = null
+      for (const id of pending) {
+        if ((prereqsOf.get(id) ?? []).some((p) => !placed.has(p))) continue
+        if (
+          best === null ||
+          effScore.get(id)! > effScore.get(best)! ||
+          (effScore.get(id) === effScore.get(best) && base.get(id)! > base.get(best)!) ||
+          (effScore.get(id) === effScore.get(best) && base.get(id) === base.get(best) && id < best)
+        )
+          best = id
+      }
+      if (best === null) best = Array.from(pending).sort()[0] // savunma: döngü kalmışsa
+      pending.delete(best)
+      placed.add(best)
+      order.push(best)
+    }
+    return { effScore, order }
   }
 
   const goal = (t: RoadmapTopicInput) => {
     const bt = blockTypeFor(t.effective)
     const phase = learningPhaseFor(t.assessment, t.effective)
-    const q = GOAL_TEMPLATES[bt].questions
+    // Hedef soru konu büyüklüğüyle ölçeklenir (10'a yuvarlı, en az 20).
+    const q = Math.max(20, Math.round((GOAL_TEMPLATES[bt].questions * (t.sizeFactor ?? 1)) / 10) * 10)
     return { bt, phase, q, acc: GOAL_TEMPLATES[bt].accuracy, need: needMinutes(bt, q, input.minutesPerQuestion, phase) }
   }
   const gateOf = (id: string) => gates.get(byId.get(id)!.subject_id) ?? []
@@ -635,15 +672,65 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
   })
 
   const inExamPeriod = input.today >= examPeriodStart
-  const queueIds = order.filter((id) => !existingByTopic.has(id))
+  const outAyt = new Set<string>()
+  let { effScore, order } = rankTopics(outAyt)
+  let queueIds = order.filter((id) => !existingByTopic.has(id))
   // Sürekli pratik haftalık süresi takvim kapasitesinden düşülür.
   const practiceGroups = PRACTICE_GROUPS.filter((g) => practiceTopics.some((t) => t.subject_name === g.subject && g.topics.includes(t.topic_name)))
   const practiceWeekly = Math.round(practiceGroups.reduce((n, g) => n + g.blocksPerWeek * g.questionsPerBlock * input.minutesPerQuestion, 0))
+  const studyWeekly = Math.max(input.weeklyMinutes - practiceWeekly, 60)
+
+  // Kapasite seçimi: verimlilik sırasıyla (ön koşul/kapı devralmalı sıra) deneme
+  // dönemine kadarki kapasite dolana dek konu alınır; kalanlar (en düşük
+  // verimliler) "zaman kalırsa". Kapısı kapalı AYT dersinin TYT konusu her zaman
+  // alınır. Takvim (tarihler) yalnız seçilenlerle kurulur.
+  const startLoad = input.existing.reduce((n, e) => n + e.remainingMinutes, 0)
+  const capacityMinutes = Math.max(daysBetweenIso(input.today, examPeriodStart), 0) * (studyWeekly / 7) - startLoad
+  // Seçim: verimlilik sırasıyla kesme noktasına kadar; korunan kapı konuları
+  // kapasiteden önce ayrılır. Kesme noktası: ilk sığmayan konudan sonrası düşer
+  // (küçük konu, daha verimli büyük konunun yerine geçmesin).
+  const select = (protectedGate: (id: string) => boolean, skip: (id: string) => boolean) => {
+    const out = new Set<string>()
+    let used = 0
+    for (const id of queueIds) if (protectedGate(id)) used += goal(byId.get(id)!).need
+    let full = false
+    for (const id of queueIds) {
+      if (protectedGate(id)) {
+        out.add(id)
+        continue
+      }
+      if (skip(id)) continue
+      const need = goal(byId.get(id)!).need
+      if (!full && used + need <= capacityMinutes) {
+        out.add(id)
+        used += need
+      } else full = true
+    }
+    return out
+  }
+  // Kapı tutarlılığı: plana hiç giremeyen AYT dersi "dışarıda" sayılır; konuları
+  // planlanmaz, TYT konuları kapı koruması olmadan kendi verimliliğiyle yarışır.
+  // Dışarıdaki dersler yalnız artar → döngü biter. Plana giren her AYT dersinin
+  // kapısı (TYT konuları) planda kalır.
+  const protects = (id: string) => (gateDependents.get(id) ?? []).some((a) => !outAyt.has(byId.get(a)?.subject_id ?? ""))
+  const isOutAyt = (id: string) => outAyt.has(byId.get(id)!.subject_id)
+  let kept = select(protects, isOutAyt)
+  for (let guard = 0; guard < gates.size + 1; guard++) {
+    const newlyOut = Array.from(gates.keys()).filter(
+      (sid) => !outAyt.has(sid) && topics.some((t) => t.subject_id === sid) && !topics.some((t) => t.subject_id === sid && kept.has(t.topic_id)),
+    )
+    if (!newlyOut.length) break
+    for (const sid of newlyOut) outAyt.add(sid)
+    ;({ effScore, order } = rankTopics(outAyt))
+    queueIds = order.filter((id) => !existingByTopic.has(id))
+    kept = select(protects, isOutAyt)
+  }
+  const protectsPlanned = protects
   const sim = simulatePlan(
-    queueIds.map((id) => simEntry(id, goal(byId.get(id)!).need)),
+    queueIds.filter((id) => kept.has(id)).map((id) => simEntry(id, goal(byId.get(id)!).need)),
     {
       start: input.today,
-      weeklyMinutes: Math.max(input.weeklyMinutes - practiceWeekly, 60),
+      weeklyMinutes: studyWeekly,
       slots,
       horizon: input.examDate,
       forceStart: aytForceStart,
@@ -704,11 +791,16 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     if (t.gapAtom) reasons.push(`Açık haritasında "${t.gapAtom}" öne çıkıyor`)
     if (g.phase === "gerekli") reasons.push(`Ustalığın ${Math.round(t.effective)}: önce konuyu öğren, sonra soru çöz`)
 
-    const fits = !!s?.end && s.end <= examPeriodStart
+    // Kapasiteye seçilen konu plandadır; takvimde deneme dönemine taşarsa bitişi o güne çekilir.
     let status: RoadmapItemStatus
     if (ex) status = "aktif"
-    else if (inExamPeriod || !fits) status = "zaman_kalirsa"
-    else status = s?.start === input.today ? "aktif" : "sirada"
+    else if (inExamPeriod || !kept.has(id) || !s?.start) status = "zaman_kalirsa"
+    else status = s.start === input.today ? "aktif" : "sirada"
+    const gatedAyt = protectsPlanned(id) ? gateDependents.get(id) : undefined
+    if (gatedAyt?.length && !ex) {
+      const aytName = byId.get(gatedAyt[0])?.subject_name
+      if (aytName) reasons.splice(1, 0, `${aytName} bu konuyu bekliyor: ${t.subject_name} bitmeden ${aytName} açılmaz`)
+    }
     if (status === "zaman_kalirsa") overflowCount += 1
 
     const start = ex ? input.today : (s?.start ?? examPeriodStart)
@@ -734,6 +826,8 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
       learning_phase: g.phase,
       gate,
       efficiency: base.get(id) ?? 0,
+      priority: effScore.get(id) ?? 0,
+      ...(gatedAyt?.length ? { gate_for: byId.get(gatedAyt[0])?.subject_name } : {}),
     })
   })
 
