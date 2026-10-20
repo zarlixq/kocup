@@ -3033,6 +3033,7 @@ export type Database = {
         }[]
       }
       party_application_count: { Args: never; Returns: number }
+      purge_old_rate_limits: { Args: never; Returns: undefined }
       recompute_student_mastery: {
         Args: { p_student_id: string }
         Returns: number
