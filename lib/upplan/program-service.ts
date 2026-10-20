@@ -15,6 +15,7 @@ import {
   availableMinutes,
   loadMasteryInfo,
   loadMinutesPerQuestion,
+  parsePayload,
   weeksUntil,
 } from "@/lib/upplan/roadmap-service"
 import { scheduleWeek, spacedReviewsDue, type DraftItem, type ProgramGoal, type ProgramReview } from "@/lib/upplan/scheduler"
@@ -23,6 +24,22 @@ type Client = SupabaseClient<Database>
 
 // Haftalık program taslağı: üret → (öğrenci onaylar | koç kabul eder) → weekly_program_items.
 // Mevcut kalemler (öğrenci/koç/önceki onaylar) korunur; scheduler onların etrafına yerleştirir.
+// Program YALNIZ onaylı yol haritasından türetilir: yol haritası yoksa ya da
+// onaylanmadıysa taslak üretilmez; hedefler yol haritasındaki konularla sınırlı.
+
+export const ROADMAP_REQUIRED_ERROR = "Önce yol haritanı oluştur ve onayla; program yol haritasından üretilir."
+
+/** Hedefin programdaki öğrenme durumu (scheduler girdisi). */
+export function learningFlags(
+  g: { id: string; learning_phase: string | null; learned_at: string | null; cozulen_soru: number },
+  blockType: string,
+  lectureDone: Set<string>,
+): { lecture_pending: boolean; short_review_pending: boolean } {
+  if (lectureDone.has(g.id) || g.learned_at) return { lecture_pending: false, short_review_pending: false }
+  // Aşaması kaydedilmemiş eski hedef: konu çalışması şablonu ve hiç soru yok → konu çalışması.
+  const phase = g.learning_phase ?? (blockType === "konu_calisma" && g.cozulen_soru === 0 ? "gerekli" : "yok")
+  return { lecture_pending: phase === "gerekli", short_review_pending: phase === "opsiyonel" }
+}
 
 export type ProgramDraftMeta = {
   examCount: number
@@ -53,6 +70,11 @@ export async function generateProgramDraft(
   if (!profile) return { error: "Önce UpPlan kurulumunu tamamla." }
   if (availableMinutes(profile) === 0) return { error: "Müsaitlik ızgaran boş; önce çalışabileceğin saatleri işaretle." }
 
+  const { data: roadmap } = await admin.from("upplan_roadmaps").select("status, payload").eq("student_id", studentId).maybeSingle()
+  const payload = parsePayload(roadmap?.payload)
+  if (roadmap?.status !== "onaylandi" || !payload) return { error: ROADMAP_REQUIRED_ERROR }
+  const roadmapTopics = new Set(payload.items.map((i) => i.topic_id))
+
   const [{ data: student }, goals, mastery, mpq, { data: program }] = await Promise.all([
     admin.from("students").select("coach_id").eq("id", studentId).maybeSingle(),
     loadAssignmentsWithProgress(admin, { studentId }),
@@ -71,7 +93,7 @@ export async function generateProgramDraft(
   const lectureDone = new Set(existingItems.filter((i) => i.block_type === "konu_calisma" && i.assignment_id).map((i) => i.assignment_id!))
 
   const programGoals: ProgramGoal[] = goals
-    .filter((g) => g.status === "aktif" && g.hedef_soru !== null && g.cozulen_soru < g.hedef_soru)
+    .filter((g) => g.status === "aktif" && roadmapTopics.has(g.topic_id) && g.hedef_soru !== null && g.cozulen_soru < g.hedef_soru)
     .map((g) => {
       const eff = mastery.get(g.topic_id)?.effective ?? NO_DATA_MASTERY
       const bt = blockTypeFor(eff)
@@ -83,7 +105,7 @@ export async function generateProgramDraft(
         subject_name: g.subject_name,
         block_type: bt,
         remaining_questions: (g.hedef_soru ?? 0) - g.cozulen_soru,
-        lecture_pending: bt === "konu_calisma" && g.cozulen_soru === 0 && !lectureDone.has(g.id),
+        ...learningFlags(g, g.block_type ?? bt, lectureDone),
         son_tarih: g.son_tarih < weekStart ? addDaysIso(weekStart, 6) : g.son_tarih,
         scheduled_blocks: linked.get(g.id) ?? 0,
       }
@@ -132,13 +154,13 @@ export async function generateProgramDraft(
     fixed: existingItems
       .filter((i): i is typeof i & { start_time: string; end_time: string } => !!i.start_time && !!i.end_time)
       .map((i) => ({ day_of_week: i.day_of_week, start_time: i.start_time.slice(0, 5), end_time: i.end_time.slice(0, 5) })),
+    // Haftada zaten deneme varsa eksik kalanı eklenir; sayaç mevcut + yeni (program sayfasıyla tutarlı).
+    existingExams: existingItems.filter((i) => i.block_type === "deneme").length,
   })
-  // Haftada zaten deneme varsa yenisini ekleme.
-  const hasExam = existingItems.some((i) => i.block_type === "deneme")
-  const items = hasExam ? res.items.filter((i) => i.block_type !== "deneme") : res.items
+  const items = res.items
 
   const coached = !!student?.coach_id
-  const meta: ProgramDraftMeta = { ...res.meta, examCount: hasExam ? 0 : res.meta.examCount, focusMinutes: profile.focus_minutes }
+  const meta: ProgramDraftMeta = { ...res.meta, focusMinutes: profile.focus_minutes }
   const { error } = await admin.from("upplan_program_drafts").upsert({
     student_id: studentId,
     week_start: weekStart,

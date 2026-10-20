@@ -27,6 +27,11 @@ export type AssignmentWithProgress = {
   notes: string | null
   status: AssignmentStatus
   created_by_role: CreatedByRole
+  /** UpPlan: öğrenme aşaması (gerekli/opsiyonel/yok) ve öğrenildi anı. */
+  learning_phase: string | null
+  learned_at: string | null
+  block_type: string | null
+  plan_order: number | null
   cozulen_soru: number
   dogru_sayisi: number
   toplam_sure_dk: number
@@ -50,7 +55,7 @@ export async function loadAssignmentsWithProgress(
   let q = supabase
     .from("topic_assignments")
     .select(
-      "id, student_id, coach_id, topic_id, hedef_soru, hedef_dogruluk, hedef_sure_dk, baslangic_tarihi, son_tarih, notes, status, created_by_role, topics(name, subject_id, subjects(id, name))",
+      "id, student_id, coach_id, topic_id, hedef_soru, hedef_dogruluk, hedef_sure_dk, baslangic_tarihi, son_tarih, notes, status, created_by_role, learning_phase, learned_at, block_type, plan_order, topics(name, subject_id, subjects(id, name))",
     )
     // Yol haritası kuyruğundaki (açılmamış) hedefler ilerleme ekranlarına girmez.
     .not("status", "in", `(${QUEUED_STATUSES.join(",")})`)
@@ -126,6 +131,10 @@ export async function loadAssignmentsWithProgress(
       notes: a.notes,
       status: a.status as AssignmentStatus,
       created_by_role: toCreatedByRole(a.created_by_role),
+      learning_phase: a.learning_phase,
+      learned_at: a.learned_at,
+      block_type: a.block_type,
+      plan_order: a.plan_order,
       cozulen_soru: p.cozulen,
       dogru_sayisi: p.dogru,
       toplam_sure_dk: p.sure,

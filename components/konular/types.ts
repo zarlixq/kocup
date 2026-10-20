@@ -9,6 +9,8 @@ export type TopicCard = {
   solvedCount: number
   wrongCount: number
   errorNotes: string | null
+  /** Hedeften (UpPlan/koç/kendi) türetilen satır: durum hedeften gelir, burada düzenlenmez. */
+  fromGoal?: boolean
 }
 
 export function successRate(solved: number, wrong: number): number {

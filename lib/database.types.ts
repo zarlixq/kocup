@@ -1526,6 +1526,124 @@ export type Database = {
           },
         ]
       }
+      student_resource_playlists: {
+        Row: {
+          created_at: string
+          id: string
+          source: string
+          student_id: string
+          subject_id: string
+          teacher_name: string
+          title: string | null
+          youtube_playlist_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          source?: string
+          student_id: string
+          subject_id: string
+          teacher_name: string
+          title?: string | null
+          youtube_playlist_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          source?: string
+          student_id?: string
+          subject_id?: string
+          teacher_name?: string
+          title?: string | null
+          youtube_playlist_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_resource_playlists_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_resource_playlists_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_resource_videos: {
+        Row: {
+          created_at: string
+          id: string
+          match_score: number | null
+          match_status: string
+          playlist_id: string
+          position: number
+          student_id: string
+          title: string
+          topic_id: string | null
+          understanding: string | null
+          watch_status: string
+          watched_at: string | null
+          youtube_video_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_score?: number | null
+          match_status?: string
+          playlist_id: string
+          position?: number
+          student_id: string
+          title: string
+          topic_id?: string | null
+          understanding?: string | null
+          watch_status?: string
+          watched_at?: string | null
+          youtube_video_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_score?: number | null
+          match_status?: string
+          playlist_id?: string
+          position?: number
+          student_id?: string
+          title?: string
+          topic_id?: string | null
+          understanding?: string | null
+          watch_status?: string
+          watched_at?: string | null
+          youtube_video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_resource_videos_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "student_resource_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_resource_videos_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_resource_videos_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_topics: {
         Row: {
           created_at: string | null
@@ -1902,6 +2020,8 @@ export type Database = {
           hedef_dogruluk: number | null
           hedef_soru: number | null
           hedef_sure_dk: number | null
+          learned_at: string | null
+          learning_phase: string | null
           id: string
           notes: string | null
           origin: string | null
@@ -1925,6 +2045,8 @@ export type Database = {
           hedef_dogruluk?: number | null
           hedef_soru?: number | null
           hedef_sure_dk?: number | null
+          learned_at?: string | null
+          learning_phase?: string | null
           id?: string
           notes?: string | null
           origin?: string | null
@@ -1948,6 +2070,8 @@ export type Database = {
           hedef_dogruluk?: number | null
           hedef_soru?: number | null
           hedef_sure_dk?: number | null
+          learned_at?: string | null
+          learning_phase?: string | null
           id?: string
           notes?: string | null
           origin?: string | null
@@ -2711,6 +2835,15 @@ export type Database = {
       upplan_recompute_student: {
         Args: { p_student_id: string }
         Returns: number
+      }
+      weekly_program_daily_compliance: {
+        Args: { p_student_id?: string; p_week_start: string }
+        Returns: {
+          day_of_week: number
+          done_items: number
+          student_id: string
+          total_items: number
+        }[]
       }
       weekly_program_compliance: {
         Args: { p_student_id?: string; p_week_start: string }

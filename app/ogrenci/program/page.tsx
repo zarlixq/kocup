@@ -14,6 +14,9 @@ import { loadUpplanProfile } from "@/lib/upplan/load"
 import { parseDraftItems } from "@/lib/upplan/program-service"
 import { ProgramDraftPanel, type ProgramDraftView } from "@/components/upplan/program-draft-panel"
 import { addDaysIso } from "@/lib/upplan/roadmap"
+import { loadTopicVideos } from "@/lib/resources/videos"
+import Link from "next/link"
+import { Map as MapIcon } from "lucide-react"
 
 export const metadata = { title: "Program — KoçUp" }
 
@@ -33,7 +36,7 @@ export default async function ProgramPage({
   } = await supabase.auth.getUser()
   const userId = user!.id
 
-  const [{ data: program }, { data: subjects }, ctx, history, upplanProfile, { data: draftRow }] = await Promise.all([
+  const [{ data: program }, { data: subjects }, ctx, history, upplanProfile, { data: draftRow }, { data: roadmapRow }, topicVideos] = await Promise.all([
     supabase
       .from("weekly_programs")
       .select(`id, weekly_program_items(${PROGRAM_ITEM_COLUMNS})`)
@@ -55,7 +58,11 @@ export default async function ProgramPage({
       .eq("student_id", userId)
       .eq("week_start", weekStart)
       .maybeSingle(),
+    supabase.from("upplan_roadmaps").select("status").eq("student_id", userId).maybeSingle(),
+    loadTopicVideos(supabase, userId),
   ])
+  // Program yalnız onaylı yol haritasından türetilir.
+  const roadmapApproved = roadmapRow?.status === "onaylandi"
   const draftMeta = (draftRow?.meta ?? {}) as { studyMinutes?: number; examCount?: number; unplaced?: number }
   const draft: ProgramDraftView | null = draftRow
     ? {
@@ -84,7 +91,28 @@ export default async function ProgramPage({
         </p>
       </div>
 
-      {upplanProfile?.completed_at && !isPastWeek && (
+      {upplanProfile?.completed_at && !isPastWeek && !roadmapApproved && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#1B6B8A]/25 bg-[#1B6B8A]/5 px-4 py-3">
+          <div className="flex items-start gap-2 text-sm">
+            <MapIcon className="mt-0.5 h-5 w-5 shrink-0 text-[#1B6B8A]" />
+            <div>
+              <div className="font-semibold text-zinc-900">Önce yol haritanı oluştur</div>
+              <div className="text-zinc-600">
+                UpPlan programı, onayladığın yol haritasındaki konulardan üretilir.
+                {roadmapRow?.status === "koca_onerildi" ? " Yol haritan koçunun onayını bekliyor." : ""}
+              </div>
+            </div>
+          </div>
+          <Link
+            href="/ogrenci/konularim"
+            className="rounded-full bg-[#F97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea6c10]"
+          >
+            Konularım&apos;a git
+          </Link>
+        </div>
+      )}
+
+      {upplanProfile?.completed_at && !isPastWeek && roadmapApproved && (
         <ProgramDraftPanel
           weekStart={weekStart}
           weekLabel={`${formatDate(weekStart, "dd.MM")}–${formatDate(addDaysIso(weekStart, 6), "dd.MM.yyyy")}`}
@@ -116,6 +144,7 @@ export default async function ProgramPage({
         baseHref="/ogrenci/program"
         subjects={filterProgramSubjects(subjects ?? [], ctx.grade)}
         topics={topics}
+        topicVideos={topicVideos}
       />
 
       {hasCoachItems && (

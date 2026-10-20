@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState, useTransition } from "react"
-import { Plus, CheckCircle2, Filter, MoreVertical, Pencil, Trash2, Target, Info } from "lucide-react"
+import { Plus, CheckCircle2, Filter, MoreVertical, Pencil, Trash2, Target, Info, BookOpenCheck, ArrowRight } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -44,6 +44,11 @@ import { LogProgressDialog } from "@/components/konu-analizi/log-progress-dialog
 import { GoalDialog, type GoalFormData, type GoalInitial } from "@/components/konu-analizi/goal-dialog"
 import { OwnerBadge } from "@/components/shared/owner-badge"
 import { deleteMyGoal, markAssignmentDone } from "@/app/ogrenci/konularim/actions"
+import { markTopicLearned } from "@/app/ogrenci/kaynaklarim/video-actions"
+import { TopicVideos } from "@/components/kaynaklar/topic-videos"
+import { STAGE_LABEL, STAGE_ORDER, type GoalCoaching } from "@/lib/upplan/goal-stage"
+import { MASTERY_LABEL_TEXT, MASTERY_TONE } from "@/lib/upplan/mastery"
+import type { TopicVideos as TopicVideosMap } from "@/lib/resources/videos"
 
 export type StudentAssignmentRow = AssignmentWithProgress & { coach_name: string | null }
 
@@ -62,11 +67,17 @@ export function AssignmentsCardGrid({
   rows,
   goalForm,
   hasCoach,
+  coaching,
+  topicVideos,
 }: {
   rows: StudentAssignmentRow[]
   /** Verilirse öğrenci kendine hedef ekleyip düzenleyebilir. */
   goalForm?: GoalFormData
   hasCoach: boolean
+  /** Öğrenci Konularım: hedef id → aşama, sonraki adım, ustalık. */
+  coaching?: Record<string, GoalCoaching>
+  /** Konu → videolar (Kaynaklarım playlist eşleşmesi). */
+  topicVideos?: TopicVideosMap
 }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [logAsg, setLogAsg] = useState<StudentAssignmentRow | null>(null)
@@ -87,13 +98,27 @@ export function AssignmentsCardGrid({
     [rows, today],
   )
 
-  // Sıralama: gecikti > aktif > tamamlandi > iptal; aynı kategoride yakın deadline önce
+  // Sıralama: gecikti > aktif > tamamlandi > iptal; aynı kategoride yakın deadline önce.
+  // Öğrenci (coaching var): açık hedefler öğrenme → soru → tekrar, her grupta plan önceliği.
   const sorted = useMemo(() => {
     const orderMap: Record<DerivedAssignmentStatus, number> = { gecikti: 0, aktif: 1, tamamlandi: 2, iptal: 3 }
+    const open = (d: DerivedAssignmentStatus) => (d === "aktif" || d === "gecikti" ? 0 : orderMap[d])
     return enriched
       .filter((r) => statusFilter === "all" || r.derived === statusFilter)
-      .sort((a, b) => orderMap[a.derived] - orderMap[b.derived] || a.son_tarih.localeCompare(b.son_tarih))
-  }, [enriched, statusFilter])
+      .sort((a, b) => {
+        if (coaching) {
+          const ca = coaching[a.id]
+          const cb = coaching[b.id]
+          return (
+            open(a.derived) - open(b.derived) ||
+            (ca ? STAGE_ORDER[ca.stage] : 3) - (cb ? STAGE_ORDER[cb.stage] : 3) ||
+            (a.plan_order ?? 1e9) - (b.plan_order ?? 1e9) ||
+            a.son_tarih.localeCompare(b.son_tarih)
+          )
+        }
+        return orderMap[a.derived] - orderMap[b.derived] || a.son_tarih.localeCompare(b.son_tarih)
+      })
+  }, [enriched, statusFilter, coaching])
 
   function handleMarkDone(id: string) {
     startTransition(async () => {
@@ -172,6 +197,8 @@ export function AssignmentsCardGrid({
             <AssignmentCard
               key={r.id}
               row={r}
+              coaching={coaching?.[r.id]}
+              videos={topicVideos?.[r.topic_id]}
               hasCoach={hasCoach}
               onLog={() => setLogAsg(r)}
               onMarkDone={() => handleMarkDone(r.id)}
@@ -245,6 +272,8 @@ export function AssignmentsCardGrid({
 // DropdownMenu modal={false}: menüden dialog açılınca body pointer-events kilidi kalmasın.
 function AssignmentCard({
   row,
+  coaching,
+  videos,
   hasCoach,
   onLog,
   onMarkDone,
@@ -253,6 +282,8 @@ function AssignmentCard({
   disabled,
 }: {
   row: Enriched
+  coaching?: GoalCoaching
+  videos?: TopicVideosMap[string]
   hasCoach: boolean
   onLog: () => void
   onMarkDone: () => void
@@ -267,6 +298,15 @@ function AssignmentCard({
   const isUpplan = row.created_by_role === "ai"
   const acc = accuracyOf(row.dogru_sayisi, row.cozulen_soru)
   const targets = { hedefSoru: row.hedef_soru, hedefDogruluk: row.hedef_dogruluk, dogru: row.dogru_sayisi }
+  const [learnPending, startLearn] = useTransition()
+
+  function markLearned() {
+    startLearn(async () => {
+      const res = await markTopicLearned(row.id)
+      if (!res.success) return void toast.error(res.error ?? "Kaydedilemedi.")
+      toast.success("Öğrenme aşaması tamam; artık soru çözümü.")
+    })
+  }
 
   return (
     <div className={`border rounded-2xl p-4 space-y-3 ${tone.border} ${tone.bg} hover:shadow-md transition-shadow`}>
@@ -311,6 +351,32 @@ function AssignmentCard({
           )}
         </div>
       </div>
+
+      {coaching && isActive && (
+        <div className="space-y-2 rounded-xl bg-white/80 px-3 py-2 ring-1 ring-inset ring-zinc-200">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="rounded-full bg-[#1B6B8A]/10 px-2 py-0.5 font-medium text-[#1B6B8A]">{STAGE_LABEL[coaching.stage]} aşaması</span>
+            {coaching.mastery && (
+              <span className={`rounded-full px-2 py-0.5 font-medium tabular-nums ${MASTERY_TONE[coaching.mastery.label].chip}`}>
+                Ustalık {coaching.mastery.effective} · {MASTERY_LABEL_TEXT[coaching.mastery.label]}
+              </span>
+            )}
+          </div>
+          <div className="flex items-start gap-1.5 text-sm font-medium text-zinc-900">
+            <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-[#F97316]" />
+            <span>
+              <span className="text-zinc-500">Şimdi ne yapmalısın? </span>
+              {coaching.nextAction}
+            </span>
+          </div>
+          {videos && videos.length > 0 && <TopicVideos topicName={row.topic_name} groups={videos} compact={coaching.stage !== "ogren"} />}
+          {coaching.canMarkLearned && (
+            <Button size="sm" variant="outline" className="h-8 bg-white" onClick={markLearned} disabled={learnPending}>
+              <BookOpenCheck className="h-4 w-4" /> Konuyu öğrendim
+            </Button>
+          )}
+        </div>
+      )}
 
       <div>
         <div className="flex items-center justify-between gap-2 text-xs text-zinc-700 mb-1">

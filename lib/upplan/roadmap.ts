@@ -1,13 +1,17 @@
 import {
   ACTIVE_TOPICS_RANGE,
+  AYT_FORCE_START_WEEKS,
+  AYT_PREREQ_SUBJECTS,
   CAPACITY_UTILIZATION,
   COMPLETION_MASTERY,
   DEFAULT_MINUTES_PER_QUESTION,
   EXAM_PERIOD_WEEKS,
   GAP_MULTIPLIER,
+  GATE_MASTERY,
   GOAL_TEMPLATES,
   LECTURE_MINUTES,
   MAX_ACTIVE_PER_SUBJECT,
+  MAX_LEARNING_ACTIVE,
   MINUTES_PER_QUESTION_RANGE,
   MIN_TIMED_QUESTIONS,
   MIN_WEEKLY_MINUTES_PER_ACTIVE,
@@ -15,6 +19,9 @@ import {
   PACE_TOLERANCE,
   PRACTICE_EXAMS_PER_WEEK,
   PRACTICE_EXAM_MINUTES,
+  SHORT_REVIEW_MINUTES,
+  TOPIC_COUNT_EXPONENT,
+  TYT_CORE_TOPICS,
   UPPLAN_SQL_CONFIG,
   type BlockType,
 } from "@/lib/upplan/config"
@@ -24,8 +31,12 @@ import {
 // PUAN   = sınav ağırlığı × (100 − etkili ustalık)/100 × ders net açığı × açık çarpanı
 // SIRA   = ön koşul grafı (topolojik) + puan; ön koşul, kendisine bağlı konuların
 //          en yüksek puanını devralır (önce açılsın diye)
-// DALGA  = aynı anda K aktif konu (4-8, kapasiteye göre); dalga süresi =
-//          dalgadaki konuların toplam süre ihtiyacı / haftalık kapasite
+// KAPI   = AYT dersi, ilgili TYT dersinin temel konuları bitmeden açılmaz; sınava
+//          AYT_FORCE_START_WEEKS kala kapı kapalı olsa da TYT ile paralel başlar
+// TAKVİM = gün gün simülasyon (simulatePlan): aynı anda K aktif konu (4-6), en çok
+//          4'ü öğrenme aşamasında, dersten en çok 2; günlük kapasite aktif konulara
+//          eşit bölünür, biten konunun yerine sıradaki (ön koşulu/kapısı açık) girer
+//          → her hedefin kendi gerçekçi bitiş tarihi olur
 // SINIR  = sınavdan önceki son 6 hafta deneme dönemi; oraya taşan konular "zaman kalırsa"
 
 export type Segment = "yks" | "lgs"
@@ -51,6 +62,27 @@ export function blockTypeFor(effective: number): BlockType {
   if (effective < UPPLAN_SQL_CONFIG.label_gelisiyor) return "konu_calisma"
   if (effective < UPPLAN_SQL_CONFIG.label_iyi) return "soru_cozum"
   return "tekrar"
+}
+
+/**
+ * Öğrenme aşaması: "hiç görmedim" ya da etkili < 40 → konu anlatımı zorunlu;
+ * "eksik" → opsiyonel kısa tekrar; "biliyorum"/iyi → yok.
+ */
+export type LearningPhase = "gerekli" | "opsiyonel" | "yok"
+export const LEARNING_PHASES: readonly LearningPhase[] = ["gerekli", "opsiyonel", "yok"]
+
+export function learningPhaseFor(assessment: RoadmapTopicInput["assessment"], effective: number): LearningPhase {
+  if (assessment === "hic_gormedim" || effective < UPPLAN_SQL_CONFIG.label_gelisiyor) return "gerekli"
+  if (assessment === "eksik") return "opsiyonel"
+  return "yok"
+}
+
+/**
+ * Yedek konu ağırlığı: ders soru sayısı × alandaki önem / konu sayısı^üs.
+ * Ders içi dağılım eşit; üs < 1 az konulu dersin konularını şişirmez.
+ */
+export function fallbackTopicWeight(examQuestions: number, importance: number, topicCount: number): number {
+  return Math.round(((examQuestions * importance) / Math.pow(Math.max(topicCount, 1), TOPIC_COUNT_EXPONENT)) * 1000) / 1000
 }
 
 /** Hedef tamamlandı mı: soru hedefi doldu VE etkili ustalık eşik üstü. */
@@ -92,9 +124,23 @@ export function activeSlotsFor(weeklyMinutes: number): number {
   return clamp(Math.floor(weeklyMinutes / MIN_WEEKLY_MINUTES_PER_ACTIVE), ACTIVE_TOPICS_RANGE.min, ACTIVE_TOPICS_RANGE.max)
 }
 
-/** Bir konu hedefinin toplam süre ihtiyacı (dk). */
-export function needMinutes(blockType: BlockType, questions: number, mpq: number): number {
-  return Math.round(questions * mpq + (blockType === "konu_calisma" ? LECTURE_MINUTES : 0))
+/**
+ * Bir konu hedefinin toplam süre ihtiyacı (dk): soru süresi + öğrenme aşaması
+ * (gerekli → konu anlatımı, opsiyonel → kısa tekrar). Aşama verilmezse eski
+ * kural: konu_calisma şablonu konu anlatımı içerir.
+ */
+export function needMinutes(blockType: BlockType, questions: number, mpq: number, phase?: LearningPhase): number {
+  const learn =
+    phase === undefined
+      ? blockType === "konu_calisma"
+        ? LECTURE_MINUTES
+        : 0
+      : phase === "gerekli"
+        ? LECTURE_MINUTES
+        : phase === "opsiyonel"
+          ? SHORT_REVIEW_MINUTES
+          : 0
+  return Math.round(questions * mpq + learn)
 }
 
 /**
@@ -182,8 +228,10 @@ export type RoadmapTopicInput = {
   topic_name: string
   subject_id: string
   subject_name: string
-  /** Sınavdaki ortalama soru (topic_exam_weights ya da ders/konu tahmini). */
+  /** Öncelik ağırlığı (gerçek veri ya da alan önemli yedek ağırlık; bkz. fallbackTopicWeight). */
   weight: number
+  /** Açıklamada gösterilen sınavdaki ortalama soru (yoksa weight). */
+  avgQuestions?: number
   weightEstimated: boolean
   effective: number
   assessment: "hic_gormedim" | "eksik" | "biliyorum" | null
@@ -223,6 +271,9 @@ export type RoadmapItem = {
   prereqs: string[]
   /** Mevcut hedef (öğrencinin kendi / koçtan devralınan) — yol haritası onu değiştirmez. */
   existing: { assignment_id: string; source: ExistingGoal["source"] } | null
+  learning_phase?: LearningPhase
+  /** AYT kapısı: bitmesi beklenen TYT temel konuları (kapı açıksa boş). */
+  gate?: string[]
 }
 
 export type Roadmap = {
@@ -236,6 +287,8 @@ export type Roadmap = {
   overflow: { count: number; message: string } | null
   brokenCycles: { prereq: string; topic: string }[]
   notes: string[]
+  /** Bu tarihten itibaren AYT konuları kapı kapalı olsa da başlar. */
+  aytForceStart?: string
 }
 
 export type RoadmapInput = {
@@ -308,9 +361,135 @@ export function scheduleWaves(
   return res
 }
 
+// ── AYT kapısı ──────────────────────────────────────────────────────────
+/**
+ * Ders bazlı kapı konuları: AYT dersinin konularının ön koşul zincirindeki,
+ * eşlenen TYT derslerine ait konular; zincirde yoksa config'teki temel konular.
+ * Dönüş: AYT subject_id → henüz geçilmemiş (tamamlanmamış, etkili < 75) kapı konuları.
+ */
+export function computeGates(
+  topics: Pick<RoadmapTopicInput, "topic_id" | "topic_name" | "subject_id" | "subject_name" | "effective">[],
+  edges: Edge[],
+  completed: Set<string>,
+): Map<string, string[]> {
+  const byId = new Map(topics.map((t) => [t.topic_id, t]))
+  const prereqsOf = new Map<string, string[]>()
+  for (const e of edges) (prereqsOf.get(e.topic) ?? prereqsOf.set(e.topic, []).get(e.topic)!).push(e.prereq)
+  const out = new Map<string, string[]>()
+  const subjects = new Map<string, string>()
+  for (const t of topics) subjects.set(t.subject_id, t.subject_name)
+  for (const [sid, sname] of subjects) {
+    const tytNames = AYT_PREREQ_SUBJECTS[sname]
+    if (!tytNames) continue
+    // Ön koşul zinciri (geriye doğru; ziyaret kümesi döngüye karşı).
+    const seen = new Set<string>()
+    const stack = topics.filter((t) => t.subject_id === sid).map((t) => t.topic_id)
+    while (stack.length) {
+      const id = stack.pop()!
+      for (const p of prereqsOf.get(id) ?? []) {
+        if (seen.has(p)) continue
+        seen.add(p)
+        stack.push(p)
+      }
+    }
+    let gate = Array.from(seen).filter((id) => tytNames.includes(byId.get(id)?.subject_name ?? ""))
+    if (gate.length === 0) {
+      gate = topics
+        .filter((t) => tytNames.includes(t.subject_name) && (TYT_CORE_TOPICS[t.subject_name] ?? []).includes(t.topic_name))
+        .map((t) => t.topic_id)
+    }
+    out.set(
+      sid,
+      gate.filter((id) => !completed.has(id) && (byId.get(id)?.effective ?? 0) < GATE_MASTERY),
+    )
+  }
+  return out
+}
+
+// ── Takvim simülasyonu ──────────────────────────────────────────────────
+export type SimEntry = {
+  id: string
+  /** Toplam süre ihtiyacı (dk). */
+  need: number
+  subject: string
+  /** Öğrenme aşamasının süresi (dk; 0 = yok). Bu kadar ilerleyene dek "öğrenmede" sayılır. */
+  learnMinutes: number
+  /** Planda olan ön koşullar: bitmeden başlamaz. */
+  prereqs: string[]
+  /** Kapı konuları: hepsi bitmeden (ya da forceStart gelmeden) başlamaz. */
+  gate: string[]
+}
+
+export type SimResult = { start: string | null; end: string | null; forced: boolean }
+
+/**
+ * Gün gün simülasyon. Her gün: boş yer varsa sıradaki uygun konular başlar
+ * (ön koşulu bitti, kapısı açık ya da forceStart geldi, ders ve öğrenme
+ * sınırı), günlük kapasite aktif konulara eşit bölünür; ihtiyacı dolan konu o
+ * gün biter. preActive: zaten çalışılan hedefler (yer kaplar, sonuçta yer alır).
+ */
+export function simulatePlan(
+  entries: SimEntry[],
+  opts: {
+    start: string
+    weeklyMinutes: number
+    slots: number
+    horizon: string
+    forceStart: string
+    maxPerSubject?: number
+    maxLearning?: number
+    preActive?: SimEntry[]
+  },
+): Map<string, SimResult> {
+  const perDay = Math.max(opts.weeklyMinutes, 1) / 7
+  const maxPerSubject = opts.maxPerSubject ?? MAX_ACTIVE_PER_SUBJECT
+  const maxLearning = opts.maxLearning ?? MAX_LEARNING_ACTIVE
+  const res = new Map<string, SimResult>()
+  const finished = new Set<string>()
+  type Run = { e: SimEntry; done: number }
+  const active: Run[] = (opts.preActive ?? []).map((e) => {
+    res.set(e.id, { start: opts.start, end: null, forced: false })
+    return { e, done: 0 }
+  })
+  const inPlan = new Set([...entries, ...(opts.preActive ?? [])].map((e) => e.id))
+  const pending = [...entries]
+  const horizonDays = Math.max(daysBetweenIso(opts.start, opts.horizon), 0)
+
+  for (let d = 0; d <= horizonDays && (pending.length || active.length); d++) {
+    const date = addDaysIso(opts.start, d)
+    for (let i = 0; i < pending.length && active.length < opts.slots; i++) {
+      const e = pending[i]
+      if (e.prereqs.some((p) => inPlan.has(p) && !finished.has(p))) continue
+      const gateOpen = e.gate.every((g) => !inPlan.has(g) || finished.has(g))
+      const forced = !gateOpen && date >= opts.forceStart
+      if (!gateOpen && !forced) continue
+      if (active.filter((r) => r.e.subject === e.subject).length >= maxPerSubject) continue
+      if (e.learnMinutes > 0 && active.filter((r) => r.done < r.e.learnMinutes).length >= maxLearning) continue
+      active.push({ e, done: 0 })
+      res.set(e.id, { start: date, end: null, forced })
+      pending.splice(i, 1)
+      i -= 1
+    }
+    if (!active.length) continue
+    const share = perDay / active.length
+    for (let i = active.length - 1; i >= 0; i--) {
+      const r = active[i]
+      r.done += share
+      if (r.done >= r.e.need) {
+        res.get(r.e.id)!.end = date
+        finished.add(r.e.id)
+        active.splice(i, 1)
+      }
+    }
+  }
+  for (const e of pending) res.set(e.id, { start: null, end: null, forced: false })
+  return res
+}
+
 // ── Ana fonksiyon ───────────────────────────────────────────────────────
 export function buildRoadmap(input: RoadmapInput): Roadmap {
   const examPeriodStart = addDaysIso(input.examDate, -EXAM_PERIOD_WEEKS * 7)
+  const aytForceStart = addDaysIso(input.examDate, -AYT_FORCE_START_WEEKS * 7)
   const slots = activeSlotsFor(input.weeklyMinutes)
   const completed = new Set(input.completedTopicIds)
   const existingByTopic = new Map(input.existing.map((e) => [e.topic_id, e]))
@@ -328,6 +507,8 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     ;(prereqsOf.get(e.topic) ?? prereqsOf.set(e.topic, []).get(e.topic)!).push(e.prereq)
     ;(dependentsOf.get(e.prereq) ?? dependentsOf.set(e.prereq, []).get(e.prereq)!).push(e.topic)
   }
+
+  const gates = computeGates(input.topics, input.edges, completed)
 
   const base = new Map<string, number>()
   for (const t of topics) base.set(t.topic_id, priorityScore({ weight: t.weight, effective: t.effective, netGap: t.netGap, hasConfidentGap: !!t.gapAtom }))
@@ -374,59 +555,44 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
 
   const goal = (t: RoadmapTopicInput) => {
     const bt = blockTypeFor(t.effective)
-    return { bt, q: GOAL_TEMPLATES[bt].questions, acc: GOAL_TEMPLATES[bt].accuracy }
+    const phase = learningPhaseFor(t.assessment, t.effective)
+    const q = GOAL_TEMPLATES[bt].questions
+    return { bt, phase, q, acc: GOAL_TEMPLATES[bt].accuracy, need: needMinutes(bt, q, input.minutesPerQuestion, phase) }
   }
+  const gateOf = (id: string) => gates.get(byId.get(id)!.subject_id) ?? []
+  // Takvimde ön koşul, yalnız henüz bilinmiyorsa (etkili < 75) bekletir; zaten
+  // iyi bilinen ön koşul sıralamada önde kalır ama başlamayı geciktirmez.
+  const simEntry = (id: string, need: number): SimEntry => ({
+    id,
+    need,
+    subject: byId.get(id)!.subject_id,
+    learnMinutes: goal(byId.get(id)!).phase === "gerekli" ? LECTURE_MINUTES : 0,
+    // Kapı konusu olan ön koşulu kapı yönetir (son tarihte zorla açılabilsin).
+    prereqs: (prereqsOf.get(id) ?? []).filter((p) => (byId.get(p)?.effective ?? 0) < GATE_MASTERY && !gateOf(id).includes(p)),
+    gate: gateOf(id),
+  })
 
   const inExamPeriod = input.today >= examPeriodStart
   const queueIds = order.filter((id) => !existingByTopic.has(id))
-  const startLoad = input.existing.reduce((sum, e) => sum + e.remainingMinutes, 0)
-
-  // Dalga ataması: sırayla K'lık gruplar. Konu, ön koşulu aynı/sonraki dalgadaysa ya
-  // da dalgada o dersten zaten MAX_ACTIVE_PER_SUBJECT konu varsa sonraki dalgaya kalır.
-  const waveOf = new Map<string, number>()
-  for (const id of fixed) waveOf.set(id, 1)
-  const queueOrdered: string[] = []
-  {
-    let wave = 1
-    let count = fixed.length
-    let perSubject = new Map<string, number>()
-    for (const id of fixed) {
-      const sid = byId.get(id)!.subject_id
-      perSubject.set(sid, (perSubject.get(sid) ?? 0) + 1)
-    }
-    const rest = [...queueIds]
-    const nextWave = () => {
-      wave += 1
-      count = 0
-      perSubject = new Map()
-    }
-    while (rest.length) {
-      if (count >= slots) nextWave()
-      const idx = rest.findIndex(
-        (id) =>
-          (perSubject.get(byId.get(id)!.subject_id) ?? 0) < MAX_ACTIVE_PER_SUBJECT &&
-          (prereqsOf.get(id) ?? []).every((p) => (waveOf.get(p) ?? Infinity) < wave),
-      )
-      if (idx < 0) {
-        nextWave()
-        continue
-      }
-      const [id] = rest.splice(idx, 1)
-      const sid = byId.get(id)!.subject_id
-      perSubject.set(sid, (perSubject.get(sid) ?? 0) + 1)
-      waveOf.set(id, wave)
-      queueOrdered.push(id)
-      count += 1
-    }
-  }
-
-  const sched = scheduleWaves(
-    queueOrdered.map((id) => {
-      const g = goal(byId.get(id)!)
-      return { id, needMinutes: needMinutes(g.bt, g.q, input.minutesPerQuestion), wave: waveOf.get(id)! }
-    }),
-    { weeklyMinutes: input.weeklyMinutes, start: input.today, planEnd: examPeriodStart, startLoadMinutes: startLoad },
+  const sim = simulatePlan(
+    queueIds.map((id) => simEntry(id, goal(byId.get(id)!).need)),
+    {
+      start: input.today,
+      weeklyMinutes: input.weeklyMinutes,
+      slots,
+      horizon: input.examDate,
+      forceStart: aytForceStart,
+      preActive: fixed.map((id) => ({ ...simEntry(id, existingByTopic.get(id)!.remainingMinutes), prereqs: [], gate: [] })),
+    },
   )
+
+  // Plan sırası = başlama tarihi (eşitlikte öncelik sırası); başlayamayanlar sonda.
+  const rank = new Map(order.map((id, i) => [id, i]))
+  const queueOrdered = [...queueIds].sort((a, b) => {
+    const sa = sim.get(a)?.start ?? "9999"
+    const sb = sim.get(b)?.start ?? "9999"
+    return sa.localeCompare(sb) || rank.get(a)! - rank.get(b)!
+  })
 
   // Açıklama şablonları.
   const topExamWrongBySubject = new Map<string, string>()
@@ -441,6 +607,7 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     if (!t) return ""
     return from && t.topic_name === from.topic_name ? `${t.subject_name} ${t.topic_name}` : t.topic_name
   }
+  const tytOf = (subjectName: string) => joinNames([...(AYT_PREREQ_SUBJECTS[subjectName] ?? [])])
 
   const items: RoadmapItem[] = []
   let overflowCount = 0
@@ -449,13 +616,19 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     const t = byId.get(id)!
     const g = goal(t)
     const ex = existingByTopic.get(id) ?? null
-    const s = sched.get(id)
+    const s = sim.get(id)
     const reasons: string[] = []
     if (ex) reasons.push(ex.source === "coach" ? "Koçundan devralınan hedef" : "Kendi eklediğin hedef")
     const deps = (dependentsOf.get(id) ?? []).filter((d) => nodes.has(d))
     if (deps.length) {
       const shown = deps.slice(0, 3).map((d) => nameOf(d, t))
       reasons.push(`${t.topic_name} önce, çünkü ${joinNames(shown)} ${shown.length > 1 ? "konularının" : "konusunun"} ön koşulu`)
+    }
+    const gate = ex ? [] : gateOf(id)
+    if (gate.length && s?.forced) {
+      reasons.push(`Sınava ${AYT_FORCE_START_WEEKS} hafta kaldığı için ${tytOf(t.subject_name)} ile paralel başlıyor`)
+    } else if (gate.length) {
+      reasons.push(`${tytOf(t.subject_name)} temel konuları bitince açılır`)
     }
     if (topExamWrongBySubject.get(t.subject_id) === id) {
       reasons.push(`Denemende ${t.subject_name} dersinde en çok net ${t.topic_name} konusunda gitti`)
@@ -464,15 +637,18 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
       reasons.push(`Biliyorum demiştin ama denemede ${t.examWrongs} yanlış çıktı`)
     }
     if (t.gapAtom) reasons.push(`Açık haritasında "${t.gapAtom}" öne çıkıyor`)
-    if (g.bt === "konu_calisma") reasons.push(`Ustalığın ${Math.round(t.effective)}: önce konu çalışması`)
-    reasons.push(`Sınavda ortalama ${round1(t.weight)} soru${t.weightEstimated ? " (tahmini)" : ""}`)
+    if (g.phase === "gerekli") reasons.push(`Ustalığın ${Math.round(t.effective)}: önce konuyu öğren, sonra soru çöz`)
+    reasons.push(`Sınavda ortalama ${round1(t.avgQuestions ?? t.weight)} soru${t.weightEstimated ? " (tahmini)" : ""}`)
 
+    const fits = !!s?.end && s.end <= examPeriodStart
     let status: RoadmapItemStatus
     if (ex) status = "aktif"
-    else if (inExamPeriod || !s?.fits) status = "zaman_kalirsa"
-    else status = (s?.wave ?? 1) === 1 ? "aktif" : "sirada"
+    else if (inExamPeriod || !fits) status = "zaman_kalirsa"
+    else status = s?.start === input.today ? "aktif" : "sirada"
     if (status === "zaman_kalirsa") overflowCount += 1
 
+    const start = ex ? input.today : (s?.start ?? examPeriodStart)
+    const end = ex ? ex.son_tarih : s?.end && s.end <= examPeriodStart ? s.end : examPeriodStart
     items.push({
       topic_id: id,
       topic_name: t.topic_name,
@@ -482,19 +658,30 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
       block_type: g.bt,
       target_questions: g.q,
       target_accuracy: g.acc,
-      need_minutes: needMinutes(g.bt, g.q, input.minutesPerQuestion),
-      wave: ex ? 1 : (s?.wave ?? 1),
+      need_minutes: g.need,
+      wave: ex ? 1 : s?.start ? Math.floor(daysBetweenIso(input.today, s.start) / 7) + 1 : 0,
       plan_order: i + 1,
-      start: ex ? input.today : (s?.start ?? input.today),
-      end: ex ? ex.son_tarih : (s?.end ?? examPeriodStart),
+      start,
+      end: end < start ? start : end,
       status,
       reasons,
       prereqs: prereqsOf.get(id) ?? [],
       existing: ex ? { assignment_id: ex.assignment_id, source: ex.source } : null,
+      learning_phase: g.phase,
+      gate,
     })
   })
+  // Başlayamayan (zaman kalırsa) konular en sona.
+  const lastWave = Math.max(1, ...items.map((i) => i.wave))
+  for (const it of items) if (it.wave === 0) it.wave = lastWave + 1
 
   if (inExamPeriod) notes.push("Deneme dönemindesin: yeni konu açılmıyor; deneme, tekrar ve açık kapatma öncelikli.")
+  const gated = Array.from(gates.entries()).some(([sid, g]) => g.length > 0 && topics.some((t) => t.subject_id === sid))
+  if (gated && !inExamPeriod) {
+    notes.push(
+      `AYT konuları, ilgili TYT dersinin temel konularını bitirince açılır; en geç ${aytForceStart.split("-").reverse().join(".")} tarihinde (sınava ${AYT_FORCE_START_WEEKS} hafta kala) TYT ile paralel başlar.`,
+    )
+  }
 
   return {
     today: input.today,
@@ -507,6 +694,7 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     overflow: overflowCount > 0 && !inExamPeriod ? { count: overflowCount, message: overflowMessage(overflowCount) } : null,
     brokenCycles: broken,
     notes,
+    aytForceStart,
   }
 }
 

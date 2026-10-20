@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { scheduleWeek, slotsToIntervals, spacedReviewsDue, toHHMM, type ProgramGoal, type ScheduleInput } from "@/lib/upplan/scheduler"
+import { fromHHMM, scheduleWeek, slotsToIntervals, spacedReviewsDue, toHHMM, type ProgramGoal, type ScheduleInput } from "@/lib/upplan/scheduler"
 
 // Izgara 06:00'dan başlar, slot 30 dk → 17:00 = slot 22, 22:00 = slot 32.
 const range = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => from + i)
@@ -67,7 +67,7 @@ describe("scheduleWeek", () => {
     expect(Math.max(...perDay.values())).toBeLessThanOrEqual(2)
   })
 
-  it("konu çalışması günün ilk bloğuna; bloklar hedefe bağlı", () => {
+  it("konu çalışması günün ilk bloğuna, en az 90 dk (45 dk odakta 2 blok arka arkaya)", () => {
     const r = scheduleWeek({
       ...base,
       goals: [goal("a"), goal("b", { block_type: "konu_calisma", lecture_pending: true, remaining_questions: 120 })],
@@ -75,8 +75,42 @@ describe("scheduleWeek", () => {
     const lecture = r.items.find((i) => i.block_type === "konu_calisma")!
     expect(lecture.assignment_id).toBe("b")
     expect(lecture.baslik).toBe("Konu çalışması: b")
+    expect(fromHHMM(lecture.end_time) - fromHHMM(lecture.start_time)).toBeGreaterThanOrEqual(90)
     const dayItems = r.items.filter((i) => i.day_of_week === lecture.day_of_week && i.block_type !== "deneme")
     expect(dayItems[0]).toBe(lecture)
+  })
+
+  it("konu çalışması bitmeden o konunun soru bloğu konmaz (haftadaki ilk blok konu çalışması)", () => {
+    const goals = Array.from({ length: 5 }, (_, i) =>
+      goal(`k${i}`, { block_type: "konu_calisma", lecture_pending: true, remaining_questions: 300, son_tarih: "2026-10-30" }),
+    )
+    const r = scheduleWeek({ ...base, goals })
+    const key = (i: { day_of_week: number; start_time: string }) => i.day_of_week * 10000 + fromHHMM(i.start_time)
+    for (const g of goals) {
+      const own = r.items.filter((i) => i.assignment_id === g.assignment_id).sort((x, y) => key(x) - key(y))
+      expect(own.length).toBeGreaterThan(1)
+      expect(own[0].block_type).toBe("konu_calisma")
+      expect(own.slice(1).every((i) => i.block_type === "soru_cozum")).toBe(true)
+      const le = own[0]
+      expect(own.slice(1).every((i) => key(i) >= le.day_of_week * 10000 + fromHHMM(le.end_time))).toBe(true)
+    }
+  })
+
+  it("konu çalışması yerleşemezse o konuya soru bloğu da konmaz", () => {
+    // Tek gün, tek 45 dk'lık boşluk: 90 dk'lık konu çalışması sığmaz.
+    const r = scheduleWeek({ ...base, availability: { "1": range(22, 24) }, goals: [goal("x", { lecture_pending: true })] })
+    expect(r.items.filter((i) => i.assignment_id === "x")).toHaveLength(0)
+    expect(r.meta.unplaced).toBe(1)
+  })
+
+  it("haftada 1 deneme kuralı: hafta zaten deneme içeriyorsa yenisi eklenmez, sayaç tutarlı", () => {
+    const r = scheduleWeek({ ...base, existingExams: 1 })
+    expect(r.items.filter((i) => i.block_type === "deneme")).toHaveLength(0)
+    expect(r.meta.examCount).toBe(1)
+    // Her hafta (sınava 13+ hafta) tam 1 deneme.
+    for (const weeksLeft of [34, 20, 13]) {
+      expect(scheduleWeek({ ...base, weeksLeft }).items.filter((i) => i.block_type === "deneme")).toHaveLength(1)
+    }
   })
 
   it("aciliyeti yüksek hedef daha çok blok alır (kapasite sınırlıyken)", () => {

@@ -4,7 +4,9 @@ import {
   activeSlotsFor,
   blockTypeFor,
   buildRoadmap,
+  fallbackTopicWeight,
   isGoalComplete,
+  learningPhaseFor,
   minutesPerQuestion,
   netGapFactor,
   paceStatus,
@@ -72,10 +74,10 @@ describe("kapasite", () => {
     expect(practiceExamsPerWeek(8)).toBe(2)
     expect(practiceExamsPerWeek(3)).toBe(3)
   })
-  it("aktif konu sayısı 4-8 arası", () => {
+  it("aktif konu sayısı 4-6 arası", () => {
     expect(activeSlotsFor(200)).toBe(4)
-    expect(activeSlotsFor(720)).toBe(6)
-    expect(activeSlotsFor(5000)).toBe(8)
+    expect(activeSlotsFor(600)).toBe(5)
+    expect(activeSlotsFor(5000)).toBe(6)
   })
 })
 
@@ -117,16 +119,16 @@ describe("ön koşul grafı", () => {
 describe("buildRoadmap", () => {
   const base = { today: TODAY, examDate: EXAM, weeklyMinutes: 900, minutesPerQuestion: 1.5, existing: [], completedTopicIds: [] }
 
-  it("ön koşul, puanı düşük olsa da bağımlı konudan önceki dalgada", () => {
+  it("ön koşul, puanı düşük olsa da önce; bağımlı konu ön koşul bitince başlar", () => {
     const r = buildRoadmap({
       ...base,
-      topics: [topic("fonk", { effective: 80, weight: 1 }), topic("limit", { effective: 10, weight: 3 })],
+      topics: [topic("fonk", { effective: 60, weight: 1 }), topic("limit", { effective: 10, weight: 3 })],
       edges: [{ prereq: "fonk", topic: "limit" }],
     })
     const fonk = r.items.find((i) => i.topic_id === "fonk")!
     const limit = r.items.find((i) => i.topic_id === "limit")!
     expect(fonk.plan_order).toBeLessThan(limit.plan_order)
-    expect(fonk.wave).toBeLessThan(limit.wave)
+    expect(limit.start > fonk.end).toBe(true)
     expect(fonk.reasons[0]).toBe("FONK önce, çünkü LIMIT konusunun ön koşulu")
   })
 
@@ -178,10 +180,103 @@ describe("buildRoadmap", () => {
     expect(r.items.filter((i) => i.status === "aktif")).toHaveLength(r.activeSlots)
   })
 
-  it("bir dalgada aynı dersten en fazla 2 konu", () => {
+  it("aynı anda aynı dersten en fazla 2 aktif konu", () => {
     const topics = Array.from({ length: 10 }, (_, i) => topic(`m${i}`, { weight: 10 - i }))
     const r = buildRoadmap({ ...base, topics, edges: [] })
-    expect(r.items.filter((i) => i.wave === 1)).toHaveLength(2)
+    expect(r.items.filter((i) => i.status === "aktif")).toHaveLength(2)
+  })
+
+  it("hedef tarihleri gerçekçi: aynı anda başlayanlar ihtiyaca göre farklı günlerde biter", () => {
+    const topics = [
+      topic("az", { subject_id: "a", effective: 80 }), // tekrar: 30 soru
+      topic("orta", { subject_id: "b", effective: 60 }), // soru çözümü: 80 soru
+      topic("cok", { subject_id: "c", effective: 10 }), // konu çalışması: 120 soru + anlatım
+    ]
+    const r = buildRoadmap({ ...base, topics, edges: [] })
+    const end = (id: string) => r.items.find((i) => i.topic_id === id)!.end
+    expect(new Set(r.items.map((i) => i.end)).size).toBe(3)
+    expect(end("az") < end("orta") && end("orta") < end("cok")).toBe(true)
+  })
+
+  it("öğrenme aşamasında aynı anda en fazla 4 konu, toplam aktif ≤ 6", () => {
+    const topics = Array.from({ length: 10 }, (_, i) => topic(`h${i}`, { subject_id: `s${i}`, effective: 10, assessment: "hic_gormedim", weight: 10 - i }))
+    const r = buildRoadmap({ ...base, weeklyMinutes: 5000, topics, edges: [] })
+    const active = r.items.filter((i) => i.status === "aktif")
+    expect(active.length).toBeLessThanOrEqual(6)
+    expect(active.filter((i) => i.learning_phase === "gerekli")).toHaveLength(4)
+  })
+})
+
+describe("TYT → AYT kapısı", () => {
+  const base = { today: TODAY, examDate: EXAM, weeklyMinutes: 1200, minutesPerQuestion: 1.5, existing: [], completedTopicIds: [] }
+  const tyt = (id: string, over: Partial<RoadmapTopicInput> = {}) =>
+    topic(id, { subject_id: "tytmat", subject_name: "TYT Matematik", weight: 1, ...over })
+  const ayt = (id: string, over: Partial<RoadmapTopicInput> = {}) =>
+    topic(id, { subject_id: "aytmat", subject_name: "AYT Matematik", weight: 5, effective: 10, assessment: "hic_gormedim", ...over })
+
+  it("ön koşul zincirindeki TYT konusu bitmeden AYT konusu açılmaz", () => {
+    const r = buildRoadmap({
+      ...base,
+      topics: [tyt("fonk", { topic_name: "Fonksiyonlar", effective: 50 }), ayt("turev"), ayt("limit")],
+      edges: [{ prereq: "fonk", topic: "limit" }],
+    })
+    const fonk = r.items.find((i) => i.topic_id === "fonk")!
+    const turev = r.items.find((i) => i.topic_id === "turev")!
+    expect(turev.gate).toEqual(["fonk"])
+    expect(turev.status).toBe("sirada")
+    expect(turev.start > fonk.end).toBe(true)
+    expect(turev.reasons).toContain("TYT Matematik temel konuları bitince açılır")
+    expect(r.notes.some((n) => n.includes("AYT konuları"))).toBe(true)
+  })
+
+  it("kapı konusu ustalık ≥ 75 ise kapı açık", () => {
+    const r = buildRoadmap({
+      ...base,
+      topics: [tyt("fonk", { effective: 80 }), ayt("turev")],
+      edges: [{ prereq: "fonk", topic: "turev" }],
+    })
+    expect(r.items.find((i) => i.topic_id === "turev")!.status).toBe("aktif")
+  })
+
+  it("zincirde TYT konusu yoksa config'teki temel konu listesi kapıdır", () => {
+    const r = buildRoadmap({
+      ...base,
+      topics: [tyt("polinom", { topic_name: "Polinomlar", effective: 30 }), tyt("olasilik", { topic_name: "Olasılık", effective: 30 }), ayt("turev")],
+      edges: [],
+    })
+    expect(r.items.find((i) => i.topic_id === "turev")!.gate).toEqual(["polinom"])
+  })
+
+  it("sınava 26 hafta kala kapı kapalı olsa da AYT başlar", () => {
+    // Kapı konusu çok uzun: TYT bitmeden 26 hafta sınırına gelinir.
+    const r = buildRoadmap({
+      ...base,
+      weeklyMinutes: 100,
+      // 6 kapı konusu, dersten aynı anda en çok 2 → TYT ~4 ay sürer.
+      topics: [...Array.from({ length: 6 }, (_, i) => tyt(`f${i}`, { effective: 10, assessment: "hic_gormedim" })), ayt("turev")],
+      edges: Array.from({ length: 6 }, (_, i) => ({ prereq: `f${i}`, topic: "turev" })),
+    })
+    const turev = r.items.find((i) => i.topic_id === "turev")!
+    expect(r.aytForceStart).toBe("2026-12-19")
+    expect(turev.start).toBe("2026-12-19")
+    expect(r.items.filter((i) => i.topic_id.startsWith("f")).some((i) => i.end > turev.start)).toBe(true)
+    expect(turev.reasons.some((x) => x.includes("26 hafta kaldığı için"))).toBe(true)
+  })
+})
+
+describe("öğrenme aşaması ve yedek ağırlık", () => {
+  it("hiç görmedim / zayıf → gerekli, eksik → opsiyonel, biliyorum → yok", () => {
+    expect(learningPhaseFor("hic_gormedim", 60)).toBe("gerekli")
+    expect(learningPhaseFor(null, 30)).toBe("gerekli")
+    expect(learningPhaseFor("eksik", 45)).toBe("opsiyonel")
+    expect(learningPhaseFor("biliyorum", 75)).toBe("yok")
+  })
+  it("sayısalda Fizik/Kimya konusu Biyoloji konusundan ağır; ders içi eşit", () => {
+    const bio = fallbackTopicWeight(13, 0.6, 15)
+    const fiz = fallbackTopicWeight(14, 1, 24)
+    const kim = fallbackTopicWeight(13, 1, 17)
+    expect(fiz).toBeGreaterThan(bio)
+    expect(kim).toBeGreaterThan(bio)
   })
 })
 

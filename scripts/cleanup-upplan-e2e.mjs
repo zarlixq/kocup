@@ -1,10 +1,15 @@
 // UpPlan uçtan uca test hesaplarını ve onlara ait TÜM satırları siler.
-// Yalnız aşağıdaki 3 test e-postası; gerçek kullanıcı satırına dokunmaz.
+// Yalnız aşağıdaki test e-postaları; gerçek kullanıcı satırına dokunmaz.
 // Kullanım: node scripts/cleanup-upplan-e2e.mjs [--dry]
 // Önce tablo tablo sayar, siler, sonra tekrar sayar (gerçek veri kontrol sayılarıyla).
 import { serviceClient } from "./lib/env.mjs"
 
-const EMAILS = ["test-upplan@kocupakademi.com", "test-upplan-koclu@kocupakademi.com", "test-upplan-koc@kocupakademi.com"]
+const EMAILS = [
+  "test-upplan@kocupakademi.com",
+  "test-upplan-koclu@kocupakademi.com",
+  "test-upplan-koc@kocupakademi.com",
+  "test-upplan-mezun@kocupakademi.com",
+]
 const dry = process.argv.includes("--dry")
 const db = await serviceClient()
 
@@ -35,6 +40,8 @@ const plan = [
   ["appointments", "student_id", ids],
   ["appointments", "coach_id", ids],
   ["coach_assignment_history", "student_id", ids],
+  ["student_resource_videos", "student_id", ids],
+  ["student_resource_playlists", "student_id", ids],
   ["upplan_notifications", "student_id", ids],
   ["upplan_program_drafts", "student_id", ids],
   ["upplan_roadmaps", "student_id", ids],

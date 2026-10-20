@@ -1,7 +1,24 @@
 "use client"
 
 import { useMemo, useOptimistic, useState, useTransition } from "react"
-import { Plus, Pencil, Trash2, StickyNote, CheckCircle2, Clock, Target, GripVertical } from "lucide-react"
+import {
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  GripVertical,
+  LayoutList,
+  PencilLine,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  StickyNote,
+  Target,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -16,6 +33,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { DAYS, todayDayOfWeek } from "@/lib/days"
+import { complianceUptoDay, dailyCompliance, type DayCount } from "@/lib/analytics/daily-compliance"
+import { istanbulDateStr } from "@/lib/tz"
+import { TopicVideos } from "@/components/kaynaklar/topic-videos"
+import type { TopicVideos as TopicVideosMap } from "@/lib/resources/videos"
 import {
   ProgramItemDialog,
   type ProgramItemInitial,
@@ -51,8 +72,36 @@ export type ProgramItem = {
   aciklama: string | null
   hedef_soru: number | null
   is_completed: boolean
+  /** UpPlan blok tipi: konu_calisma | soru_cozum | tekrar | deneme (elle eklenen kalemde null). */
+  block_type?: string | null
   created_by_role: "student" | "coach" | "ai"
   subject: { id: string; name: string; color: string | null } | null
+}
+
+// Blok tipi → ikon ve kısa ad (kart + açıklama ortak).
+const BLOCK_KIND: Record<string, { label: string; Icon: LucideIcon }> = {
+  konu_calisma: { label: "Öğren", Icon: BookOpen },
+  soru_cozum: { label: "Soru", Icon: PencilLine },
+  tekrar: { label: "Tekrar", Icon: RotateCcw },
+  deneme: { label: "Deneme", Icon: ClipboardList },
+}
+
+/** UpPlan başlığındaki "Konu çalışması: X" önekini at: konu adı kartta bir kez. */
+function stripPrefix(baslik: string): string {
+  return baslik.replace(/^(Konu çalışması|Kısa konu tekrarı|Soru çözümü|Tekrar):\s*/, "")
+}
+
+function minutesOf(item: ProgramItem): number {
+  if (!item.start_time || !item.end_time) return 0
+  const [ah, am] = item.start_time.split(":").map(Number)
+  const [bh, bm] = item.end_time.split(":").map(Number)
+  return Math.max(bh * 60 + bm - (ah * 60 + am), 0)
+}
+
+function formatHours(min: number): string {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return h && m ? `${h} sa ${m} dk` : h ? `${h} sa` : `${m} dk`
 }
 
 export type BoardMode = "coach" | "student" | "readonly"
@@ -100,6 +149,8 @@ type Props = {
   studentId?: string
   subjects?: SubjectOption[]
   topics?: TopicOption[]
+  /** Konu → videolar: konu çalışması bloğunda gösterilir (öğrenci). */
+  topicVideos?: TopicVideosMap
 }
 
 type Patch = { id: string; is_completed?: boolean; day_of_week?: number }
@@ -112,7 +163,16 @@ export function WeeklyProgramBoard({
   studentId,
   subjects = [],
   topics = [],
+  topicVideos,
 }: Props) {
+  const itemExtra = (item: ProgramItem) => {
+    if (item.block_type !== "konu_calisma" || !item.topic_id || !topicVideos?.[item.topic_id]) return null
+    return (
+      <div className="mt-1.5">
+        <TopicVideos topicName={item.topic_name ?? ""} groups={topicVideos[item.topic_id]} compact readonly={mode !== "student"} />
+      </div>
+    )
+  }
   const canAdd = mode === "coach" || mode === "student"
   const canToggle = mode === "coach" || mode === "student"
 
@@ -123,8 +183,9 @@ export function WeeklyProgramBoard({
   const canDelete = (i: ProgramItem) =>
     mode === "student" ? i.created_by_role === "student" : mode === "coach"
   // Rozet: koç/müdür görünümünde öğrenci kalemi, öğrenci görünümünde koç kalemi işaretlenir.
+  // "Önerilen/UpPlan" rozeti kart başına değil, program başlığında bir kez.
   const badgeFor = (i: ProgramItem): "student" | "coach" | "ai" | null => {
-    if (i.created_by_role === "ai") return "ai"
+    if (i.created_by_role === "ai") return null
     if (mode === "student") return i.created_by_role === "coach" ? "coach" : null
     return i.created_by_role === "student" ? "student" : null
   }
@@ -135,7 +196,11 @@ export function WeeklyProgramBoard({
 
   const [, startTransition] = useTransition()
   const todayDay = todayDayOfWeek()
-  const [selectedDay, setSelectedDay] = useState<number>(todayDay)
+  // Görüntülenen hafta: içinde bulunulan (bugün açılır), geçmiş ya da gelecek.
+  const offset = Math.round((Date.parse(`${istanbulDateStr()}T00:00:00Z`) - Date.parse(`${weekStart}T00:00:00Z`)) / 86_400_000)
+  const isCurrentWeek = offset >= 0 && offset <= 6
+  const [selectedDay, setSelectedDay] = useState<number>(isCurrentWeek ? todayDay : 1)
+  const [view, setView] = useState<"gun" | "hafta">("gun")
 
   const [createDay, setCreateDay] = useState<number | null>(null)
   const [editTarget, setEditTarget] = useState<ProgramItem | null>(null)
@@ -154,7 +219,26 @@ export function WeeklyProgramBoard({
 
   const total = optimisticItems.length
   const done = optimisticItems.filter((i) => i.is_completed).length
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0
+  // Uyum: gün bazlı (bugüne kadarki programlı günlerin ortalaması) — her ekranla aynı fonksiyon.
+  const pct = useMemo(() => {
+    const days = new Map<number, DayCount>()
+    for (const i of optimisticItems) {
+      const d = days.get(i.day_of_week) ?? { day_of_week: i.day_of_week, total: 0, done: 0 }
+      d.total += 1
+      if (i.is_completed) d.done += 1
+      days.set(i.day_of_week, d)
+    }
+    return dailyCompliance(Array.from(days.values()), complianceUptoDay(weekStart)).percent
+  }, [optimisticItems, weekStart])
+  // Toplam saat: geçmişte kalan günler sayılmaz (bu hafta → bugün ve sonrası).
+  const firstCountedDay = isCurrentWeek ? todayDay : offset < 0 ? 1 : 8
+  const remainingMinutes = optimisticItems.filter((i) => i.day_of_week >= firstCountedDay).reduce((s, i) => s + minutesOf(i), 0)
+  const hasAi = optimisticItems.some((i) => i.created_by_role === "ai")
+  const legendSubjects = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const i of optimisticItems) if (i.subject) m.set(i.subject.name, colorFor(i))
+    return Array.from(m.entries())
+  }, [optimisticItems])
 
   function submitItem(input: ProgramItemInput, itemId?: string): Promise<ActionResult> {
     if (mode === "coach" && studentId) {
@@ -207,11 +291,12 @@ export function WeeklyProgramBoard({
     canEdit,
     canDelete,
     badgeFor,
-    isToday: dayNum === todayDay,
+    isToday: isCurrentWeek && dayNum === todayDay,
     onAdd: () => setCreateDay(dayNum),
     onEdit: setEditTarget,
     onDelete: setDeleteTarget,
     onToggle: handleToggle,
+    itemExtra,
   })
 
   const dndFor = (dayNum: number) => ({
@@ -246,83 +331,140 @@ export function WeeklyProgramBoard({
 
   return (
     <div className="space-y-4">
-      {/* Üst bar: hafta gezinme + tamamlanma özeti */}
+      {/* Üst bar: hafta gezinme + görünüm + tamamlanma özeti */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <WeekSwitcher baseHref={baseHref} weekStart={weekStart} />
-        {total > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-28 bg-zinc-100 rounded-full overflow-hidden">
-              <div className="h-full bg-[#10B981] transition-all" style={{ width: `${pct}%` }} />
+        <div className="flex flex-wrap items-center gap-3">
+          {total > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-24 bg-zinc-100 rounded-full overflow-hidden">
+                <div className="h-full bg-[#10B981] transition-all" style={{ width: `${pct ?? 0}%` }} />
+              </div>
+              <span className="text-sm text-zinc-600 tabular-nums whitespace-nowrap" title="Uyum: bugüne kadarki programlı günlerin günlük tamamlama ortalaması">
+                <CheckCircle2 className="inline h-3.5 w-3.5 text-[#10B981] mb-0.5 mr-1" />
+                {done}/{total} · uyum {pct === null ? "—" : `%${pct}`}
+              </span>
             </div>
-            <span className="text-sm text-zinc-600 tabular-nums whitespace-nowrap">
-              <CheckCircle2 className="inline h-3.5 w-3.5 text-[#10B981] mb-0.5 mr-1" />
-              {done}/{total} (%{pct})
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Mobil: gün-chip seçici */}
-      <div className="md:hidden -mx-1 px-1 overflow-x-auto pb-1 scrollbar-hide">
-        <div className="flex gap-1.5 min-w-min">
-          {DAYS.map((d) => {
-            const list = byDay.get(d.num) ?? []
-            const isActive = selectedDay === d.num
-            const isToday = d.num === todayDay
-            const dayDone = list.filter((i) => i.is_completed).length
-            return (
+          )}
+          <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 text-xs font-medium" role="group" aria-label="Görünüm">
+            {(
+              [
+                ["gun", "Gün", LayoutList],
+                ["hafta", "Hafta", CalendarDays],
+              ] as const
+            ).map(([key, label, Icon]) => (
               <button
-                key={d.num}
+                key={key}
                 type="button"
-                onClick={() => setSelectedDay(d.num)}
+                onClick={() => setView(key)}
+                aria-pressed={view === key}
                 className={cn(
-                  "flex flex-col items-center justify-center min-w-[52px] py-2 px-2 rounded-xl text-xs font-medium border transition-colors",
-                  isActive
-                    ? "bg-[#1B6B8A] text-white border-[#1B6B8A]"
-                    : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50",
+                  "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5",
+                  view === key ? "bg-[#1B6B8A] text-white" : "text-zinc-600 hover:bg-zinc-50",
                 )}
-                aria-pressed={isActive}
               >
-                <span className={cn("leading-none", isToday && !isActive && "text-[#F97316]")}>{d.short}</span>
-                <span
-                  className={cn(
-                    "mt-1 text-[10px] leading-none tabular-nums",
-                    isActive ? "text-white/80" : "text-zinc-400",
-                  )}
-                >
-                  {list.length > 0 ? `${dayDone}/${list.length}` : "0"}
-                </span>
+                <Icon className="h-3.5 w-3.5" /> {label}
               </button>
-            )
-          })}
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Mobil: seçili gün (gün değiştirme düzenle dialog'undan; dokunmatik DnD yok) */}
-      <div className="md:hidden">
-        {(() => {
-          const day = DAYS.find((d) => d.num === selectedDay)!
-          return <DayColumn dayLabel={day.label} variant="mobile" {...columnProps(day.num)} />
-        })()}
-      </div>
+      {/* Program başlığı: rozetler bir kez, kalan saat, renk/ikon açıklaması */}
+      {total > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[11px] text-zinc-600">
+          {hasAi && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-700 ring-1 ring-inset ring-violet-200">
+              <Sparkles className="h-3 w-3" /> UpPlan önerisi içerir
+            </span>
+          )}
+          {remainingMinutes > 0 && firstCountedDay <= 7 && (
+            <span className="tabular-nums">
+              <Clock className="inline h-3 w-3 mb-0.5 mr-0.5" />
+              {isCurrentWeek ? "Kalan" : "Toplam"}: {formatHours(remainingMinutes)}
+            </span>
+          )}
+          <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            {Object.values(BLOCK_KIND).map(({ label, Icon }) => (
+              <span key={label} className="inline-flex items-center gap-1">
+                <Icon className="h-3 w-3 text-zinc-500" /> {label}
+              </span>
+            ))}
+          </span>
+          {legendSubjects.length > 0 && (
+            <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1">
+              <span className="text-zinc-400">Renk = ders:</span>
+              {legendSubjects.map(([name, color]) => (
+                <span key={name} className="inline-flex items-center gap-1">
+                  <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} /> {name}
+                </span>
+              ))}
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* Desktop: 7 sütun + sürükle-bırak */}
-      <div className="hidden md:grid md:grid-cols-7 gap-3">
-        {DAYS.map((d) => (
-          <DayColumn
-            key={d.num}
-            dayLabel={d.label}
-            dayShort={d.short}
-            variant="desktop"
-            {...columnProps(d.num)}
-            dnd={canAdd ? dndFor(d.num) : undefined}
-          />
-        ))}
-      </div>
-      {canAdd && total > 0 && (
-        <p className="hidden md:block text-xs text-zinc-400">
-          İpucu: düzenleyebildiğin kalemleri sürükleyip başka güne bırakabilirsin.
-        </p>
+      {view === "gun" ? (
+        <>
+          {/* Gün sekmeleri (mobil + masaüstü); açılışta bugün */}
+          <div className="-mx-1 px-1 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="flex gap-1.5 min-w-min">
+              {DAYS.map((d) => {
+                const list = byDay.get(d.num) ?? []
+                const isActive = selectedDay === d.num
+                const isToday = isCurrentWeek && d.num === todayDay
+                const dayDone = list.filter((i) => i.is_completed).length
+                return (
+                  <button
+                    key={d.num}
+                    type="button"
+                    onClick={() => setSelectedDay(d.num)}
+                    className={cn(
+                      "flex flex-col items-center justify-center min-w-[52px] md:min-w-[88px] py-2 px-2 rounded-xl text-xs font-medium border transition-colors",
+                      isActive
+                        ? "bg-[#1B6B8A] text-white border-[#1B6B8A]"
+                        : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50",
+                    )}
+                    aria-pressed={isActive}
+                  >
+                    <span className={cn("leading-none", isToday && !isActive && "text-[#F97316]")}>
+                      <span className="md:hidden">{d.short}</span>
+                      <span className="hidden md:inline">{d.label}</span>
+                    </span>
+                    <span className={cn("mt-1 text-[10px] leading-none tabular-nums", isActive ? "text-white/80" : "text-zinc-400")}>
+                      {list.length > 0 ? `${dayDone}/${list.length}` : "—"}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          {(() => {
+            const day = DAYS.find((d) => d.num === selectedDay)!
+            return <DayColumn dayLabel={day.label} variant="mobile" {...columnProps(day.num)} />
+          })()}
+        </>
+      ) : (
+        <>
+          {/* Haftalık 7 sütun (mobilde alt alta) + sürükle-bırak */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-7">
+            {DAYS.map((d) => (
+              <DayColumn
+                key={d.num}
+                dayLabel={d.label}
+                dayShort={d.short}
+                variant="desktop"
+                {...columnProps(d.num)}
+                dnd={canAdd ? dndFor(d.num) : undefined}
+              />
+            ))}
+          </div>
+          {canAdd && total > 0 && (
+            <p className="hidden md:block text-xs text-zinc-400">
+              İpucu: düzenleyebildiğin kalemleri sürükleyip başka güne bırakabilirsin.
+            </p>
+          )}
+        </>
       )}
 
       {canAdd && createDay !== null && (
@@ -395,6 +537,7 @@ type ColumnProps = {
   onEdit: (i: ProgramItem) => void
   onDelete: (i: ProgramItem) => void
   onToggle: (i: ProgramItem, next: boolean) => void
+  itemExtra?: (i: ProgramItem) => React.ReactNode
   variant: "desktop" | "mobile"
   dnd?: Dnd
 }
@@ -413,6 +556,7 @@ function DayColumn({
   onEdit,
   onDelete,
   onToggle,
+  itemExtra,
   variant,
   dnd,
 }: ColumnProps) {
@@ -474,6 +618,7 @@ function DayColumn({
               onEdit={() => onEdit(item)}
               onDelete={() => onDelete(item)}
               onToggle={(next) => onToggle(item, next)}
+              extra={itemExtra?.(item)}
               variant={variant}
               draggable={!!dnd && canEdit(item)}
               onDragStart={() => dnd?.onDragStart(item.id)}
@@ -508,6 +653,7 @@ type CardProps = {
   onEdit: () => void
   onDelete: () => void
   onToggle: (next: boolean) => void
+  extra?: React.ReactNode
   variant: "desktop" | "mobile"
   draggable: boolean
   onDragStart: () => void
@@ -523,6 +669,7 @@ function ItemCard({
   onEdit,
   onDelete,
   onToggle,
+  extra,
   variant,
   draggable,
   onDragStart,
@@ -531,8 +678,10 @@ function ItemCard({
   const color = colorFor(item)
   const completed = item.is_completed
   const time = timeRange(item)
-  const main = item.topic_name ?? item.baslik ?? item.subject?.name ?? "—"
-  const secondary = item.topic_name && item.baslik ? item.baslik : null
+  // Konu adı bir kez: konu varsa o, yoksa öneksiz başlık.
+  const main = item.topic_name ?? (item.baslik ? stripPrefix(item.baslik) : null) ?? item.subject?.name ?? "—"
+  const kind = item.block_type ? BLOCK_KIND[item.block_type] : null
+  const secondary = item.baslik && !kind && item.topic_name && stripPrefix(item.baslik) !== item.topic_name ? item.baslik : null
   return (
     <div
       draggable={draggable}
@@ -563,29 +712,37 @@ function ItemCard({
           />
         )}
         <div className="min-w-0 flex-1">
-          {(time || item.subject?.name) && (
-            <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500 min-w-0">
-              {time && (
-                <span className="inline-flex items-center gap-0.5 normal-case tabular-nums text-zinc-600 shrink-0">
-                  <Clock className="h-2.5 w-2.5" /> {time}
-                </span>
-              )}
-              {time && item.subject?.name && <span className="text-zinc-300">·</span>}
-              {item.subject?.name && <span className="truncate">{item.subject.name}</span>}
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 min-w-0">
+            {item.subject?.name && (
+              <span className="inline-flex min-w-0 items-center gap-1 font-semibold uppercase tracking-wide">
+                <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                <span className="truncate">{item.subject.name}</span>
+              </span>
+            )}
+            {time && (
+              <span className="inline-flex shrink-0 items-center gap-0.5 tabular-nums text-zinc-600">
+                <Clock className="h-2.5 w-2.5" /> {time}
+              </span>
+            )}
+          </div>
           <div
+            title={main}
             className={cn(
-              "font-medium leading-snug",
+              "font-medium leading-snug line-clamp-2",
               variant === "desktop" ? "text-xs" : "text-sm",
               completed ? "text-zinc-400 line-through" : "text-zinc-900",
             )}
           >
             {main}
           </div>
-          {secondary && <div className="text-[11px] text-zinc-500 leading-snug">{secondary}</div>}
-          {(item.hedef_soru || badge) && (
+          {secondary && <div className="text-[11px] text-zinc-500 leading-snug line-clamp-1" title={secondary}>{secondary}</div>}
+          {(kind || item.hedef_soru || badge) && (
             <div className="mt-1 flex flex-wrap items-center gap-1">
+              {kind && (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200">
+                  <kind.Icon className="h-2.5 w-2.5" /> {kind.label}
+                </span>
+              )}
               {item.hedef_soru && (
                 <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 tabular-nums">
                   <Target className="h-2.5 w-2.5" /> {item.hedef_soru} soru
@@ -594,12 +751,13 @@ function ItemCard({
               {badge && <OwnerBadge role={badge} />}
             </div>
           )}
-          {item.aciklama && (
+          {item.aciklama && item.aciklama !== "UpPlan" && (
             <div className="mt-1 flex items-start gap-1 text-[11px] text-zinc-500 leading-snug">
               <StickyNote className="h-3 w-3 mt-0.5 shrink-0" />
               <span className="line-clamp-2">{item.aciklama}</span>
             </div>
           )}
+          {extra}
         </div>
         {draggable && variant === "desktop" && (
           <GripVertical className="h-3 w-3 shrink-0 text-zinc-300 opacity-0 group-hover:opacity-100" aria-hidden />

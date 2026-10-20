@@ -169,14 +169,23 @@ export const DEFAULT_MINUTES_PER_QUESTION = 1.5
 export const MIN_TIMED_QUESTIONS = 40
 /** Soru başı süre sınırları (uç kayıtlara karşı, dk). */
 export const MINUTES_PER_QUESTION_RANGE = { min: 0.75, max: 4 } as const
-/** konu_calisma hedefinde konu anlatımı için ek süre (dk). */
-export const LECTURE_MINUTES = 90
+/**
+ * Konu çalışması (öğrenme aşaması) bloğunun en kısa süresi (dk). Odak süresi
+ * kısaysa arka arkaya birden çok blok (45 dk → 2 blok). Hedefin süre
+ * ihtiyacına da bu kadar konu anlatımı eklenir.
+ */
+export const KONU_CALISMA_MIN_DK = 90
+export const LECTURE_MINUTES = KONU_CALISMA_MIN_DK
+/** "Eksik" konularda opsiyonel kısa konu tekrarı (dk, tek blok). */
+export const SHORT_REVIEW_MINUTES = 45
 /** Deneme süresi (dk) — TYT ve LGS. */
 export const PRACTICE_EXAM_MINUTES = { yks: 165, lgs: 155 } as const
 /** Müsait saatin planlanabilir oranı (mola, esneklik payı). */
 export const CAPACITY_UTILIZATION = 0.85
 /** Aynı anda aktif konu sınırları; bir aktif konuya haftada en az bu kadar dk düşmeli. */
-export const ACTIVE_TOPICS_RANGE = { min: 4, max: 8 } as const
+export const ACTIVE_TOPICS_RANGE = { min: 4, max: 6 } as const
+/** Aynı anda öğrenme aşamasında (konu anlatımı bitmemiş) en fazla konu. */
+export const MAX_LEARNING_ACTIVE = 4
 export const MIN_WEEKLY_MINUTES_PER_ACTIVE = 120
 /** Sınav öncesi deneme dönemi (hafta): yeni konu açılmaz. */
 export const EXAM_PERIOD_WEEKS = 6
@@ -224,3 +233,139 @@ export const TODAY_NOTICE_LIMIT = 3
 export const MAX_ACTIVE_PER_SUBJECT = 2
 /** Konu taramasında sınıf bazlı toplu "görmedim" butonları (topics.grade). */
 export const SCAN_BULK_GRADES = [11, 12] as const
+
+// ═════════════════════════════════════════════════════════════════════════
+// Faz C — TYT → AYT kapısı, alan ağırlığı, öğrenme aşaması
+// ═════════════════════════════════════════════════════════════════════════
+
+/**
+ * Ders bazlı kapı: AYT dersinin konuları, ilgili TYT dersinin temel konuları
+ * tamamlanmadan (tamamlandı ya da etkili ustalık ≥ GATE_MASTERY) açılmaz.
+ * Temel konu = AYT dersinin konularının ön koşul zincirindeki bu TYT
+ * derslerine ait konular; zincirde yoksa TYT_CORE_TOPICS.
+ */
+export const AYT_PREREQ_SUBJECTS: Record<string, readonly string[]> = {
+  "AYT Matematik": ["TYT Matematik"],
+  "AYT Geometri": ["TYT Geometri"],
+  "AYT Fizik": ["TYT Fizik"],
+  "AYT Kimya": ["TYT Kimya"],
+  "AYT Biyoloji": ["TYT Biyoloji"],
+  "AYT Edebiyat": ["TYT Türkçe"],
+  "AYT Tarih": ["TYT Tarih"],
+  "AYT Coğrafya": ["TYT Coğrafya"],
+  "AYT Felsefe": ["TYT Felsefe"],
+  "AYT Sosyoloji": ["TYT Felsefe"],
+  "AYT Din Kültürü": ["TYT Din Kültürü"],
+}
+
+/** Ön koşul verisi olmayan TYT dersleri için temel konular (topics.name). */
+export const TYT_CORE_TOPICS: Record<string, readonly string[]> = {
+  "TYT Matematik": [
+    "Temel Kavramlar",
+    "Sayı Basamakları",
+    "Bölme ve Bölünebilme",
+    "Rasyonel Sayılar",
+    "Üslü Sayılar",
+    "Köklü Sayılar",
+    "Çarpanlara Ayırma",
+    "Denklem Çözme",
+    "Fonksiyonlar",
+    "Polinomlar",
+    "2. Dereceden Denklemler",
+  ],
+  "TYT Geometri": ["Açılar", "Üçgenler", "Üçgenlerde Eşlik ve Benzerlik", "Dik Üçgen ve Trigonometrik Oranlar", "Dörtgenler", "Çember ve Daire"],
+  "TYT Fizik": ["Hareket", "Kuvvet ve Hareket", "Enerji", "Elektrostatik", "Elektrik Akımı", "Manyetizma"],
+  "TYT Kimya": ["Atom ve Periyodik Tablo", "Kimyasal Bağlar", "Mol Kavramı ve Kimyasal Hesaplamalar", "Kimyasal Tepkimeler", "Karışımlar"],
+  "TYT Biyoloji": ["Hücre", "Hücre Organelleri", "Bölünme - Mitoz", "Bölünme - Mayoz", "Mendel Genetiği"],
+  "TYT Türkçe": ["Sözcükte Anlam", "Cümlede Anlam", "Metin Türleri ve Anlatım"],
+  "TYT Tarih": ["Tarih Bilimine Giriş", "İlk Türk Devletleri (Orta Asya)", "İlk Müslüman Türk Devletleri", "Osmanlı Devleti Kuruluş ve Yükselme"],
+  "TYT Coğrafya": ["Harita Bilgisi", "Atmosfer ve İklim", "Nüfus", "Türkiye'nin Coğrafi Özellikleri"],
+  "TYT Felsefe": ["Felsefeye Giriş", "Bilgi Felsefesi", "Varlık Felsefesi"],
+  "TYT Din Kültürü": ["İslam'ın Temel İnanç Esasları", "İslam'da İbadet"],
+}
+
+/** Kapı konusu bu etkili ustalıkla geçilmiş sayılır. */
+export const GATE_MASTERY = UPPLAN_SQL_CONFIG.label_iyi
+/** Sınava bu kadar hafta kala AYT konuları kapı açılmasa da TYT ile paralel başlar. */
+export const AYT_FORCE_START_WEEKS = 26
+
+/**
+ * Yedek konu ağırlığı (topic_exam_weights boşken):
+ *   ağırlık = ders soru sayısı × alandaki ders önemi / (dersin konu sayısı ^ TOPIC_COUNT_EXPONENT)
+ * Üs 1 olsaydı az konulu dersler şişerdi (AYT Biyoloji 13/15 > AYT Fizik 14/24);
+ * 0.5 ile ders büyüklüğü korunur, ders içi dağılım eşit kalır.
+ * Ekranda "sınavda ortalama X soru" yine soru/konu sayısıyla gösterilir.
+ */
+export const TOPIC_COUNT_EXPONENT = 0.5
+export const DEFAULT_SUBJECT_IMPORTANCE = 1
+export const SUBJECT_IMPORTANCE_BY_ALAN: Record<string, Record<string, number>> = {
+  sayisal: {
+    "TYT Türkçe": 1,
+    "TYT Matematik": 1,
+    "TYT Geometri": 1,
+    "TYT Fizik": 0.8,
+    "TYT Kimya": 0.8,
+    "TYT Biyoloji": 0.6,
+    "TYT Tarih": 0.4,
+    "TYT Coğrafya": 0.4,
+    "TYT Felsefe": 0.4,
+    "TYT Din Kültürü": 0.4,
+    "AYT Matematik": 1,
+    "AYT Geometri": 1,
+    "AYT Fizik": 1,
+    "AYT Kimya": 1,
+    "AYT Biyoloji": 0.6,
+  },
+  ea: {
+    "TYT Türkçe": 1,
+    "TYT Matematik": 1,
+    "TYT Geometri": 1,
+    "TYT Tarih": 0.6,
+    "TYT Coğrafya": 0.6,
+    "TYT Felsefe": 0.5,
+    "TYT Din Kültürü": 0.5,
+    "TYT Fizik": 0.4,
+    "TYT Kimya": 0.4,
+    "TYT Biyoloji": 0.4,
+    "AYT Matematik": 1,
+    "AYT Geometri": 1,
+    "AYT Edebiyat": 1,
+    "AYT Tarih": 0.9,
+    "AYT Coğrafya": 0.9,
+  },
+  sozel: {
+    "TYT Türkçe": 1,
+    "TYT Matematik": 0.7,
+    "TYT Geometri": 0.5,
+    "TYT Tarih": 0.8,
+    "TYT Coğrafya": 0.8,
+    "TYT Felsefe": 0.8,
+    "TYT Din Kültürü": 0.8,
+    "TYT Fizik": 0.4,
+    "TYT Kimya": 0.4,
+    "TYT Biyoloji": 0.4,
+    "AYT Edebiyat": 1,
+    "AYT Tarih": 1,
+    "AYT Coğrafya": 1,
+    "AYT Felsefe": 0.8,
+    "AYT Sosyoloji": 0.8,
+    "AYT Din Kültürü": 0.7,
+  },
+  dil: {
+    "TYT Türkçe": 1,
+    "TYT Matematik": 1,
+    "TYT Geometri": 0.7,
+    "TYT Fizik": 0.5,
+    "TYT Kimya": 0.5,
+    "TYT Biyoloji": 0.5,
+    "TYT Tarih": 0.5,
+    "TYT Coğrafya": 0.5,
+    "TYT Felsefe": 0.5,
+    "TYT Din Kültürü": 0.5,
+  },
+}
+
+/** Video ↔ konu otomatik eşleşmesinin öneri sayılması için en düşük benzerlik (0..1). */
+export const VIDEO_MATCH_MIN_SCORE = 0.5
+/** Hoca etkinliği kartı: en az bu kadar sonradan çözülmüş soru yoksa "yetersiz veri". */
+export const TEACHER_STATS_MIN_QUESTIONS = 40

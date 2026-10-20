@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/database.types"
 import { istanbulDateStr, istanbulWeekStartStr } from "@/lib/tz"
+import { complianceUptoDay, dailyCompliance, type DayCount } from "@/lib/analytics/compliance"
 import {
   BIG_SHIFT_DAYS,
   LOAD_FACTOR_MIN,
@@ -76,12 +77,20 @@ export async function runWeeklyUpdate(admin: Client, studentId: string, now = ne
   if (profile) {
     const { data: prog } = await admin
       .from("weekly_programs")
-      .select("weekly_program_items(is_completed)")
+      .select("weekly_program_items(day_of_week, is_completed)")
       .eq("student_id", studentId)
       .eq("week_start", thisWeek)
       .maybeSingle()
-    const items = prog?.weekly_program_items ?? []
-    const compliance = items.length ? items.filter((i) => i.is_completed).length / items.length : null
+    // Gün bazlı uyum (her ekranla aynı fonksiyon); Pazar akşamı → haftanın tamamı.
+    const days = new Map<number, DayCount>()
+    for (const i of prog?.weekly_program_items ?? []) {
+      const d = days.get(i.day_of_week) ?? { day_of_week: i.day_of_week, total: 0, done: 0 }
+      d.total += 1
+      if (i.is_completed) d.done += 1
+      days.set(i.day_of_week, d)
+    }
+    const pct = dailyCompliance(Array.from(days.values()), complianceUptoDay(thisWeek, today)).percent
+    const compliance = pct === null ? null : pct / 100
     const current = Number(profile.load_factor)
     const lf = nextLoadFactor(current, compliance)
     report.loadFactor = lf

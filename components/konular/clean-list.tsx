@@ -163,6 +163,11 @@ export function CleanList({ studentId, cards, editable = true, canDelete = true 
                               Özel
                             </Badge>
                           )}
+                          {c.fromGoal && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Hedef
+                            </Badge>
+                          )}
                           {c.errorNotes && (
                             <span
                               title={c.errorNotes}
@@ -199,14 +204,14 @@ export function CleanList({ studentId, cards, editable = true, canDelete = true 
                       </div>
 
                       <div className="flex items-center gap-1.5 self-end sm:self-auto">
-                        {editable && <TopicProgressDialog card={c} />}
+                        {editable && !c.fromGoal && <TopicProgressDialog card={c} />}
                         <TopicStatusSegments
                           studentId={studentId}
                           trackingId={c.id}
                           status={c.status}
-                          disabled={!editable}
+                          disabled={!editable || !!c.fromGoal}
                         />
-                        {editable && canDelete && (
+                        {editable && canDelete && !c.fromGoal && (
                           <Button
                             variant="ghost"
                             size="icon"

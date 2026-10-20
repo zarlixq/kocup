@@ -17,6 +17,13 @@ type Client = SupabaseClient<Database>
 //   ait program maddeleri atar; öğrenci/koç tamamlananları işaretler.
 //   Uyum% = tamamlanan_madde / toplam_madde × 100.
 //
+//   GÜN BAZLI (dailyCompliance): bugüne kadarki (bugün dahil) programlı günlerin
+//   günlük tamamlama oranlarının ORTALAMASI. Salı 5/5 = %100, Çarşamba 0/5 = %0
+//   → Çarşamba günü %50; Pazar günü haftanın tüm programlı günleri. Programı
+//   olmayan günler ve gelecek günler hesaba girmez. Geçmiş haftalarda 7 gün.
+//   Uyum gösterilen her yer (öğrenci, program, koç, müdür, kurum, UpPlan
+//   haftalık güncellemenin %50 kuralı) bu dosyadaki fonksiyonu kullanır.
+//
 //   Bu KoçUp'taki gerçek "haftalık program tamamlama" primitifidir — proxy değil.
 //   (topic_assignments / schedule / etut_schedule DEĞİL: schedule tabloları
 //    tekrarlayan takvimdir, tamamlanma izi yoktur.)
@@ -28,11 +35,10 @@ type Client = SupabaseClient<Database>
 //   müdür → tüm platform, koç → yalnız kendi öğrencileri.
 // ─────────────────────────────────────────────────────────────────────────
 
-export type ComplianceRaw = {
-  student_id: string
-  total_items: number
-  done_items: number
-}
+export { complianceUptoDay, dailyCompliance, type DailyCompliance, type DayCount } from "@/lib/analytics/daily-compliance"
+import { complianceUptoDay, dailyCompliance, type DayCount } from "@/lib/analytics/daily-compliance"
+
+type DailyRaw = { student_id: string; day_of_week: number; total_items: number; done_items: number }
 
 export type Compliance = {
   studentId: string
@@ -42,19 +48,20 @@ export type Compliance = {
   percent: number | null
 }
 
-/** Tek yer: ham madde sayımından uyum yüzdesi. */
-export function computeCompliancePercent(totalItems: number, doneItems: number): number | null {
-  if (totalItems <= 0) return null
-  return Math.round((doneItems / totalItems) * 100)
-}
-
-function toCompliance(raw: ComplianceRaw): Compliance {
-  return {
-    studentId: raw.student_id,
-    totalItems: raw.total_items,
-    doneItems: raw.done_items,
-    percent: computeCompliancePercent(raw.total_items, raw.done_items),
+function toComplianceMap(rows: DailyRaw[], weekStart: string, today?: string): Map<string, Compliance> {
+  const upto = complianceUptoDay(weekStart, today)
+  const byStudent = new Map<string, DayCount[]>()
+  for (const r of rows) {
+    const list = byStudent.get(r.student_id) ?? []
+    list.push({ day_of_week: r.day_of_week, total: r.total_items, done: r.done_items })
+    byStudent.set(r.student_id, list)
   }
+  const map = new Map<string, Compliance>()
+  for (const [studentId, days] of byStudent) {
+    const c = dailyCompliance(days, upto)
+    map.set(studentId, { studentId, totalItems: c.totalItems, doneItems: c.doneItems, percent: c.percent })
+  }
+  return map
 }
 
 /**
@@ -67,18 +74,14 @@ export async function getWeeklyComplianceMap(
   supabase: Client,
   weekStart: string = istanbulWeekStartStr(),
 ): Promise<Map<string, Compliance>> {
-  const { data, error } = await supabase.rpc("weekly_program_compliance", {
+  const { data, error } = await supabase.rpc("weekly_program_daily_compliance", {
     p_week_start: weekStart,
   })
   if (error) {
-    console.error("weekly_program_compliance hatası:", error)
+    console.error("weekly_program_daily_compliance hatası:", error)
     return new Map()
   }
-  const map = new Map<string, Compliance>()
-  for (const row of (data ?? []) as ComplianceRaw[]) {
-    map.set(row.student_id, toCompliance(row))
-  }
-  return map
+  return toComplianceMap(data ?? [], weekStart)
 }
 
 /**
@@ -89,16 +92,15 @@ export async function getStudentWeeklyCompliance(
   studentId: string,
   weekStart: string = istanbulWeekStartStr(),
 ): Promise<Compliance | null> {
-  const { data, error } = await supabase.rpc("weekly_program_compliance", {
+  const { data, error } = await supabase.rpc("weekly_program_daily_compliance", {
     p_week_start: weekStart,
     p_student_id: studentId,
   })
   if (error) {
-    console.error("weekly_program_compliance (tekil) hatası:", error)
+    console.error("weekly_program_daily_compliance (tekil) hatası:", error)
     return null
   }
-  const row = ((data ?? []) as ComplianceRaw[])[0]
-  return row ? toCompliance(row) : null
+  return toComplianceMap(data ?? [], weekStart).get(studentId) ?? null
 }
 
 // ── UI yardımcıları (uyum rozeti renk/etiket eşiği) ──────────────────────

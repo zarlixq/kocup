@@ -34,6 +34,8 @@ type NavItem = {
   href: string
   label: string
   icon: typeof LayoutDashboard
+  /** Yalnız bir kuruma (dershane) bağlı öğrencide görünür. */
+  orgOnly?: boolean
 }
 
 const NAV: NavItem[] = [
@@ -41,7 +43,7 @@ const NAV: NavItem[] = [
   { href: "/ogrenci/upplan", label: "UpPlan", icon: Sparkles },
   { href: "/ogrenci/konularim", label: "Konularım", icon: BookOpen },
   { href: "/ogrenci/program", label: "Program", icon: Calendar },
-  { href: "/ogrenci/etut", label: "Etüt", icon: CalendarClock },
+  { href: "/ogrenci/etut", label: "Etüt", icon: CalendarClock, orgOnly: true },
   { href: "/ogrenci/randevularim", label: "Randevularım", icon: CalendarCheck },
   { href: "/ogrenci/denemelerim", label: "Denemelerim", icon: FileText },
   { href: "/ogrenci/analizim", label: "Analizim", icon: LineChart },
@@ -58,6 +60,8 @@ const ACCOUNT_NAV: NavItem[] = [
 
 type SidebarProps = {
   user: { full_name: string; email: string }
+  /** Kuruma bağlı mı (Etüt menüsü yalnız kurumlu öğrencide). */
+  hasOrganization: boolean
 }
 
 function initials(name: string) {
@@ -69,10 +73,10 @@ function initials(name: string) {
     .toUpperCase()
 }
 
-function NavList({ pathname, onClick }: { pathname: string; onClick?: () => void }) {
+function NavList({ pathname, onClick, hasOrganization }: { pathname: string; onClick?: () => void; hasOrganization: boolean }) {
   return (
     <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-1">
-      {NAV.map((item) => {
+      {NAV.filter((item) => !item.orgOnly || hasOrganization).map((item) => {
         const Icon = item.icon
         const isActive =
           item.href === "/ogrenci" ? pathname === "/ogrenci" : pathname.startsWith(item.href)
@@ -98,7 +102,7 @@ function NavList({ pathname, onClick }: { pathname: string; onClick?: () => void
   )
 }
 
-function SidebarBody({ user, onNavigate }: SidebarProps & { onNavigate?: () => void }) {
+function SidebarBody({ user, hasOrganization, onNavigate }: SidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname()
 
   return (
@@ -111,7 +115,7 @@ function SidebarBody({ user, onNavigate }: SidebarProps & { onNavigate?: () => v
         </div>
       </div>
 
-      <NavList pathname={pathname} onClick={onNavigate} />
+      <NavList pathname={pathname} onClick={onNavigate} hasOrganization={hasOrganization} />
 
       <Separator />
       <PomodoroWidget />
@@ -167,13 +171,13 @@ function SidebarBody({ user, onNavigate }: SidebarProps & { onNavigate?: () => v
   )
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, hasOrganization }: SidebarProps) {
   const [open, setOpen] = useState(false)
 
   return (
     <>
       <aside className="hidden md:flex md:flex-col fixed inset-y-0 left-0 w-64 bg-white border-r border-zinc-200 z-30">
-        <SidebarBody user={user} />
+        <SidebarBody user={user} hasOrganization={hasOrganization} />
       </aside>
 
       <header className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-white border-b border-zinc-200">
@@ -188,7 +192,7 @@ export function Sidebar({ user }: SidebarProps) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0 w-72">
-            <SidebarBody user={user} onNavigate={() => setOpen(false)} />
+            <SidebarBody user={user} hasOrganization={hasOrganization} onNavigate={() => setOpen(false)} />
           </SheetContent>
         </Sheet>
       </header>

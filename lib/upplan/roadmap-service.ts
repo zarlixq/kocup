@@ -6,6 +6,12 @@ import { istanbulDateStr } from "@/lib/tz"
 import {
   BIG_SHIFT_DAYS,
   DEFAULT_SUBJECT_EXAM_QUESTIONS,
+  DEFAULT_SUBJECT_IMPORTANCE,
+  GATE_MASTERY,
+  LECTURE_MINUTES,
+  MAX_ACTIVE_PER_SUBJECT,
+  MAX_LEARNING_ACTIVE,
+  SUBJECT_IMPORTANCE_BY_ALAN,
   EXAM_DATES,
   GAP_CONFIDENT_LEVELS,
   GOAL_TEMPLATES,
@@ -22,14 +28,14 @@ import {
   addDaysIso,
   blockTypeFor,
   buildRoadmap,
-  chunkWaves,
   daysBetweenIso,
+  fallbackTopicWeight,
   isGoalComplete,
   minutesPerQuestion,
   needMinutes,
   netGapFactor,
   paceStatus,
-  scheduleWaves,
+  simulatePlan,
   topicEdgesFromAtoms,
   weeklyCapacityMinutes,
   type Edge,
@@ -179,17 +185,24 @@ export async function gatherRoadmapContext(
     if (!cur || cur.wrongs < g.wrong_count) gapAtomByTopic.set(g.topic_id, { name: g.atom_name, wrongs: g.wrong_count })
   }
 
+  // Öncelik ağırlığı: gerçek konu verisi varsa o × alandaki ders önemi; yoksa
+  // fallbackTopicWeight (az konulu dersi şişirmeyen yedek). Ekranda ortalama soru.
+  const importanceOf = (subjectName: string) =>
+    (profile.alan ? SUBJECT_IMPORTANCE_BY_ALAN[profile.alan]?.[subjectName] : undefined) ?? DEFAULT_SUBJECT_IMPORTANCE
   const topicInputs: RoadmapTopicInput[] = scopeTopics.map((t) => {
     const subj = subjectById.get(t.subject_id)!
     const m = mastery.get(t.id)
-    const est = (SUBJECT_EXAM_QUESTIONS[subj.name] ?? DEFAULT_SUBJECT_EXAM_QUESTIONS) / Math.max(topicCountBySubject.get(t.subject_id) ?? 1, 1)
+    const subjectQ = SUBJECT_EXAM_QUESTIONS[subj.name] ?? DEFAULT_SUBJECT_EXAM_QUESTIONS
+    const count = Math.max(topicCountBySubject.get(t.subject_id) ?? 1, 1)
     const w = weights.get(t.id)
+    const imp = importanceOf(subj.name)
     return {
       topic_id: t.id,
       topic_name: t.name,
       subject_id: t.subject_id,
       subject_name: subj.name,
-      weight: w ?? est,
+      weight: w !== undefined ? Math.round(w * imp * 1000) / 1000 : fallbackTopicWeight(subjectQ, imp, count),
+      avgQuestions: w ?? subjectQ / count,
       weightEstimated: w === undefined,
       effective: m?.effective ?? NO_DATA_MASTERY,
       assessment: assessment.get(t.id) ?? null,
@@ -301,6 +314,7 @@ export async function applyRoadmap(admin: Client, studentId: string, approvedBy:
       hedef_soru: it.target_questions,
       hedef_dogruluk: it.target_accuracy,
       notes: it.reasons[0] ?? null,
+      learning_phase: it.learning_phase ?? null,
     }
     const prev = upByTopic.get(it.topic_id)
     if (prev) {
@@ -376,22 +390,40 @@ export async function syncRoadmapProgress(admin: Client, studentId: string, toda
 
   const { data: rows } = await admin
     .from("topic_assignments")
-    .select("id, topic_id, status, plan_order, baslangic_tarihi, son_tarih, block_type, hedef_soru, topics(name)")
+    .select("id, topic_id, status, plan_order, baslangic_tarihi, son_tarih, block_type, hedef_soru, learning_phase, learned_at, topics(name, subject_id)")
     .eq("student_id", studentId)
     .in("status", ["aktif", "sirada", "tamamlandi"])
   const list = rows ?? []
   const done = new Set(list.filter((r) => r.status === "tamamlandi").map((r) => r.topic_id))
+  const known = (topicId: string) => done.has(topicId) || (mastery.get(topicId)?.effective ?? 0) >= GATE_MASTERY
   const planned = new Set(payload.items.map((i) => i.topic_id))
-  let activeCount = list.filter((r) => r.status === "aktif").length
+  const active = list.filter((r) => r.status === "aktif")
+  let activeCount = active.length
+  let learningCount = active.filter((r) => r.learning_phase === "gerekli" && !r.learned_at).length
+  const perSubject = new Map<string, number>()
+  for (const r of active) {
+    const sid = r.topics?.subject_id ?? ""
+    perSubject.set(sid, (perSubject.get(sid) ?? 0) + 1)
+  }
+  const forceOpen = !!payload.aytForceStart && today >= payload.aytForceStart
   const queue = list.filter((r) => r.status === "sirada").sort((a, b) => (a.plan_order ?? 1e9) - (b.plan_order ?? 1e9))
   const perSlotDaily = Math.max(payload.weeklyMinutes, 1) / Math.max(payload.activeSlots, 1) / 7
 
   for (const q of queue) {
     if (activeCount >= payload.activeSlots) break
     const item = payload.items.find((i) => i.topic_id === q.topic_id)
-    // Ön koşulu planda olup tamamlanmamış konu açılmaz.
-    const blocked = (item?.prereqs ?? []).some((p) => planned.has(p) && !done.has(p))
+    // Ön koşulu planda olup bilinmeyen konu açılmaz; AYT kapısı (TYT temel
+    // konuları) kapalıysa son tarihe (aytForceStart) kadar açılmaz; öğrenme
+    // aşamasında en fazla MAX_LEARNING_ACTIVE, dersten en fazla MAX_ACTIVE_PER_SUBJECT.
+    const gate = item?.gate ?? []
+    const blocked =
+      (item?.prereqs ?? []).some((p) => planned.has(p) && !known(p) && !gate.includes(p)) ||
+      (!forceOpen && gate.some((g) => !known(g)))
     if (blocked) continue
+    const learning = (q.learning_phase ?? item?.learning_phase) === "gerekli"
+    if (learning && learningCount >= MAX_LEARNING_ACTIVE) continue
+    const sid = q.topics?.subject_id ?? ""
+    if ((perSubject.get(sid) ?? 0) >= MAX_ACTIVE_PER_SUBJECT) continue
     const bt = isBlockType(q.block_type) ? q.block_type : "soru_cozum"
     const need = needMinutes(bt, q.hedef_soru ?? GOAL_TEMPLATES[bt].questions, payload.minutesPerQuestion)
     const end = addDaysIso(today, Math.max(Math.ceil(need / perSlotDaily), 7))
@@ -402,6 +434,8 @@ export async function syncRoadmapProgress(admin: Client, studentId: string, toda
       .eq("status", "sirada")
     if (error) continue
     activeCount += 1
+    if (learning) learningCount += 1
+    perSubject.set(sid, (perSubject.get(sid) ?? 0) + 1)
     events.push({ kind: q.baslangic_tarihi > today ? "erken_acildi" : "acildi", topic_name: q.topics?.name ?? "Konu" })
   }
 
@@ -422,36 +456,90 @@ export async function redateQueue(admin: Client, studentId: string, today = ista
   const { data: rm } = await admin.from("upplan_roadmaps").select("payload").eq("student_id", studentId).maybeSingle()
   const payload = parsePayload(rm?.payload)
   if (!payload) return { shifted: [], overflowed: [] }
-  const { data: rows } = await admin
-    .from("topic_assignments")
-    .select("id, status, plan_order, block_type, hedef_soru, son_tarih, topics(name)")
-    .eq("student_id", studentId)
-    .eq("origin", "upplan")
-    .in("status", ["aktif", "sirada"])
-  const active = (rows ?? []).filter((r) => r.status === "aktif")
-  const queue = (rows ?? []).filter((r) => r.status === "sirada").sort((a, b) => (a.plan_order ?? 1e9) - (b.plan_order ?? 1e9))
-  if (!queue.length) return { shifted: [], overflowed: [] }
+  const [{ data: rows }, goals, mastery] = await Promise.all([
+    admin
+      .from("topic_assignments")
+      .select("id, topic_id, status, plan_order, block_type, hedef_soru, son_tarih, learning_phase, learned_at, topics(name, subject_id)")
+      .eq("student_id", studentId)
+      .eq("origin", "upplan")
+      .in("status", ["aktif", "sirada", "tamamlandi"]),
+    loadAssignmentsWithProgress(admin, { studentId }),
+    loadMasteryInfo(admin, studentId),
+  ])
+  const all = rows ?? []
+  const active = all.filter((r) => r.status === "aktif")
+  const queue = all.filter((r) => r.status === "sirada").sort((a, b) => (a.plan_order ?? 1e9) - (b.plan_order ?? 1e9))
+  if (!queue.length && !active.length) return { shifted: [], overflowed: [] }
 
-  // Aktiflerin bittiği en geç tarihten sonra kuyruk başlar.
-  const start = active.reduce((m, r) => (r.son_tarih > m ? r.son_tarih : m), today)
-  const waves = chunkWaves(queue.map((q) => q.id), payload.activeSlots)
-  const sched = scheduleWaves(
+  // Aktif hedefler kalan ihtiyaçlarıyla yer kaplar; kuyruk gün gün simülasyonla
+  // (kapı, ön koşul, öğrenme ve ders sınırı) gerçekçi tarih alır.
+  const solved = new Map(goals.map((g) => [g.id, g.cozulen_soru]))
+  const done = new Set(all.filter((r) => r.status === "tamamlandi").map((r) => r.topic_id))
+  const known = (t: string) => done.has(t) || (mastery.get(t)?.effective ?? 0) >= GATE_MASTERY
+  const itemOf = new Map(payload.items.map((i) => [i.topic_id, i]))
+  const idOfTopic = new Map([...active, ...queue].map((r) => [r.topic_id, r.id]))
+  const need = (r: (typeof all)[number], remainingQ: number) => {
+    const bt = isBlockType(r.block_type) ? r.block_type : "soru_cozum"
+    const learning = r.learning_phase === "gerekli" && !r.learned_at
+    return needMinutes(bt, remainingQ, payload.minutesPerQuestion, learning ? "gerekli" : "yok")
+  }
+  const sim = simulatePlan(
     queue.map((q) => {
+      const item = itemOf.get(q.topic_id)
+      const gate = (item?.gate ?? []).filter((g) => !known(g))
       const bt = isBlockType(q.block_type) ? q.block_type : "soru_cozum"
-      return { id: q.id, needMinutes: needMinutes(bt, q.hedef_soru ?? GOAL_TEMPLATES[bt].questions, payload.minutesPerQuestion), wave: waves.get(q.id)! }
+      return {
+        id: q.id,
+        need: need(q, q.hedef_soru ?? GOAL_TEMPLATES[bt].questions),
+        subject: q.topics?.subject_id ?? "",
+        learnMinutes: q.learning_phase === "gerekli" ? LECTURE_MINUTES : 0,
+        prereqs: (item?.prereqs ?? []).filter((p) => !known(p) && !gate.includes(p)).map((p) => idOfTopic.get(p) ?? p),
+        gate: gate.map((g) => idOfTopic.get(g) ?? g),
+      }
     }),
-    { weeklyMinutes: payload.weeklyMinutes, start, planEnd: payload.examPeriodStart },
+    {
+      start: today,
+      weeklyMinutes: payload.weeklyMinutes,
+      slots: payload.activeSlots,
+      horizon: payload.examDate,
+      forceStart: payload.aytForceStart ?? payload.examDate,
+      preActive: active.map((a) => ({
+        id: a.id,
+        need: need(a, Math.max((a.hedef_soru ?? 0) - (solved.get(a.id) ?? 0), 0)),
+        subject: a.topics?.subject_id ?? "",
+        learnMinutes: a.learning_phase === "gerekli" && !a.learned_at ? LECTURE_MINUTES : 0,
+        prereqs: [],
+        gate: [],
+      })),
+    },
   )
   const shifted: { name: string; days: number }[] = []
   const overflowed: string[] = []
   const rowsOut: Record<string, unknown>[] = []
   for (const q of queue) {
-    const s = sched.get(q.id)!
+    const s = sim.get(q.id)!
     const name = q.topics?.name ?? "Konu"
-    const days = daysBetweenIso(q.son_tarih, s.end)
+    const fits = !!s.end && s.end <= payload.examPeriodStart
+    const start = s.start ?? payload.examPeriodStart
+    const end = fits && s.end ? s.end : payload.examPeriodStart
+    const days = daysBetweenIso(q.son_tarih, end)
     if (days >= BIG_SHIFT_DAYS) shifted.push({ name, days })
-    if (!s.fits) overflowed.push(name)
-    rowsOut.push({ id: q.id, wave: s.wave + 1, baslangic_tarihi: s.start, son_tarih: s.end, ...(s.fits ? {} : { status: "zaman_kalirsa" }) })
+    if (!fits) overflowed.push(name)
+    rowsOut.push({
+      id: q.id,
+      wave: s.start ? Math.floor(daysBetweenIso(today, s.start) / 7) + 1 : null,
+      baslangic_tarihi: start,
+      son_tarih: end < start ? start : end,
+      ...(fits ? {} : { status: "zaman_kalirsa" }),
+    })
+  }
+  // Aktif hedeflerin bitişi de simülasyondan (kalan ihtiyaç + paylaşılan kapasite):
+  // her hedef kendi gerçekçi tarihini alır, hepsi aynı güne yığılmaz.
+  for (const a of active) {
+    const end = sim.get(a.id)?.end
+    if (!end || end < today) continue
+    const capped = end > payload.examPeriodStart ? payload.examPeriodStart : end
+    if (capped !== a.son_tarih) rowsOut.push({ id: a.id, son_tarih: capped })
   }
   const { error } = await admin.rpc("upplan_bulk_update_goals", { p_student_id: studentId, p_rows: rowsOut as Json })
   if (error) console.error("redateQueue", error)

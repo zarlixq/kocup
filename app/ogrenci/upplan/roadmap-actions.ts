@@ -61,6 +61,8 @@ export async function approveMyRoadmap(): Promise<ActionResult> {
     const res = await applyRoadmap(admin, auth.userId, auth.userId)
     if (res.error) return { success: false, error: res.error }
     await syncRoadmapProgress(admin, auth.userId)
+    // Önceden aktif hedefler dahil her hedefe simülasyondan gerçekçi bitiş tarihi.
+    await redateQueue(admin, auth.userId)
     revalidateRoadmap(auth.userId)
     return { success: true }
   })

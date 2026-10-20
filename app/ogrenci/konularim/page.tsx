@@ -13,6 +13,9 @@ import { getStudentContext } from "@/lib/ogrenci/context"
 import { loadUpplanProfile } from "@/lib/upplan/load"
 import { loadRoadmapView } from "@/lib/upplan/roadmap-view"
 import { RoadmapSection } from "@/components/upplan/roadmap/roadmap-section"
+import { loadMasteryInfo } from "@/lib/upplan/roadmap-service"
+import { goalCoaching, type GoalCoaching } from "@/lib/upplan/goal-stage"
+import { loadTopicVideos } from "@/lib/resources/videos"
 
 export const metadata = { title: "Konularım — KoçUp" }
 
@@ -21,7 +24,7 @@ export default async function KonularimPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const userId = user!.id
 
-  const [{ data: topics }, assignments, ctx, formData, upplanProfile, roadmap] = await Promise.all([
+  const [{ data: topics }, assignments, ctx, formData, upplanProfile, roadmap, mastery, topicVideos] = await Promise.all([
     supabase
       .from("student_topics")
       .select(
@@ -34,7 +37,21 @@ export default async function KonularimPage() {
     loadSessionFormData(supabase, userId),
     loadUpplanProfile(supabase, userId),
     loadRoadmapView(supabase, userId),
+    loadMasteryInfo(supabase, userId),
+    loadTopicVideos(supabase, userId),
   ])
+
+  // Her açık hedef: aşama (öğren/soru/tekrar), "Şimdi ne yapmalısın?", ustalık.
+  const coaching: Record<string, GoalCoaching> = {}
+  for (const a of assignments) {
+    if (a.status !== "aktif") continue
+    const groups = topicVideos[a.topic_id] ?? []
+    const firstUnwatched = groups.find((g) => g.videos.some((v) => v.watch_status !== "izlendi")) ?? groups[0]
+    coaching[a.id] = goalCoaching(a, {
+      effective: mastery.get(a.topic_id)?.effective ?? null,
+      video: firstUnwatched ? { teacher: firstUnwatched.teacher_name, count: firstUnwatched.videos.length } : null,
+    })
+  }
 
   const coachIds = Array.from(
     new Set(assignments.map((a) => a.coach_id).filter((v): v is string => v != null)),
@@ -49,7 +66,7 @@ export default async function KonularimPage() {
     coach_name: a.coach_id ? coachById.get(a.coach_id) ?? null : null,
   }))
 
-  const cards: TopicCard[] = (topics ?? []).map((t) => {
+  const trackedCards: TopicCard[] = (topics ?? []).map((t) => {
     const isCustom = !t.topic_id
     const topicName = isCustom ? t.custom_name ?? "—" : t.topics?.name ?? "—"
     const subjectName = isCustom
@@ -66,6 +83,27 @@ export default async function KonularimPage() {
       errorNotes: t.error_notes,
     }
   })
+  // Konu Durumum hedefleri de sayar (UpPlan/koç/kendi): takip listesinde olmayan
+  // açık ve tamamlanmış hedefler, durumları hedeften türetilerek (salt okunur).
+  const trackedTopicIds = new Set((topics ?? []).map((t) => t.topic_id).filter(Boolean))
+  const goalCards: TopicCard[] = []
+  const seenGoalTopics = new Set<string>()
+  for (const a of assignments) {
+    if ((a.status !== "aktif" && a.status !== "tamamlandi") || trackedTopicIds.has(a.topic_id) || seenGoalTopics.has(a.topic_id)) continue
+    seenGoalTopics.add(a.topic_id)
+    goalCards.push({
+      id: `goal-${a.id}`,
+      status: a.status === "tamamlandi" ? "tamam" : a.block_type === "tekrar" ? "tekrar" : a.cozulen_soru > 0 ? "devam" : "basla",
+      topicName: a.topic_name,
+      subjectName: a.subject_name,
+      isCustom: false,
+      solvedCount: a.cozulen_soru,
+      wrongCount: Math.max(a.cozulen_soru - a.dogru_sayisi, 0),
+      errorNotes: null,
+      fromGoal: true,
+    })
+  }
+  const cards = [...trackedCards, ...goalCards]
 
   return (
     <div className="space-y-8">
@@ -104,6 +142,8 @@ export default async function KonularimPage() {
         <AssignmentsCardGrid
           rows={assignmentRows}
           hasCoach={ctx.coachId != null}
+          coaching={coaching}
+          topicVideos={topicVideos}
           goalForm={{
             grade: formData.grade,
             subjects: formData.subjects,

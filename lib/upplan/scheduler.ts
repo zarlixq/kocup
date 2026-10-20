@@ -1,8 +1,7 @@
 import {
   BREAK_MINUTES,
   GRID_START_HOUR,
-  KONU_CALISMA_QUESTION_SHARE,
-  LECTURE_MINUTES,
+  KONU_CALISMA_MIN_DK,
   MAX_REVIEW_BLOCKS_PER_WEEK,
   MAX_SUBJECT_BLOCKS_PER_DAY,
   PRACTICE_EXAM_DAYS,
@@ -21,8 +20,9 @@ import { addDaysIso, daysBetweenIso, practiceExamsPerWeek, type Segment } from "
 //    yük çarpanı kadarı kullanılır.
 // 4) Blok ihtiyacı = kalan soru × soru başı süre (+ konu anlatımı); bitişe kalan
 //    güne göre bu haftaya düşen pay; aciliyeti yüksek hedef daha çok blok alır.
-// 5) Yerleştirme: günde aynı dersten en fazla 2 blok; konu çalışması günün ilk
-//    bloğuna; tekrar bloğu vadesinden önce konmaz.
+// 5) Öğrenme aşamasındaki konuya ÖNCE konu çalışması (en az 90 dk, gerekirse arka
+//    arkaya bloklar); o konunun soru blokları ancak sonrasına. Günde aynı dersten
+//    en fazla 2 blok; tekrar bloğu vadesinden önce konmaz.
 
 export type ProgramGoal = {
   assignment_id: string
@@ -32,8 +32,10 @@ export type ProgramGoal = {
   subject_name: string
   block_type: BlockType
   remaining_questions: number
-  /** Konu anlatımı henüz yapılmadı (konu_calisma, ilerleme 0). */
+  /** Öğrenme aşamasında (konu öğrenilmedi) ve bu hafta konu çalışması yok → önce konu çalışması. */
   lecture_pending: boolean
+  /** "Eksik" konu, opsiyonel kısa tekrar henüz yapılmadı (1 blok). */
+  short_review_pending?: boolean
   son_tarih: string
   /** Bu hafta zaten bu hedefe bağlı yerleşmiş blok sayısı. */
   scheduled_blocks: number
@@ -76,11 +78,13 @@ export type ScheduleInput = {
   goals: ProgramGoal[]
   reviews: ProgramReview[]
   fixed: FixedItem[]
+  /** Haftada zaten var olan deneme sayısı (eksik kalanı eklenir). */
+  existingExams?: number
 }
 
 export type ScheduleResult = {
   items: DraftItem[]
-  meta: { examCount: number; blockCount: number; capacityBlocks: number; unplaced: number; studyMinutes: number }
+  meta: { examCount: number; blockCount: number; capacityBlocks: number; unplaced: number; studyMinutes: number; lectures: number }
 }
 
 // ── Zaman yardımcıları ──────────────────────────────────────────────────
@@ -125,7 +129,7 @@ function reviewQuestions(focus: number, mpq: number) {
 }
 
 type Ticket =
-  | { kind: "goal"; goal: ProgramGoal; lecture: boolean; urgency: number }
+  | { kind: "goal"; goal: ProgramGoal; urgency: number }
   | { kind: "review"; review: ProgramReview }
 
 /**
@@ -153,6 +157,24 @@ function placeable(counts: Map<string, number>, days: { left: number; room: (sub
 }
 
 // ── Ana fonksiyon ───────────────────────────────────────────────────────
+type Position = { day: number; start: number; first: boolean; seg: number }
+
+/** Gün içinde arka arkaya k pozisyon (aynı boş aralıkta) bulunan ilk başlangıç indeksi. */
+function consecutiveRun(positions: Position[], used: Set<number>, from: number, k: number): number | null {
+  for (let i = from; i + k - 1 < positions.length; i++) {
+    let ok = true
+    for (let j = 0; j < k; j++) {
+      const p = positions[i + j]
+      if (used.has(i + j) || p.day !== positions[i].day || p.seg !== positions[i].seg) {
+        ok = false
+        break
+      }
+    }
+    if (ok) return i
+  }
+  return null
+}
+
 export function scheduleWeek(input: ScheduleInput): ScheduleResult {
   const focus = input.focusMinutes
   const mpq = input.minutesPerQuestion
@@ -173,7 +195,7 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
   const dayOrder = [...PRACTICE_EXAM_DAYS, ...[1, 2, 3, 4, 5, 6, 7].filter((d) => !(PRACTICE_EXAM_DAYS as readonly number[]).includes(d))]
   let placedExams = 0
   for (const d of dayOrder) {
-    if (placedExams >= examCount) break
+    if (placedExams >= Math.max(examCount - (input.existingExams ?? 0), 0)) break
     const iv = free.get(d)
     const slot = iv?.find(([a, b]) => b - a >= examLen)
     if (!iv || !slot) continue
@@ -193,25 +215,81 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
     placedExams += 1
   }
 
-  // 3) Blok pozisyonları.
-  const positions: { day: number; start: number; first: boolean }[] = []
+  // 3) Blok pozisyonları (seg: aynı boş aralık → arka arkaya bloklar).
+  const positions: Position[] = []
+  let seg = 0
   for (const [d, iv] of Array.from(free.entries()).sort((a, b) => a[0] - b[0])) {
     let first = true
     for (const [a, b] of iv) {
+      seg += 1
       for (let t = a; t + focus <= b; t += focus + BREAK_MINUTES) {
-        positions.push({ day: d, start: t, first })
+        positions.push({ day: d, start: t, first, seg })
         first = false
       }
     }
   }
   const capacityBlocks = Math.floor(positions.length * input.loadFactor)
+  const used = new Set<number>()
+  const perDaySubject = new Map<string, number>()
+  const bump = (day: number, subject: string, n = 1) => perDaySubject.set(`${day}:${subject}`, (perDaySubject.get(`${day}:${subject}`) ?? 0) + n)
+  let budget = capacityBlocks
 
-  // 4) Talep → bilet.
+  // 4a) Öğrenme blokları ÖNCE: konu çalışması en az KONU_CALISMA_MIN_DK (odak kısaysa
+  //     arka arkaya k blok, tek kalem). Konunun haftadaki ilk bloğu budur; soru
+  //     çözümü ancak bundan sonraki pozisyonlara konur. Öğrenme blokları mümkün
+  //     olan en erken pozisyona (soru blokları haftanın kalanına yayılabilsin);
+  //     aynı gün aynı dersten ikinci öğrenme bloğu yok. "Eksik" konularda kısa
+  //     tekrar (1 blok, opsiyonel).
+  const lectureEnd = new Map<string, { day: number; end: number }>()
+  const noLecture = new Set<string>()
+  const learning = input.goals
+    .filter((g) => g.lecture_pending || g.short_review_pending)
+    .map((g) => ({ g, daysLeft: daysBetweenIso(input.weekStart < input.today ? input.today : input.weekStart, g.son_tarih) }))
+    .sort((a, b) => a.daysLeft - b.daysLeft)
+  for (const { g } of learning) {
+    const k = g.lecture_pending ? Math.max(1, Math.ceil(KONU_CALISMA_MIN_DK / focus)) : 1
+    if (budget < k) {
+      if (g.lecture_pending) noLecture.add(g.assignment_id)
+      continue
+    }
+    let best: number | null = null
+    for (let i = 0; i < positions.length; i++) {
+      if (used.has(i) || (perDaySubject.get(`${positions[i].day}:${g.subject_id}`) ?? 0) > 0) continue
+      if (consecutiveRun(positions, used, i, k) !== i) continue
+      best = i
+      break
+    }
+    if (best === null) {
+      if (g.lecture_pending) noLecture.add(g.assignment_id)
+      continue
+    }
+    for (let j = 0; j < k; j++) used.add(best + j)
+    budget -= k
+    const p = positions[best]
+    const end = positions[best + k - 1].start + focus
+    // Öğrenme bloğu o günün ders hakkını doldurur (k ≥ 2 ise zaten dolar).
+    bump(p.day, g.subject_id, Math.max(k, MAX_SUBJECT_BLOCKS_PER_DAY))
+    lectureEnd.set(g.assignment_id, { day: p.day, end })
+    items.push({
+      day_of_week: p.day,
+      start_time: toHHMM(p.start),
+      end_time: toHHMM(end),
+      subject_id: g.subject_id,
+      topic_id: g.topic_id,
+      assignment_id: g.assignment_id,
+      block_type: "konu_calisma",
+      baslik: g.lecture_pending ? `Konu çalışması: ${g.topic_name}` : `Kısa konu tekrarı: ${g.topic_name}`,
+      hedef_soru: null,
+    })
+  }
+
+  // 4b) Soru/tekrar talebi → bilet. Konu çalışması yerleşemeyen konuya soru bileti verilmez.
   const tickets: Ticket[] = []
   for (const r of input.reviews.slice(0, MAX_REVIEW_BLOCKS_PER_WEEK)) tickets.push({ kind: "review", review: r })
   const demand = input.goals
+    .filter((g) => !noLecture.has(g.assignment_id))
     .map((g) => {
-      const remainingMin = g.remaining_questions * mpq + (g.lecture_pending ? LECTURE_MINUTES : 0)
+      const remainingMin = g.remaining_questions * mpq
       const daysLeft = Math.max(daysBetweenIso(input.weekStart < input.today ? input.today : input.weekStart, g.son_tarih) + 1, 1)
       const share = Math.min(1, 7 / daysLeft)
       const need = Math.max(Math.ceil((remainingMin * share) / focus) - g.scheduled_blocks, 0)
@@ -223,14 +301,18 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
   // Kapasite sınırlıysa aciliyet ağırlıklı dağıtım: her adımda urgency/(verilen+1) en büyük olana.
   // Günde dersten en fazla MAX_SUBJECT_BLOCKS_PER_DAY blok kuralıyla yerleşemeyecek bilet verilmez
   // (yoksa acil dersler kapasiteyi alır, biletler sığmaz, az acil ders boş kalır).
+  const freeIdx = positions.map((_, i) => i).filter((i) => !used.has(i))
   const perDayPositions = new Map<number, number>()
-  for (const p of positions) perDayPositions.set(p.day, (perDayPositions.get(p.day) ?? 0) + 1)
-  const weekDays = Array.from(perDayPositions.values()).map((left) => ({ left, room: () => MAX_SUBJECT_BLOCKS_PER_DAY }))
+  for (const i of freeIdx) perDayPositions.set(positions[i].day, (perDayPositions.get(positions[i].day) ?? 0) + 1)
+  const weekDays = Array.from(perDayPositions.entries()).map(([day, left]) => ({
+    left,
+    room: (s: string) => Math.max(MAX_SUBJECT_BLOCKS_PER_DAY - (perDaySubject.get(`${day}:${s}`) ?? 0), 0),
+  }))
   const subjectGiven = new Map<string, number>()
   for (const t of tickets) if (t.kind === "review") subjectGiven.set(t.review.subject_id, (subjectGiven.get(t.review.subject_id) ?? 0) + 1)
-  const budget = Math.max(capacityBlocks - tickets.length, 0)
+  const ticketBudget = Math.max(budget - tickets.length, 0)
   const given = new Map<string, number>()
-  for (let k = 0; k < budget; k++) {
+  for (let k = 0; k < ticketBudget; k++) {
     let best: (typeof demand)[number] | null = null
     let bestP = -1
     for (const x of demand) {
@@ -249,24 +331,28 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
   }
   for (const x of demand) {
     const n = given.get(x.g.assignment_id) ?? 0
-    for (let i = 0; i < n; i++) tickets.push({ kind: "goal", goal: x.g, lecture: x.g.lecture_pending && i === 0, urgency: x.urgency })
+    for (let i = 0; i < n; i++) tickets.push({ kind: "goal", goal: x.g, urgency: x.urgency })
   }
 
-  // 5) Yerleştirme.
-  const perDaySubject = new Map<string, number>()
+  // 5) Yerleştirme (kalan pozisyonlar, kronolojik).
   const perDayGoal = new Map<string, number>()
   const subjectOf = (t: Ticket) => (t.kind === "goal" ? t.goal.subject_id : t.review.subject_id)
   const keyOf = (t: Ticket) => (t.kind === "goal" ? t.goal.assignment_id : `r:${t.review.topic_id}`)
   let remaining = [...tickets]
-  const posLeft = new Map<number, number>()
-  for (const p of positions) posLeft.set(p.day, (posLeft.get(p.day) ?? 0) + 1)
-  for (const pos of positions) {
+  const posLeft = new Map<number, number>(perDayPositions)
+  for (const idx of freeIdx) {
+    const pos = positions[idx]
     if (remaining.length === 0) break
     posLeft.set(pos.day, posLeft.get(pos.day)! - 1)
     const date = addDaysIso(input.weekStart, pos.day - 1)
     let ok = remaining.filter((t) => {
       if ((perDaySubject.get(`${pos.day}:${subjectOf(t)}`) ?? 0) >= MAX_SUBJECT_BLOCKS_PER_DAY) return false
       if (t.kind === "review" && t.review.due > date) return false
+      if (t.kind === "goal") {
+        // Konu çalışması bitmeden o konunun soru bloğu yok.
+        const le = lectureEnd.get(t.goal.assignment_id)
+        if (le && (pos.day < le.day || (pos.day === le.day && pos.start < le.end))) return false
+      }
       return true
     })
     if (ok.length === 0) continue
@@ -275,22 +361,20 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
     for (const t of remaining) counts.set(subjectOf(t), (counts.get(subjectOf(t)) ?? 0) + 1)
     const keeps = new Set<string>()
     for (const sub of new Set(ok.map(subjectOf))) {
-      const used = (d: number, x: string) => (perDaySubject.get(`${d}:${x}`) ?? 0) + (d === pos.day && x === sub ? 1 : 0)
-      const days = Array.from(posLeft, ([d, left]) => ({ left, room: (x: string) => Math.max(MAX_SUBJECT_BLOCKS_PER_DAY - used(d, x), 0) }))
+      const usedBy = (d: number, x: string) => (perDaySubject.get(`${d}:${x}`) ?? 0) + (d === pos.day && x === sub ? 1 : 0)
+      const days = Array.from(posLeft, ([d, left]) => ({ left, room: (x: string) => Math.max(MAX_SUBJECT_BLOCKS_PER_DAY - usedBy(d, x), 0) }))
       if (placeable(new Map(counts).set(sub, counts.get(sub)! - 1), days)) keeps.add(sub)
     }
     if (keeps.size) ok = ok.filter((t) => keeps.has(subjectOf(t)))
     const score = (t: Ticket) => {
       let s = t.kind === "review" ? 2 : t.urgency
-      if (pos.first && t.kind === "goal" && t.goal.block_type === "konu_calisma") s += 10
-      if (t.kind === "goal" && t.lecture) s += pos.first ? 5 : -5
       // Aynı hedefi aynı güne yığma.
       s -= (perDayGoal.get(`${pos.day}:${keyOf(t)}`) ?? 0) * 3
       return s
     }
     const pick = ok.reduce((a, b) => (score(b) > score(a) ? b : a))
     remaining = remaining.filter((t) => t !== pick)
-    perDaySubject.set(`${pos.day}:${subjectOf(pick)}`, (perDaySubject.get(`${pos.day}:${subjectOf(pick)}`) ?? 0) + 1)
+    bump(pos.day, subjectOf(pick))
     perDayGoal.set(`${pos.day}:${keyOf(pick)}`, (perDayGoal.get(`${pos.day}:${keyOf(pick)}`) ?? 0) + 1)
 
     const start = toHHMM(pos.start)
@@ -309,8 +393,8 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
       })
     } else {
       const g = pick.goal
-      const q = Math.max(1, Math.round((focus / mpq) * (pick.lecture ? KONU_CALISMA_QUESTION_SHARE : 1)))
-      const prefix = pick.lecture ? "Konu çalışması" : g.block_type === "tekrar" ? "Tekrar" : "Soru çözümü"
+      const q = Math.max(1, Math.round(focus / mpq))
+      const bt: BlockType = g.block_type === "tekrar" ? "tekrar" : "soru_cozum"
       items.push({
         day_of_week: pos.day,
         start_time: start,
@@ -318,8 +402,8 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
         subject_id: g.subject_id,
         topic_id: g.topic_id,
         assignment_id: g.assignment_id,
-        block_type: pick.lecture ? "konu_calisma" : g.block_type,
-        baslik: `${prefix}: ${g.topic_name}`,
+        block_type: bt,
+        baslik: `${bt === "tekrar" ? "Tekrar" : "Soru çözümü"}: ${g.topic_name}`,
         hedef_soru: Math.min(q, Math.max(g.remaining_questions, 1)),
       })
     }
@@ -327,14 +411,17 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
 
   items.sort((a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time))
   const blocks = items.filter((i) => i.block_type !== "deneme")
+  const blockMinutes = blocks.reduce((s, b) => s + fromHHMM(b.end_time) - fromHHMM(b.start_time), 0)
   return {
     items,
     meta: {
-      examCount: placedExams,
-      blockCount: blocks.length,
+      examCount: placedExams + (input.existingExams ?? 0),
+      // Kullanılan blok pozisyonu (konu çalışması k pozisyon kaplar ama tek kalemdir).
+      blockCount: used.size + tickets.length - remaining.length,
       capacityBlocks,
-      unplaced: remaining.length,
-      studyMinutes: blocks.length * focus,
+      unplaced: remaining.length + noLecture.size,
+      studyMinutes: blockMinutes,
+      lectures: lectureEnd.size,
     },
   }
 }

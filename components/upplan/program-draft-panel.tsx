@@ -132,11 +132,14 @@ export function ProgramDraftPanel({
 
       {showDraft && (
         <>
-          <div className="flex flex-wrap gap-x-4 text-xs text-zinc-600 tabular-nums">
-            <span>{Math.round(draft.studyMinutes / 60)} saat çalışma</span>
-            <span>{draft.examCount} deneme</span>
-            {draft.unplaced > 0 && <span className="text-amber-700">{draft.unplaced} blok sığmadı</span>}
-          </div>
+          {draft.items.length > 0 && (
+            <div className="flex flex-wrap gap-x-4 text-xs text-zinc-600 tabular-nums">
+              <span>{Math.round(draft.studyMinutes / 60)} saat çalışma</span>
+              {/* Haftadaki toplam deneme (programda zaten olan + öneri) — program sayfasıyla aynı sayı. */}
+              <span>Haftada {draft.examCount} deneme</span>
+              {draft.unplaced > 0 && <span className="text-amber-700">{draft.unplaced} blok sığmadı</span>}
+            </div>
+          )}
           {draft.items.length === 0 ? (
             <p className="text-sm text-zinc-600">Eklenecek blok yok: aktif hedeflerin bu hafta için zaten yerleşmiş ya da hedefin yok.</p>
           ) : (
