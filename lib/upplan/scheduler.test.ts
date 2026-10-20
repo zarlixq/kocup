@@ -169,4 +169,25 @@ describe("scheduleWeek", () => {
     const low = scheduleWeek({ ...base, goals, loadFactor: 0.55 })
     expect(low.meta.blockCount).toBeLessThan(full.meta.blockCount)
   })
+
+  it("sürekli pratik her hafta blok alır: kapasite dar ve hedefler acil olsa da, farklı günlere", () => {
+    const practice = [
+      {
+        key: "paragraf",
+        label: "Paragraf",
+        subject_id: "tur",
+        blocks: 3,
+        questionsPerBlock: 20,
+        topics: [{ assignment_id: "p1", topic_id: "par", topic_name: "Paragraf" }],
+      },
+    ]
+    const goals = [goal("acil", { remaining_questions: 1000, son_tarih: "2026-10-21" })]
+    for (const weekStart of ["2026-10-19", "2026-10-26", "2026-11-02"]) {
+      const r = scheduleWeek({ ...base, weekStart, today: weekStart, availability: { "1": range(22, 26), "3": range(22, 26), "5": range(22, 26) }, goals, practice })
+      const p = r.items.filter((i) => i.assignment_id === "p1")
+      expect(p).toHaveLength(3)
+      expect(new Set(p.map((i) => i.day_of_week)).size).toBe(3)
+      expect(p.every((i) => i.hedef_soru === 20 && i.baslik === "Pratik (Paragraf): Paragraf")).toBe(true)
+    }
+  })
 })

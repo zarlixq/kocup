@@ -116,6 +116,7 @@ function Summary({ view }: { view: RoadmapView }) {
         <Stat label="Planlanan konu" value={String(counts.aktif + counts.sirada)} />
         <Stat label="Deneme dönemi" value={dd(p.examPeriodStart)} />
       </div>
+      {p.subjectHours && p.subjectHours.length > 0 && <SubjectHoursBar rows={p.subjectHours} />}
       {p.overflow && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">{p.overflow.message}</p>
       )}
@@ -124,6 +125,36 @@ function Summary({ view }: { view: RoadmapView }) {
           {n}
         </p>
       ))}
+    </div>
+  )
+}
+
+// Ders bazlı ayrılan saat: plana giren konular + sürekli pratik (deneme dönemine kadar).
+const BAR_COLORS = ["#1B6B8A", "#F97316", "#10B981", "#6250d6", "#eda100", "#2a78d6", "#EC4899", "#06B6D4", "#a1a1aa"]
+
+function SubjectHoursBar({ rows }: { rows: { subject_id: string; subject_name: string; hours: number }[] }) {
+  const total = rows.reduce((n, r) => n + r.hours, 0)
+  const shown = rows.slice(0, 8)
+  const rest = rows.slice(8).reduce((n, r) => n + r.hours, 0)
+  const parts = rest > 0 ? [...shown, { subject_id: "diger", subject_name: "Diğer", hours: rest }] : shown
+  return (
+    <div className="space-y-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-2.5">
+      <div className="text-xs font-medium text-zinc-700">
+        Derslere ayrılan süre <span className="font-normal text-zinc-500">· toplam {total} saat, saat başına puan getirisine göre</span>
+      </div>
+      <div className="flex h-3 overflow-hidden rounded-full bg-zinc-100" role="img" aria-label="Ders bazlı saat dağılımı">
+        {parts.map((r, i) => (
+          <div key={r.subject_id} title={`${r.subject_name}: ${r.hours} saat`} style={{ width: `${(r.hours / total) * 100}%`, backgroundColor: BAR_COLORS[i % BAR_COLORS.length] }} />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-600">
+        {parts.map((r, i) => (
+          <span key={r.subject_id} className="inline-flex items-center gap-1 tabular-nums">
+            <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: BAR_COLORS[i % BAR_COLORS.length] }} />
+            {r.subject_name} {r.hours} sa
+          </span>
+        ))}
+      </div>
     </div>
   )
 }
@@ -225,7 +256,14 @@ function ApprovedRoadmap({ view, onRegenerate, regenerating }: { view: RoadmapVi
 
       {tab === "aktif" && <ActiveList rows={byStatus("aktif")} />}
       {tab === "sirada" && <QueueList rows={byStatus("sirada")} edges={view.edges} allRows={view.rows} />}
-      {tab === "zaman_kalirsa" && <SimpleList rows={byStatus("zaman_kalirsa")} empty="Zaman kalırsa listen boş — tüm konular plana sığıyor." restore />}
+      {tab === "zaman_kalirsa" && (
+        <div className="space-y-2">
+          {byStatus("zaman_kalirsa").length > 0 && (
+            <p className="text-xs text-zinc-500">Bu konular saat başına en az puan getirenler; kapasiten sınava kadar bunlara yetmiyor.</p>
+          )}
+          <SimpleList rows={byStatus("zaman_kalirsa")} empty="Zaman kalırsa listen boş — tüm konular plana sığıyor." restore />
+        </div>
+      )}
       {tab === "tamamlandi" && <SimpleList rows={byStatus("tamamlandi")} empty="Henüz tamamlanan konu yok." />}
 
       {removed.length > 0 && (

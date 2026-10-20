@@ -53,6 +53,17 @@ export type ProgramReview = {
 
 export type FixedItem = { day_of_week: number; start_time: string; end_time: string }
 
+/** Sürekli pratik grubu: haftada `blocks` blok, öğrenilmiş konular arasında sırayla. */
+export type PracticeGroupInput = {
+  key: string
+  label: string
+  subject_id: string
+  blocks: number
+  questionsPerBlock: number
+  /** Hazır (öğrenme aşaması bitmiş) konular, bu haftanın dönüş sırasıyla. */
+  topics: { assignment_id: string; topic_id: string; topic_name: string }[]
+}
+
 export type DraftItem = {
   day_of_week: number
   start_time: string
@@ -80,6 +91,8 @@ export type ScheduleInput = {
   fixed: FixedItem[]
   /** Haftada zaten var olan deneme sayısı (eksik kalanı eklenir). */
   existingExams?: number
+  /** Sürekli pratik grupları (aktif konu sınırı dışında, her hafta). */
+  practice?: PracticeGroupInput[]
 }
 
 export type ScheduleResult = {
@@ -283,7 +296,38 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
     })
   }
 
-  // 4b) Soru/tekrar talebi → bilet. Konu çalışması yerleşemeyen konuya soru bileti verilmez.
+  // 4b) Sürekli pratik: öğrenme bloklarından sonra, soru biletlerinden önce yer
+  //     ayrılır (her hafta mutlaka); grubun blokları farklı günlere yayılır.
+  for (const grp of input.practice ?? []) {
+    if (!grp.topics.length) continue
+    const days = new Set<number>()
+    for (let k = 0; k < grp.blocks && budget > 0; k++) {
+      const free = (i: number) =>
+        !used.has(i) && (perDaySubject.get(`${positions[i].day}:${grp.subject_id}`) ?? 0) < MAX_SUBJECT_BLOCKS_PER_DAY
+      let idx = positions.findIndex((p, i) => free(i) && !days.has(p.day))
+      if (idx < 0) idx = positions.findIndex((_, i) => free(i))
+      if (idx < 0) break
+      const p = positions[idx]
+      const t = grp.topics[k % grp.topics.length]
+      used.add(idx)
+      budget -= 1
+      days.add(p.day)
+      bump(p.day, grp.subject_id)
+      items.push({
+        day_of_week: p.day,
+        start_time: toHHMM(p.start),
+        end_time: toHHMM(p.start + focus),
+        subject_id: grp.subject_id,
+        topic_id: t.topic_id,
+        assignment_id: t.assignment_id,
+        block_type: "soru_cozum",
+        baslik: `Pratik (${grp.label}): ${t.topic_name}`,
+        hedef_soru: grp.questionsPerBlock,
+      })
+    }
+  }
+
+  // 4c) Soru/tekrar talebi → bilet. Konu çalışması yerleşemeyen konuya soru bileti verilmez.
   const tickets: Ticket[] = []
   for (const r of input.reviews.slice(0, MAX_REVIEW_BLOCKS_PER_WEEK)) tickets.push({ kind: "review", review: r })
   const demand = input.goals

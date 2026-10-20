@@ -10,7 +10,7 @@ import {
   SPACED_REVIEW_DAYS,
 } from "@/lib/upplan/config"
 import { loadUpplanProfile } from "@/lib/upplan/load"
-import { addDaysIso, blockTypeFor } from "@/lib/upplan/roadmap"
+import { addDaysIso, blockTypeFor, daysBetweenIso, practiceGroupOf } from "@/lib/upplan/roadmap"
 import {
   availableMinutes,
   loadMasteryInfo,
@@ -18,7 +18,14 @@ import {
   parsePayload,
   weeksUntil,
 } from "@/lib/upplan/roadmap-service"
-import { scheduleWeek, spacedReviewsDue, type DraftItem, type ProgramGoal, type ProgramReview } from "@/lib/upplan/scheduler"
+import {
+  scheduleWeek,
+  spacedReviewsDue,
+  type DraftItem,
+  type PracticeGroupInput,
+  type ProgramGoal,
+  type ProgramReview,
+} from "@/lib/upplan/scheduler"
 
 type Client = SupabaseClient<Database>
 
@@ -111,6 +118,55 @@ export async function generateProgramDraft(
       }
     })
 
+  // Sürekli pratik: öğrenme aşaması bekleyen konuya önce konu çalışması (soru
+  // hedefi yok), öğrenilmiş konular grup bazında haftalık pratik bloğu alır.
+  const practiceGoals = goals.filter((g) => g.status === "aktif" && g.is_practice && roadmapTopics.has(g.topic_id))
+  const practiceGroups = new Map<string, PracticeGroupInput>()
+  const weekIndex = Math.floor(daysBetweenIso("2024-01-01", weekStart) / 7)
+  // Pratik konusunda opsiyonel kısa tekrar yok (pratik bloğu tekrar işlevi görür);
+  // zorunlu konu çalışması grup başına haftada bir konuya (konular sırayla öğrenilir).
+  const lectureGroup = new Set<string>()
+  for (const g of practiceGoals) {
+    const flags = { ...learningFlags(g, g.block_type ?? "soru_cozum", lectureDone), short_review_pending: false }
+    const groupKey = practiceGroupOf(g.subject_name, g.topic_name)?.key ?? g.id
+    if (flags.lecture_pending) {
+      if (lectureGroup.has(groupKey)) continue
+      lectureGroup.add(groupKey)
+      programGoals.push({
+        assignment_id: g.id,
+        topic_id: g.topic_id,
+        topic_name: g.topic_name,
+        subject_id: g.subject_id,
+        subject_name: g.subject_name,
+        block_type: "soru_cozum",
+        remaining_questions: 0,
+        ...flags,
+        son_tarih: addDaysIso(weekStart, 6),
+        scheduled_blocks: 0,
+      })
+      continue
+    }
+    const def = practiceGroupOf(g.subject_name, g.topic_name)
+    if (!def) continue
+    const grp = practiceGroups.get(def.key) ?? {
+      key: def.key,
+      label: def.label,
+      subject_id: g.subject_id,
+      blocks: def.blocksPerWeek,
+      questionsPerBlock: def.questionsPerBlock,
+      topics: [],
+    }
+    grp.topics.push({ assignment_id: g.id, topic_id: g.topic_id, topic_name: g.topic_name })
+    practiceGroups.set(def.key, grp)
+  }
+  for (const grp of practiceGroups.values()) {
+    // Bu hafta zaten yerleşmiş pratik blokları düşülür; konular haftadan haftaya döner.
+    const ids = new Set(grp.topics.map((t) => t.assignment_id))
+    grp.blocks = Math.max(grp.blocks - existingItems.filter((i) => i.assignment_id && ids.has(i.assignment_id)).length, 0)
+    const shift = weekIndex % grp.topics.length
+    grp.topics = [...grp.topics.slice(shift), ...grp.topics.slice(0, shift)]
+  }
+
   // Tekrarlar: tamamlanan UpPlan hedefleri (aralıklı) + unutulmaya başlayan konular.
   const { data: doneRows } = await admin
     .from("topic_assignments")
@@ -156,6 +212,7 @@ export async function generateProgramDraft(
       .map((i) => ({ day_of_week: i.day_of_week, start_time: i.start_time.slice(0, 5), end_time: i.end_time.slice(0, 5) })),
     // Haftada zaten deneme varsa eksik kalanı eklenir; sayaç mevcut + yeni (program sayfasıyla tutarlı).
     existingExams: existingItems.filter((i) => i.block_type === "deneme").length,
+    practice: Array.from(practiceGroups.values()),
   })
   const items = res.items
 

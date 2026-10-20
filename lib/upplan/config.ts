@@ -289,81 +289,119 @@ export const GATE_MASTERY = UPPLAN_SQL_CONFIG.label_iyi
 /** Sınava bu kadar hafta kala AYT konuları kapı açılmasa da TYT ile paralel başlar. */
 export const AYT_FORCE_START_WEEKS = 26
 
+// ── Saat başına puan (verimlilik) ───────────────────────────────────────
 /**
- * Yedek konu ağırlığı (topic_exam_weights boşken):
- *   ağırlık = ders soru sayısı × alandaki ders önemi / (dersin konu sayısı ^ TOPIC_COUNT_EXPONENT)
- * Üs 1 olsaydı az konulu dersler şişerdi (AYT Biyoloji 13/15 > AYT Fizik 14/24);
- * 0.5 ile ders büyüklüğü korunur, ders içi dağılım eşit kalır.
- * Ekranda "sınavda ortalama X soru" yine soru/konu sayısıyla gösterilir.
+ * ÖSYM puan katsayıları: testte 1 netin ham puana katkısı (puan türü bazında).
+ *
+ * KAYNAK: 2025-YKS sonuçlarından türetilmiş net başına puanlar — derleme:
+ *   https://liderrehberin.com/puan-hesaplama ("Yıllara Göre YKS Puan Katsayıları", 2025 sütunu).
+ *   SAY 2024 değerleri ÖSYM "2024-YKS Sayısal Bilgiler" raporundaki değerlerle
+ *   (https://www.hemenhesap.com/hesap/yks-puan-hesaplama) birebir tutuyor; 2025 aynı kaynaktan.
+ *   ÖSYM sabit katsayı yayımlamaz: puanlar her yıl testlerin ortalama/standart
+ *   sapmasından hesaplanır, bu değerler sınav sonrası geriye dönük türetilmiştir.
+ *   Yeni yıl açıklanınca güncelle.
+ * TAHMİNİ: "AYT Din Kültürü" SÖZ katsayısı (kaynakta "DKAB / İlave Felsefe G."
+ *   satırı, 2.36) ve LGS katsayıları (MEB ağırlıkları: Türkçe/Mat/Fen ×4,
+ *   diğerleri ×1; yalnız oran önemli).
  */
-export const TOPIC_COUNT_EXPONENT = 0.5
-export const DEFAULT_SUBJECT_IMPORTANCE = 1
-export const SUBJECT_IMPORTANCE_BY_ALAN: Record<string, Record<string, number>> = {
-  sayisal: {
-    "TYT Türkçe": 1,
-    "TYT Matematik": 1,
-    "TYT Geometri": 1,
-    "TYT Fizik": 0.8,
-    "TYT Kimya": 0.8,
-    "TYT Biyoloji": 0.6,
-    "TYT Tarih": 0.4,
-    "TYT Coğrafya": 0.4,
-    "TYT Felsefe": 0.4,
-    "TYT Din Kültürü": 0.4,
-    "AYT Matematik": 1,
-    "AYT Geometri": 1,
-    "AYT Fizik": 1,
-    "AYT Kimya": 1,
-    "AYT Biyoloji": 0.6,
+export type PuanTuru = "SAY" | "EA" | "SOZ" | "DIL" | "LGS"
+export const SCORE_COEFFICIENTS: Record<PuanTuru, Record<string, number>> = {
+  SAY: {
+    "TYT Türkçe": 1.2, "TYT Sosyal": 1.27, "TYT Matematik": 1.39, "TYT Fen": 1.07,
+    "AYT Matematik": 2.89, "AYT Fizik": 2.46, "AYT Kimya": 2.53, "AYT Biyoloji": 2.61,
   },
-  ea: {
-    "TYT Türkçe": 1,
-    "TYT Matematik": 1,
-    "TYT Geometri": 1,
-    "TYT Tarih": 0.6,
-    "TYT Coğrafya": 0.6,
-    "TYT Felsefe": 0.5,
-    "TYT Din Kültürü": 0.5,
-    "TYT Fizik": 0.4,
-    "TYT Kimya": 0.4,
-    "TYT Biyoloji": 0.4,
-    "AYT Matematik": 1,
-    "AYT Geometri": 1,
-    "AYT Edebiyat": 1,
-    "AYT Tarih": 0.9,
-    "AYT Coğrafya": 0.9,
+  EA: {
+    "TYT Türkçe": 1.19, "TYT Sosyal": 1.26, "TYT Matematik": 1.38, "TYT Fen": 1.07,
+    "AYT Matematik": 2.88, "AYT Edebiyat": 2.94, "AYT Tarih-1": 2.53, "AYT Coğrafya-1": 2.85,
   },
-  sozel: {
-    "TYT Türkçe": 1,
-    "TYT Matematik": 0.7,
-    "TYT Geometri": 0.5,
-    "TYT Tarih": 0.8,
-    "TYT Coğrafya": 0.8,
-    "TYT Felsefe": 0.8,
-    "TYT Din Kültürü": 0.8,
-    "TYT Fizik": 0.4,
-    "TYT Kimya": 0.4,
-    "TYT Biyoloji": 0.4,
-    "AYT Edebiyat": 1,
-    "AYT Tarih": 1,
-    "AYT Coğrafya": 1,
-    "AYT Felsefe": 0.8,
-    "AYT Sosyoloji": 0.8,
-    "AYT Din Kültürü": 0.7,
+  SOZ: {
+    "TYT Türkçe": 1.13, "TYT Sosyal": 1.19, "TYT Matematik": 1.31, "TYT Fen": 1.01,
+    "AYT Edebiyat": 2.79, "AYT Tarih-1": 2.39, "AYT Coğrafya-1": 2.7, "AYT Tarih-2": 3.8,
+    "AYT Coğrafya-2": 2.47, "AYT Felsefe Grubu": 3.76, "AYT Din Kültürü": 2.36, // Din: tahmini
   },
-  dil: {
-    "TYT Türkçe": 1,
-    "TYT Matematik": 1,
-    "TYT Geometri": 0.7,
-    "TYT Fizik": 0.5,
-    "TYT Kimya": 0.5,
-    "TYT Biyoloji": 0.5,
-    "TYT Tarih": 0.5,
-    "TYT Coğrafya": 0.5,
-    "TYT Felsefe": 0.5,
-    "TYT Din Kültürü": 0.5,
-  },
+  DIL: { "TYT Türkçe": 1.53, "TYT Sosyal": 1.62, "TYT Matematik": 1.77, "TYT Fen": 1.37, "YDT": 2.6 },
+  // Tahmini (MEB ağırlık katsayıları; mutlak değer değil oran önemli).
+  LGS: { "LGS Türkçe": 4, "LGS Matematik": 4, "LGS Fen Bilimleri": 4, "LGS T.C. İnkılap Tarihi": 1, "LGS Din Kültürü": 1, "LGS İngilizce": 1 },
 }
+
+/** Ders (subjects.name) → ÖSYM testi ve testteki soru sayısı (ders iki teste bölünüyorsa iki satır). */
+export const SUBJECT_TESTS: Record<string, readonly { test: string; questions: number }[]> = {
+  "TYT Türkçe": [{ test: "TYT Türkçe", questions: 40 }],
+  "TYT Matematik": [{ test: "TYT Matematik", questions: 30 }],
+  "TYT Geometri": [{ test: "TYT Matematik", questions: 10 }],
+  "TYT Fizik": [{ test: "TYT Fen", questions: 7 }],
+  "TYT Kimya": [{ test: "TYT Fen", questions: 7 }],
+  "TYT Biyoloji": [{ test: "TYT Fen", questions: 6 }],
+  "TYT Tarih": [{ test: "TYT Sosyal", questions: 5 }],
+  "TYT Coğrafya": [{ test: "TYT Sosyal", questions: 5 }],
+  "TYT Felsefe": [{ test: "TYT Sosyal", questions: 5 }],
+  "TYT Din Kültürü": [{ test: "TYT Sosyal", questions: 5 }],
+  "AYT Matematik": [{ test: "AYT Matematik", questions: 30 }],
+  "AYT Geometri": [{ test: "AYT Matematik", questions: 10 }],
+  "AYT Fizik": [{ test: "AYT Fizik", questions: 14 }],
+  "AYT Kimya": [{ test: "AYT Kimya", questions: 13 }],
+  "AYT Biyoloji": [{ test: "AYT Biyoloji", questions: 13 }],
+  "AYT Edebiyat": [{ test: "AYT Edebiyat", questions: 24 }],
+  "AYT Tarih": [{ test: "AYT Tarih-1", questions: 10 }, { test: "AYT Tarih-2", questions: 11 }],
+  "AYT Coğrafya": [{ test: "AYT Coğrafya-1", questions: 6 }, { test: "AYT Coğrafya-2", questions: 11 }],
+  "AYT Felsefe": [{ test: "AYT Felsefe Grubu", questions: 9 }],
+  "AYT Sosyoloji": [{ test: "AYT Felsefe Grubu", questions: 3 }],
+  "AYT Din Kültürü": [{ test: "AYT Din Kültürü", questions: 6 }],
+  "LGS Türkçe": [{ test: "LGS Türkçe", questions: 20 }],
+  "LGS Matematik": [{ test: "LGS Matematik", questions: 20 }],
+  "LGS Fen Bilimleri": [{ test: "LGS Fen Bilimleri", questions: 20 }],
+  "LGS T.C. İnkılap Tarihi": [{ test: "LGS T.C. İnkılap Tarihi", questions: 10 }],
+  "LGS Din Kültürü": [{ test: "LGS Din Kültürü", questions: 10 }],
+  "LGS İngilizce": [{ test: "LGS İngilizce", questions: 10 }],
+}
+
+/** Alan → puan türü (LGS segmenti alan taşımaz). */
+export const ALAN_PUAN_TURU: Record<string, PuanTuru> = { sayisal: "SAY", ea: "EA", sozel: "SOZ", dil: "DIL" }
+
+/** Kazanılabilir pay = (TARGET_MASTERY − etkili ustalık) / 100, alt sınır 0. */
+export const TARGET_MASTERY = 90
+
+/**
+ * Konuyu hedefe getirmek için gereken saat (varsayılan soru hızında,
+ * DEFAULT_MINUTES_PER_QUESTION). Öğrencinin gerçek soru hızıyla ölçeklenir.
+ * Tarama yoksa etkili ustalıktan: < 40 → hic_gormedim, < 75 → eksik, yoksa biliyorum.
+ */
+export const HOURS_BY_STATE = { hic_gormedim: 5, eksik: 3, biliyorum: 1 } as const
+
+// ── Sürekli pratik ──────────────────────────────────────────────────────
+/**
+ * Bu konular öğrenme aşamasından sonra "tamamlandı" olup çıkmaz; sınava kadar
+ * her hafta küçük pratik bloğu alır (aktif konu sınırına sayılmaz). Grubun
+ * haftalık blokları grubun (öğrenilmiş) konuları arasında haftadan haftaya döner.
+ */
+export const PRACTICE_GROUPS: readonly {
+  key: string
+  label: string
+  subject: string
+  topics: readonly string[]
+  blocksPerWeek: number
+  questionsPerBlock: number
+}[] = [
+  { key: "paragraf", label: "Paragraf", subject: "TYT Türkçe", topics: ["Paragraf", "Cümlede Anlam"], blocksPerWeek: 3, questionsPerBlock: 20 },
+  {
+    key: "problemler",
+    label: "Problemler",
+    subject: "TYT Matematik",
+    topics: [
+      "Sayı ve Kesir Problemleri",
+      "Yaş ve Yüzde Problemleri",
+      "Kar - Zarar ve Faiz Problemleri",
+      "Karışım Problemleri",
+      "İşçi - Havuz Problemleri",
+      "Hareket Problemleri",
+      "Grafik ve Tablo Problemleri",
+      "Rutin Olmayan Problemler",
+    ],
+    blocksPerWeek: 2,
+    questionsPerBlock: 20,
+  },
+  { key: "siir_yorum", label: "Şiir yorumu", subject: "AYT Edebiyat", topics: ["Şiir Bilgisi (Biçim ve İçerik)"], blocksPerWeek: 1, questionsPerBlock: 15 },
+]
 
 /** Video ↔ konu otomatik eşleşmesinin öneri sayılması için en düşük benzerlik (0..1). */
 export const VIDEO_MATCH_MIN_SCORE = 0.5

@@ -88,8 +88,24 @@ describe.sequential("UpPlan iyileştirme e2e", () => {
     const r = await generateRoadmapDraft(admin, A)
     if ("error" in r) throw new Error(r.error)
     const p = r.payload
-    const active = p.items.filter((i) => i.status === "aktif")
+    const active = p.items.filter((i) => i.status === "aktif" && !i.practice)
     const ayt = (n: string) => n.startsWith("AYT")
+    const ranked = p.items.filter((i) => !i.practice).sort((x, y) => (y.efficiency ?? 0) - (x.efficiency ?? 0))
+    const zBySubject: Record<string, number> = {}
+    for (const i of p.items) if (i.status === "zaman_kalirsa") zBySubject[i.subject_name] = (zBySubject[i.subject_name] ?? 0) + 1
+    report.efficiency = {
+      top15: ranked.slice(0, 15).map((i) => `${i.subject_name} / ${i.topic_name}: ${i.efficiency} puan/sa [${i.status}]`),
+      subjectHours: p.subjectHours,
+      zamanKalirsaBySubject: zBySubject,
+      practice: p.items.filter((i) => i.practice).map((i) => `${i.subject_name} / ${i.topic_name}`),
+    }
+    // Sıralama verimliliğe göre: zaman kalırsa'ya düşenler en düşük verimliler (kapıdan bağımsız konular).
+    const planned = p.items.filter((i) => !i.practice && i.status !== "zaman_kalirsa" && !ayt(i.subject_name))
+    const dropped = p.items.filter((i) => i.status === "zaman_kalirsa" && !ayt(i.subject_name))
+    if (dropped.length && planned.length) {
+      expect(Math.max(...dropped.map((i) => i.efficiency ?? 0))).toBeLessThanOrEqual(Math.min(...planned.map((i) => i.efficiency ?? 0)) + 1e-9)
+    }
+    expect(p.items.filter((i) => i.practice).length).toBeGreaterThan(0)
     report.roadmap = {
       weeklyMinutes: p.weeklyMinutes,
       activeSlots: p.activeSlots,
@@ -112,7 +128,7 @@ describe.sequential("UpPlan iyileştirme e2e", () => {
     expect(ap.error).toBeUndefined()
     await syncRoadmapProgress(admin, A)
     await redateQueue(admin, A)
-    const goals = (await loadAssignmentsWithProgress(admin, { studentId: A })).filter((g) => g.status === "aktif")
+    const goals = (await loadAssignmentsWithProgress(admin, { studentId: A })).filter((g) => g.status === "aktif" && !g.is_practice)
     report.goals = goals.map((g) => `${g.subject_name} / ${g.topic_name} · ${g.learning_phase} · bitiş ${g.son_tarih}`)
     expect(goals.length).toBeLessThanOrEqual(6)
     expect(goals.every((g) => !g.subject_name.startsWith("AYT"))).toBe(true)
@@ -124,8 +140,12 @@ describe.sequential("UpPlan iyileştirme e2e", () => {
     const items = r.items
     const exams = items.filter((i) => i.block_type === "deneme")
     const key = (i: { day_of_week: number; start_time: string }) => i.day_of_week * 10000 + Number(i.start_time.replace(":", ""))
+    const practiceIds = new Set(
+      (await loadAssignmentsWithProgress(admin, { studentId: A })).filter((g) => g.is_practice).map((g) => g.id),
+    )
     const byGoal = new Map<string, typeof items>()
-    for (const i of items) if (i.assignment_id) (byGoal.get(i.assignment_id) ?? byGoal.set(i.assignment_id, []).get(i.assignment_id)!).push(i)
+    for (const i of items) if (i.assignment_id && !practiceIds.has(i.assignment_id)) (byGoal.get(i.assignment_id) ?? byGoal.set(i.assignment_id, []).get(i.assignment_id)!).push(i)
+    const practiceBlocks = items.filter((i) => i.assignment_id && practiceIds.has(i.assignment_id) && i.baslik.startsWith("Pratik"))
     const firstBlocks = Array.from(byGoal.values()).map((list) => [...list].sort((x, y) => key(x) - key(y))[0])
     const lectures = items.filter((i) => i.block_type === "konu_calisma")
     const mins = (i: { start_time: string; end_time: string }) => {
@@ -148,6 +168,8 @@ describe.sequential("UpPlan iyileştirme e2e", () => {
     expect(exams).toHaveLength(1)
     expect(r.meta.examCount).toBe(1)
     expect(byGoal.size).toBeLessThanOrEqual(6)
+    // Sürekli pratik: paragraf (3) + problemler (2) blok, öğrenilmiş konular varsa.
+    expect(practiceBlocks.length).toBeGreaterThan(0)
 
     // Öğrenci onaylar → program; sayaç ile programdaki deneme tutarlı.
     const ap = await applyProgramDraft(admin, admin, A, NEXT_WEEK, A)

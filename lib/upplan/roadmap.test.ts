@@ -4,7 +4,9 @@ import {
   activeSlotsFor,
   blockTypeFor,
   buildRoadmap,
-  fallbackTopicWeight,
+  efficiencyScore,
+  hoursNeeded,
+  subjectCoefficient,
   isGoalComplete,
   learningPhaseFor,
   minutesPerQuestion,
@@ -12,7 +14,6 @@ import {
   paceStatus,
   practiceExamsPerWeek,
   prereqViolations,
-  priorityScore,
   topicEdgesFromAtoms,
   weeklyCapacityMinutes,
   type RoadmapTopicInput,
@@ -39,9 +40,26 @@ function topic(id: string, over: Partial<RoadmapTopicInput> = {}): RoadmapTopicI
 }
 
 describe("puan ve hedef şablonu", () => {
-  it("puan = ağırlık × (100−ustalık)/100 × net açığı × açık çarpanı", () => {
-    expect(priorityScore({ weight: 2, effective: 40, netGap: 1, hasConfidentGap: false })).toBe(1.2)
-    expect(priorityScore({ weight: 2, effective: 40, netGap: 1.5, hasConfidentGap: true })).toBe(2.25)
+  it("verimlilik = soru × katsayı × (90−ustalık)/100 × net açığı × açık çarpanı / saat", () => {
+    // 2 × 2.89 × 0.5 / 5 = 0.578
+    expect(efficiencyScore({ weight: 2, coefficient: 2.89, effective: 40, netGap: 1, hasConfidentGap: false, hours: 5 })).toBe(0.578)
+    // × 1.5 × 1.25
+    expect(efficiencyScore({ weight: 2, coefficient: 2.89, effective: 40, netGap: 1.5, hasConfidentGap: true, hours: 5 })).toBe(1.084)
+    // hedefin üstünde: kazanılabilir pay 0
+    expect(efficiencyScore({ weight: 2, coefficient: 2.89, effective: 95, netGap: 1, hasConfidentGap: false, hours: 1 })).toBe(0)
+  })
+  it("saat: hiç görmedim 5, eksik 3, biliyorum 1; yavaş öğrencide ölçeklenir", () => {
+    expect(hoursNeeded("hic_gormedim", 10)).toBe(5)
+    expect(hoursNeeded("eksik", 45)).toBe(3)
+    expect(hoursNeeded(null, 80)).toBe(1)
+    expect(hoursNeeded("eksik", 45, 3)).toBe(6)
+  })
+  it("katsayı puan türüne göre; puana girmeyen ders 0; iki teste bölünen ders soru ağırlıklı", () => {
+    expect(subjectCoefficient("SAY", "AYT Fizik")).toBe(2.46)
+    expect(subjectCoefficient("SAY", "TYT Geometri")).toBe(1.39)
+    expect(subjectCoefficient("EA", "AYT Fizik")).toBe(0)
+    // EA: Tarih-1 (10 soru × 2.53) + Tarih-2 (11 soru, EA'da yok) → 25.3 / 21
+    expect(subjectCoefficient("EA", "AYT Tarih")).toBe(1.205)
   })
   it("şablon: <40 konu çalışması, 40-75 soru çözümü, 75+ tekrar", () => {
     expect(blockTypeFor(10)).toBe("konu_calisma")
@@ -129,7 +147,7 @@ describe("buildRoadmap", () => {
     const limit = r.items.find((i) => i.topic_id === "limit")!
     expect(fonk.plan_order).toBeLessThan(limit.plan_order)
     expect(limit.start > fonk.end).toBe(true)
-    expect(fonk.reasons[0]).toBe("FONK önce, çünkü LIMIT konusunun ön koşulu")
+    expect(fonk.reasons[1]).toBe("FONK önce, çünkü LIMIT konusunun ön koşulu")
   })
 
   it("mevcut aktif hedefler bozulmaz, kaynağıyla ilk dalgada", () => {
@@ -142,7 +160,7 @@ describe("buildRoadmap", () => {
     const b = r.items.find((i) => i.topic_id === "b")!
     expect(b.existing).toEqual({ assignment_id: "x", source: "coach" })
     expect(b.status).toBe("aktif")
-    expect(b.reasons[0]).toBe("Koçundan devralınan hedef")
+    expect(b.reasons[1]).toBe("Koçundan devralınan hedef")
   })
 
   it("kapasite yetmezse düşük puanlılar zaman kalırsa + açık mesaj", () => {
@@ -271,18 +289,79 @@ describe("öğrenme aşaması ve yedek ağırlık", () => {
     expect(learningPhaseFor("eksik", 45)).toBe("opsiyonel")
     expect(learningPhaseFor("biliyorum", 75)).toBe("yok")
   })
-  it("sayısalda Fizik/Kimya konusu Biyoloji konusundan ağır; ders içi eşit", () => {
-    const bio = fallbackTopicWeight(13, 0.6, 15)
-    const fiz = fallbackTopicWeight(14, 1, 24)
-    const kim = fallbackTopicWeight(13, 1, 17)
-    expect(fiz).toBeGreaterThan(bio)
-    expect(kim).toBeGreaterThan(bio)
-  })
 })
 
 describe("paceStatus", () => {
   it("geçen sürenin gerisinde kalan hedef geride", () => {
     expect(paceStatus({ start: "2026-10-01", end: "2026-10-21", today: "2026-10-19", solved: 10, target: 100 })).toBe("geride")
     expect(paceStatus({ start: "2026-10-01", end: "2026-10-21", today: "2026-10-05", solved: 20, target: 100 })).toBe("zamaninda")
+  })
+})
+
+describe("saat başına puan sıralaması", () => {
+  const base = { today: TODAY, examDate: EXAM, weeklyMinutes: 900, minutesPerQuestion: 1.5, existing: [], completedTopicIds: [], edges: [] }
+
+  it("katsayısı ve soru sayısı yüksek konu önce", () => {
+    const r = buildRoadmap({
+      ...base,
+      topics: [
+        topic("az", { subject_id: "tytfen", subject_name: "TYT Fizik", weight: 0.6, coefficient: 1.07 }),
+        topic("cok", { subject_id: "aytmat", subject_name: "AYT Matematik", weight: 2, coefficient: 2.89 }),
+      ],
+    })
+    expect(r.items[0].topic_id).toBe("cok")
+    expect(r.items[0].reasons[0]).toMatch(/^Saat başına yaklaşık [\d,]+ puan: sınavda ortalama 2 soru çıkıyor \(tahmini\) ve/)
+  })
+
+  it("aynı katsayı ve soruda kısa (az saat) konu uzun konudan önce", () => {
+    const r = buildRoadmap({
+      ...base,
+      topics: [topic("uzun", { subject_id: "a", hours: 5 }), topic("kisa", { subject_id: "b", hours: 2 })],
+    })
+    expect(r.items.map((i) => i.topic_id)).toEqual(["kisa", "uzun"])
+    expect(r.items[0].efficiency!).toBeGreaterThan(r.items[1].efficiency!)
+  })
+
+  it("ön koşul, bağlı konunun verimliliğini devralır; kapı kuralı bozulmaz", () => {
+    const r = buildRoadmap({
+      ...base,
+      topics: [
+        topic("onkosul", { subject_id: "tytmat", subject_name: "TYT Matematik", weight: 0.5, effective: 50, coefficient: 1.39 }),
+        topic("bagli", { subject_id: "tytmat", subject_name: "TYT Matematik", weight: 3, effective: 10, coefficient: 1.39 }),
+        topic("ayt", { subject_id: "aytmat", subject_name: "AYT Matematik", weight: 5, effective: 10, coefficient: 2.89 }),
+      ],
+      edges: [
+        { prereq: "onkosul", topic: "bagli" },
+        { prereq: "onkosul", topic: "ayt" },
+      ],
+    })
+    const pos = (id: string) => r.items.find((i) => i.topic_id === id)!.plan_order
+    expect(pos("onkosul")).toBeLessThan(pos("bagli"))
+    const ayt = r.items.find((i) => i.topic_id === "ayt")!
+    expect(ayt.gate).toEqual(["onkosul"])
+    expect(ayt.status).toBe("sirada")
+  })
+
+  it("kapasite yetmezse en düşük verimliler zaman kalırsa", () => {
+    const topics = Array.from({ length: 40 }, (_, i) => topic(`t${i}`, { subject_id: `s${i % 8}`, effective: 10, weight: 40 - i }))
+    const r = buildRoadmap({ ...base, weeklyMinutes: 240, topics })
+    const z = r.items.filter((i) => i.status === "zaman_kalirsa")
+    const planned = r.items.filter((i) => i.status !== "zaman_kalirsa")
+    expect(z.length).toBeGreaterThan(0)
+    expect(Math.max(...z.map((i) => i.efficiency!))).toBeLessThanOrEqual(Math.min(...planned.map((i) => i.efficiency!)))
+  })
+
+  it("sürekli pratik konusu: hep aktif, aktif konu sınırına sayılmaz, ders saatine eklenir", () => {
+    const topics = [
+      topic("paragraf", { subject_id: "tur", subject_name: "TYT Türkçe", topic_name: "Paragraf", effective: 50 }),
+      ...Array.from({ length: 10 }, (_, i) => topic(`m${i}`, { subject_id: `x${i}`, weight: 10 - i })),
+    ]
+    const r = buildRoadmap({ ...base, topics })
+    const p = r.items.find((i) => i.topic_id === "paragraf")!
+    expect(p.practice).toBe(true)
+    expect(p.status).toBe("aktif")
+    expect(p.end).toBe(EXAM)
+    expect(r.items.filter((i) => i.status === "aktif" && !i.practice)).toHaveLength(r.activeSlots)
+    expect(r.subjectHours?.find((h) => h.subject_name === "TYT Türkçe")!.hours).toBeGreaterThan(0)
   })
 })

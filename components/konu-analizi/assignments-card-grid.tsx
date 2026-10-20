@@ -369,6 +369,7 @@ function AssignmentCard({
               {coaching.nextAction}
             </span>
           </div>
+          {coaching.why && <p className="text-xs text-zinc-500">{coaching.why}</p>}
           {videos && videos.length > 0 && <TopicVideos topicName={row.topic_name} groups={videos} compact={coaching.stage !== "ogren"} />}
           {coaching.canMarkLearned && (
             <Button size="sm" variant="outline" className="h-8 bg-white" onClick={markLearned} disabled={learnPending}>

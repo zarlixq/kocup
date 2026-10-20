@@ -2020,6 +2020,7 @@ export type Database = {
           hedef_dogruluk: number | null
           hedef_soru: number | null
           hedef_sure_dk: number | null
+          is_practice: boolean
           learned_at: string | null
           learning_phase: string | null
           id: string
@@ -2045,6 +2046,7 @@ export type Database = {
           hedef_dogruluk?: number | null
           hedef_soru?: number | null
           hedef_sure_dk?: number | null
+          is_practice?: boolean
           learned_at?: string | null
           learning_phase?: string | null
           id?: string
@@ -2070,6 +2072,7 @@ export type Database = {
           hedef_dogruluk?: number | null
           hedef_soru?: number | null
           hedef_sure_dk?: number | null
+          is_practice?: boolean
           learned_at?: string | null
           learning_phase?: string | null
           id?: string

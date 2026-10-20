@@ -9,6 +9,12 @@ import {
   GAP_MULTIPLIER,
   GATE_MASTERY,
   GOAL_TEMPLATES,
+  HOURS_BY_STATE,
+  PRACTICE_GROUPS,
+  SCORE_COEFFICIENTS,
+  SUBJECT_TESTS,
+  TARGET_MASTERY,
+  type PuanTuru,
   LECTURE_MINUTES,
   MAX_ACTIVE_PER_SUBJECT,
   MAX_LEARNING_ACTIVE,
@@ -20,7 +26,6 @@ import {
   PRACTICE_EXAMS_PER_WEEK,
   PRACTICE_EXAM_MINUTES,
   SHORT_REVIEW_MINUTES,
-  TOPIC_COUNT_EXPONENT,
   TYT_CORE_TOPICS,
   UPPLAN_SQL_CONFIG,
   type BlockType,
@@ -28,7 +33,11 @@ import {
 
 // UpPlan yol haritası — saf fonksiyonlar (LLM yok, test edilir).
 //
-// PUAN   = sınav ağırlığı × (100 − etkili ustalık)/100 × ders net açığı × açık çarpanı
+// VERİMLİLİK (saat başına puan) =
+//          ortalama soru × testin net başına puan katsayısı (puan türüne göre)
+//          × kazanılabilir pay ((90 − etkili)/100) × ders net açığı × açık çarpanı
+//          / gereken saat (hiç görmedim 5, eksik 3, biliyorum 1; soru hızıyla ölçekli)
+//          Ders önceliği elle verilmez: farkı katsayılar ve soru sayıları yaratır.
 // SIRA   = ön koşul grafı (topolojik) + puan; ön koşul, kendisine bağlı konuların
 //          en yüksek puanını devralır (önce açılsın diye)
 // KAPI   = AYT dersi, ilgili TYT dersinin temel konuları bitmeden açılmaz; sınava
@@ -77,12 +86,43 @@ export function learningPhaseFor(assessment: RoadmapTopicInput["assessment"], ef
   return "yok"
 }
 
+/** Dersin net başına puan katsayısı (puan türüne göre; ders iki teste bölünüyorsa soru ağırlıklı ortalama). 0 = puana girmiyor. */
+export function subjectCoefficient(puan: PuanTuru | null, subjectName: string): number {
+  if (!puan) return 1
+  const parts = SUBJECT_TESTS[subjectName]
+  if (!parts?.length) return 0
+  const table = SCORE_COEFFICIENTS[puan]
+  const q = parts.reduce((n, p) => n + p.questions, 0)
+  return Math.round((parts.reduce((n, p) => n + p.questions * (table[p.test] ?? 0), 0) / q) * 1000) / 1000
+}
+
+/** Konuyu hedefe getirmek için gereken saat: duruma göre config, soru hızıyla ölçekli. */
+export function hoursNeeded(assessment: RoadmapTopicInput["assessment"], effective: number, mpq = DEFAULT_MINUTES_PER_QUESTION): number {
+  const state =
+    assessment ?? (effective < UPPLAN_SQL_CONFIG.label_gelisiyor ? "hic_gormedim" : effective < UPPLAN_SQL_CONFIG.label_iyi ? "eksik" : "biliyorum")
+  return Math.round(HOURS_BY_STATE[state] * (mpq / DEFAULT_MINUTES_PER_QUESTION) * 100) / 100
+}
+
 /**
- * Yedek konu ağırlığı: ders soru sayısı × alandaki önem / konu sayısı^üs.
- * Ders içi dağılım eşit; üs < 1 az konulu dersin konularını şişirmez.
+ * Saat başına puan: ortalama soru × katsayı × kazanılabilir pay × net açığı ×
+ * açık çarpanı / gereken saat. Kazanılabilir pay = (TARGET_MASTERY − etkili)/100, alt sınır 0.
  */
-export function fallbackTopicWeight(examQuestions: number, importance: number, topicCount: number): number {
-  return Math.round(((examQuestions * importance) / Math.pow(Math.max(topicCount, 1), TOPIC_COUNT_EXPONENT)) * 1000) / 1000
+export function efficiencyScore(t: {
+  weight: number
+  coefficient: number
+  effective: number
+  netGap: number
+  hasConfidentGap: boolean
+  hours: number
+}): number {
+  const gain = Math.max(TARGET_MASTERY - clamp(t.effective, 0, 100), 0) / 100
+  const raw = (t.weight * t.coefficient * gain * t.netGap * (t.hasConfidentGap ? GAP_MULTIPLIER : 1)) / Math.max(t.hours, 0.25)
+  return Math.round(raw * 1000) / 1000
+}
+
+/** Konu hangi sürekli pratik grubunda (yoksa null). */
+export function practiceGroupOf(subjectName: string, topicName: string): (typeof PRACTICE_GROUPS)[number] | null {
+  return PRACTICE_GROUPS.find((g) => g.subject === subjectName && g.topics.includes(topicName)) ?? null
 }
 
 /** Hedef tamamlandı mı: soru hedefi doldu VE etkili ustalık eşik üstü. */
@@ -159,11 +199,6 @@ export function netGapFactor(results: { correct: number; wrong: number; empty: n
   return Math.round((1 + (lost / results.length) * NET_GAP_STRENGTH) * 100) / 100
 }
 
-export function priorityScore(t: { weight: number; effective: number; netGap: number; hasConfidentGap: boolean }): number {
-  const raw = t.weight * ((100 - clamp(t.effective, 0, 100)) / 100) * t.netGap * (t.hasConfidentGap ? GAP_MULTIPLIER : 1)
-  return Math.round(raw * 1000) / 1000
-}
-
 // ── Ön koşul grafı ──────────────────────────────────────────────────────
 export type Edge = { prereq: string; topic: string }
 
@@ -228,11 +263,13 @@ export type RoadmapTopicInput = {
   topic_name: string
   subject_id: string
   subject_name: string
-  /** Öncelik ağırlığı (gerçek veri ya da alan önemli yedek ağırlık; bkz. fallbackTopicWeight). */
+  /** Sınavdaki ortalama soru (topic_exam_weights; yoksa ders soru sayısı / konu sayısı). */
   weight: number
-  /** Açıklamada gösterilen sınavdaki ortalama soru (yoksa weight). */
-  avgQuestions?: number
   weightEstimated: boolean
+  /** Testin net başına puan katsayısı (puan türüne göre; verilmezse 1). */
+  coefficient?: number
+  /** Gereken saat (verilmezse hoursNeeded). */
+  hours?: number
   effective: number
   assessment: "hic_gormedim" | "eksik" | "biliyorum" | null
   examWrongs: number
@@ -274,6 +311,10 @@ export type RoadmapItem = {
   learning_phase?: LearningPhase
   /** AYT kapısı: bitmesi beklenen TYT temel konuları (kapı açıksa boş). */
   gate?: string[]
+  /** Saat başına yaklaşık puan. */
+  efficiency?: number
+  /** Sürekli pratik konusu (tamamlanmaz, aktif sınırına sayılmaz, her hafta pratik bloğu). */
+  practice?: boolean
 }
 
 export type Roadmap = {
@@ -289,6 +330,8 @@ export type Roadmap = {
   notes: string[]
   /** Bu tarihten itibaren AYT konuları kapı kapalı olsa da başlar. */
   aytForceStart?: string
+  /** Ders bazlı ayrılan saat (plana giren konular + sürekli pratik), çoktan aza. */
+  subjectHours?: { subject_id: string; subject_name: string; hours: number }[]
 }
 
 export type RoadmapInput = {
@@ -305,6 +348,19 @@ export type RoadmapInput = {
 
 export function overflowMessage(n: number): string {
   return `Bu tempoyla ${n} konuya yetişemiyorsun; haftalık saatini artır ya da bunları sona bırak.`
+}
+
+/** "Saat başına yaklaşık X puan: sınavda ortalama N soru çıkıyor ve henüz bilmiyorsun." */
+export function efficiencyReason(t: RoadmapTopicInput, efficiency: number): string {
+  const state =
+    t.assessment === "hic_gormedim" || t.effective < UPPLAN_SQL_CONFIG.label_gelisiyor
+      ? "henüz bilmiyorsun"
+      : t.effective < UPPLAN_SQL_CONFIG.label_iyi
+        ? "eksiklerin var"
+        : "pekiştirmen yeterli"
+  const x = efficiency >= 10 ? Math.round(efficiency) : efficiency.toFixed(1).replace(".", ",")
+  const n = String(round1(t.weight)).replace(".", ",")
+  return `Saat başına yaklaşık ${x} puan: sınavda ortalama ${n} soru çıkıyor${t.weightEstimated ? " (tahmini)" : ""} ve ${state}`
 }
 
 function joinNames(names: string[]): string {
@@ -495,7 +551,10 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
   const existingByTopic = new Map(input.existing.map((e) => [e.topic_id, e]))
   const notes: string[] = []
 
-  const topics = input.topics.filter((t) => !completed.has(t.topic_id))
+  // Sürekli pratik konuları takvime (aktif sınırı, simülasyon) girmez; ayrı listelenir.
+  const practiceTopics = input.topics.filter((t) => practiceGroupOf(t.subject_name, t.topic_name))
+  const practiceIds = new Set(practiceTopics.map((t) => t.topic_id))
+  const topics = input.topics.filter((t) => !completed.has(t.topic_id) && !practiceIds.has(t.topic_id))
   const byId = new Map(topics.map((t) => [t.topic_id, t]))
   const nodes = new Set(topics.map((t) => t.topic_id))
   const { edges, broken } = acyclicEdges(input.edges, nodes)
@@ -510,8 +569,11 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
 
   const gates = computeGates(input.topics, input.edges, completed)
 
+  const hoursOf = (t: RoadmapTopicInput) => t.hours ?? hoursNeeded(t.assessment, t.effective, input.minutesPerQuestion)
+  const effOf = (t: RoadmapTopicInput) =>
+    efficiencyScore({ weight: t.weight, coefficient: t.coefficient ?? 1, effective: t.effective, netGap: t.netGap, hasConfidentGap: !!t.gapAtom, hours: hoursOf(t) })
   const base = new Map<string, number>()
-  for (const t of topics) base.set(t.topic_id, priorityScore({ weight: t.weight, effective: t.effective, netGap: t.netGap, hasConfidentGap: !!t.gapAtom }))
+  for (const t of topics) base.set(t.topic_id, effOf(t))
 
   // Ön koşul, bağlı konuların en yüksek puanını devralır (memo'lu DFS; graf döngüsüz).
   const effScore = new Map<string, number>()
@@ -574,11 +636,14 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
 
   const inExamPeriod = input.today >= examPeriodStart
   const queueIds = order.filter((id) => !existingByTopic.has(id))
+  // Sürekli pratik haftalık süresi takvim kapasitesinden düşülür.
+  const practiceGroups = PRACTICE_GROUPS.filter((g) => practiceTopics.some((t) => t.subject_name === g.subject && g.topics.includes(t.topic_name)))
+  const practiceWeekly = Math.round(practiceGroups.reduce((n, g) => n + g.blocksPerWeek * g.questionsPerBlock * input.minutesPerQuestion, 0))
   const sim = simulatePlan(
     queueIds.map((id) => simEntry(id, goal(byId.get(id)!).need)),
     {
       start: input.today,
-      weeklyMinutes: input.weeklyMinutes,
+      weeklyMinutes: Math.max(input.weeklyMinutes - practiceWeekly, 60),
       slots,
       horizon: input.examDate,
       forceStart: aytForceStart,
@@ -617,7 +682,7 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     const g = goal(t)
     const ex = existingByTopic.get(id) ?? null
     const s = sim.get(id)
-    const reasons: string[] = []
+    const reasons: string[] = [efficiencyReason(t, base.get(id) ?? 0)]
     if (ex) reasons.push(ex.source === "coach" ? "Koçundan devralınan hedef" : "Kendi eklediğin hedef")
     const deps = (dependentsOf.get(id) ?? []).filter((d) => nodes.has(d))
     if (deps.length) {
@@ -638,7 +703,6 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     }
     if (t.gapAtom) reasons.push(`Açık haritasında "${t.gapAtom}" öne çıkıyor`)
     if (g.phase === "gerekli") reasons.push(`Ustalığın ${Math.round(t.effective)}: önce konuyu öğren, sonra soru çöz`)
-    reasons.push(`Sınavda ortalama ${round1(t.avgQuestions ?? t.weight)} soru${t.weightEstimated ? " (tahmini)" : ""}`)
 
     const fits = !!s?.end && s.end <= examPeriodStart
     let status: RoadmapItemStatus
@@ -669,8 +733,43 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
       existing: ex ? { assignment_id: ex.assignment_id, source: ex.source } : null,
       learning_phase: g.phase,
       gate,
+      efficiency: base.get(id) ?? 0,
     })
   })
+
+  // Sürekli pratik konuları: hep aktif, sınava kadar; öğrenme aşaması gerekiyorsa önce o.
+  for (const t of practiceTopics) {
+    const grp = practiceGroupOf(t.subject_name, t.topic_name)!
+    const g = goal(t)
+    const ex = existingByTopic.get(t.topic_id) ?? null
+    items.unshift({
+      topic_id: t.topic_id,
+      topic_name: t.topic_name,
+      subject_id: t.subject_id,
+      subject_name: t.subject_name,
+      score: round1(effOf(t)),
+      block_type: "soru_cozum",
+      target_questions: grp.blocksPerWeek * grp.questionsPerBlock,
+      target_accuracy: g.acc,
+      need_minutes: 0,
+      wave: 1,
+      plan_order: 0,
+      start: input.today,
+      end: input.examDate,
+      status: "aktif",
+      reasons: [
+        `Sürekli pratik (${grp.label}): sınava kadar her hafta ${grp.blocksPerWeek} × ${grp.questionsPerBlock} soru; tamamlanıp çıkmaz`,
+        ...(g.phase === "gerekli" ? [`Önce konuyu öğren, sonra haftalık pratik başlar`] : []),
+      ],
+      prereqs: [],
+      existing: ex ? { assignment_id: ex.assignment_id, source: ex.source } : null,
+      learning_phase: g.phase,
+      gate: [],
+      efficiency: effOf(t),
+      practice: true,
+    })
+  }
+  items.forEach((it, i) => (it.plan_order = i + 1))
   // Başlayamayan (zaman kalırsa) konular en sona.
   const lastWave = Math.max(1, ...items.map((i) => i.wave))
   for (const it of items) if (it.wave === 0) it.wave = lastWave + 1
@@ -682,6 +781,24 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
       `AYT konuları, ilgili TYT dersinin temel konularını bitirince açılır; en geç ${aytForceStart.split("-").reverse().join(".")} tarihinde (sınava ${AYT_FORCE_START_WEEKS} hafta kala) TYT ile paralel başlar.`,
     )
   }
+
+  // Ders bazlı saat: plana giren konuların ihtiyacı + sürekli pratik (deneme dönemine kadar).
+  const hoursBySubject = new Map<string, { subject_id: string; subject_name: string; minutes: number }>()
+  const addMin = (sid: string, name: string, m: number) => {
+    const cur = hoursBySubject.get(sid) ?? { subject_id: sid, subject_name: name, minutes: 0 }
+    cur.minutes += m
+    hoursBySubject.set(sid, cur)
+  }
+  for (const it of items) if (!it.practice && it.status !== "zaman_kalirsa") addMin(it.subject_id, it.subject_name, it.need_minutes)
+  const practiceWeeks = Math.max(daysBetweenIso(input.today, examPeriodStart), 0) / 7
+  for (const grp of practiceGroups) {
+    const t = practiceTopics.find((x) => x.subject_name === grp.subject)!
+    addMin(t.subject_id, t.subject_name, grp.blocksPerWeek * grp.questionsPerBlock * input.minutesPerQuestion * practiceWeeks)
+  }
+  const subjectHours = Array.from(hoursBySubject.values())
+    .map((h) => ({ subject_id: h.subject_id, subject_name: h.subject_name, hours: Math.round(h.minutes / 60) }))
+    .filter((h) => h.hours > 0)
+    .sort((a, b) => b.hours - a.hours)
 
   return {
     today: input.today,
@@ -695,6 +812,7 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     brokenCycles: broken,
     notes,
     aytForceStart,
+    subjectHours,
   }
 }
 

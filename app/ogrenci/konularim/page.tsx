@@ -42,6 +42,7 @@ export default async function KonularimPage() {
   ])
 
   // Her açık hedef: aşama (öğren/soru/tekrar), "Şimdi ne yapmalısın?", ustalık.
+  const whyByTopic = new Map((roadmap.payload?.items ?? []).map((i) => [i.topic_id, i.reasons[0] ?? null]))
   const coaching: Record<string, GoalCoaching> = {}
   for (const a of assignments) {
     if (a.status !== "aktif") continue
@@ -50,6 +51,7 @@ export default async function KonularimPage() {
     coaching[a.id] = goalCoaching(a, {
       effective: mastery.get(a.topic_id)?.effective ?? null,
       video: firstUnwatched ? { teacher: firstUnwatched.teacher_name, count: firstUnwatched.videos.length } : null,
+      why: whyByTopic.get(a.topic_id) ?? null,
     })
   }
 

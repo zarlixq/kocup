@@ -6,12 +6,11 @@ import { istanbulDateStr } from "@/lib/tz"
 import {
   BIG_SHIFT_DAYS,
   DEFAULT_SUBJECT_EXAM_QUESTIONS,
-  DEFAULT_SUBJECT_IMPORTANCE,
+  ALAN_PUAN_TURU,
   GATE_MASTERY,
   LECTURE_MINUTES,
   MAX_ACTIVE_PER_SUBJECT,
   MAX_LEARNING_ACTIVE,
-  SUBJECT_IMPORTANCE_BY_ALAN,
   EXAM_DATES,
   GAP_CONFIDENT_LEVELS,
   GOAL_TEMPLATES,
@@ -29,7 +28,7 @@ import {
   blockTypeFor,
   buildRoadmap,
   daysBetweenIso,
-  fallbackTopicWeight,
+  subjectCoefficient,
   isGoalComplete,
   minutesPerQuestion,
   needMinutes,
@@ -185,25 +184,23 @@ export async function gatherRoadmapContext(
     if (!cur || cur.wrongs < g.wrong_count) gapAtomByTopic.set(g.topic_id, { name: g.atom_name, wrongs: g.wrong_count })
   }
 
-  // Öncelik ağırlığı: gerçek konu verisi varsa o × alandaki ders önemi; yoksa
-  // fallbackTopicWeight (az konulu dersi şişirmeyen yedek). Ekranda ortalama soru.
-  const importanceOf = (subjectName: string) =>
-    (profile.alan ? SUBJECT_IMPORTANCE_BY_ALAN[profile.alan]?.[subjectName] : undefined) ?? DEFAULT_SUBJECT_IMPORTANCE
+  // Konu soru sayısı: topic_exam_weights; yoksa yedek (ders soru sayısı / konu sayısı).
+  // Puan katsayısı öğrencinin puan türünden (alan; LGS segmentinde LGS).
+  const puanTuru = profile.segment === "lgs" ? "LGS" : profile.alan ? (ALAN_PUAN_TURU[profile.alan] ?? null) : null
   const topicInputs: RoadmapTopicInput[] = scopeTopics.map((t) => {
     const subj = subjectById.get(t.subject_id)!
     const m = mastery.get(t.id)
     const subjectQ = SUBJECT_EXAM_QUESTIONS[subj.name] ?? DEFAULT_SUBJECT_EXAM_QUESTIONS
     const count = Math.max(topicCountBySubject.get(t.subject_id) ?? 1, 1)
     const w = weights.get(t.id)
-    const imp = importanceOf(subj.name)
     return {
       topic_id: t.id,
       topic_name: t.name,
       subject_id: t.subject_id,
       subject_name: subj.name,
-      weight: w !== undefined ? Math.round(w * imp * 1000) / 1000 : fallbackTopicWeight(subjectQ, imp, count),
-      avgQuestions: w ?? subjectQ / count,
+      weight: w ?? Math.round((subjectQ / count) * 1000) / 1000,
       weightEstimated: w === undefined,
+      coefficient: subjectCoefficient(puanTuru, subj.name),
       effective: m?.effective ?? NO_DATA_MASTERY,
       assessment: assessment.get(t.id) ?? null,
       examWrongs: m?.examWrongs ?? 0,
@@ -311,7 +308,8 @@ export async function applyRoadmap(admin: Client, studentId: string, approvedBy:
       plan_order: it.plan_order,
       wave: it.wave,
       block_type: it.block_type,
-      hedef_soru: it.target_questions,
+      // Sürekli pratik hedefinin soru hedefi yok (haftalık pratik, tamamlanmaz).
+      hedef_soru: it.practice ? null : it.target_questions,
       hedef_dogruluk: it.target_accuracy,
       notes: it.reasons[0] ?? null,
       learning_phase: it.learning_phase ?? null,
@@ -337,6 +335,7 @@ export async function applyRoadmap(admin: Client, studentId: string, approvedBy:
         status: it.status,
         baslangic_tarihi: it.start,
         son_tarih: it.end < it.start ? it.start : it.end,
+        is_practice: !!it.practice,
         ...fields,
       })
     }
@@ -380,7 +379,8 @@ export async function syncRoadmapProgress(admin: Client, studentId: string, toda
   const events: SyncEvent[] = []
 
   for (const g of goals) {
-    if (g.status !== "aktif" || g.created_by_role !== "ai") continue
+    // Sürekli pratik hedefi tamamlanıp çıkmaz.
+    if (g.status !== "aktif" || g.created_by_role !== "ai" || g.is_practice) continue
     const eff = mastery.get(g.topic_id)?.effective ?? NO_DATA_MASTERY
     if (isGoalComplete(g.cozulen_soru, g.hedef_soru, eff)) {
       const { error } = await admin.from("topic_assignments").update({ status: "tamamlandi" }).eq("id", g.id).eq("status", "aktif")
@@ -390,10 +390,11 @@ export async function syncRoadmapProgress(admin: Client, studentId: string, toda
 
   const { data: rows } = await admin
     .from("topic_assignments")
-    .select("id, topic_id, status, plan_order, baslangic_tarihi, son_tarih, block_type, hedef_soru, learning_phase, learned_at, topics(name, subject_id)")
+    .select("id, topic_id, status, plan_order, baslangic_tarihi, son_tarih, block_type, hedef_soru, learning_phase, learned_at, is_practice, topics(name, subject_id)")
     .eq("student_id", studentId)
     .in("status", ["aktif", "sirada", "tamamlandi"])
-  const list = rows ?? []
+  // Sürekli pratik aktif konu sınırına sayılmaz.
+  const list = (rows ?? []).filter((r) => !r.is_practice)
   const done = new Set(list.filter((r) => r.status === "tamamlandi").map((r) => r.topic_id))
   const known = (topicId: string) => done.has(topicId) || (mastery.get(topicId)?.effective ?? 0) >= GATE_MASTERY
   const planned = new Set(payload.items.map((i) => i.topic_id))
@@ -462,6 +463,7 @@ export async function redateQueue(admin: Client, studentId: string, today = ista
       .select("id, topic_id, status, plan_order, block_type, hedef_soru, son_tarih, learning_phase, learned_at, topics(name, subject_id)")
       .eq("student_id", studentId)
       .eq("origin", "upplan")
+      .eq("is_practice", false)
       .in("status", ["aktif", "sirada", "tamamlandi"]),
     loadAssignmentsWithProgress(admin, { studentId }),
     loadMasteryInfo(admin, studentId),
