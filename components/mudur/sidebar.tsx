@@ -23,6 +23,9 @@ import {
   User,
   Settings,
   BarChart3,
+  UserRound,
+  MailPlus,
+  MessageSquare,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -45,6 +48,9 @@ const NAV: NavItem[] = [
   { href: "/mudur/basvurular", label: "Bireysel Başvurular", icon: FileText, badgeKey: "pending" },
   { href: "/mudur/koclar", label: "Koçlar", icon: UserCog },
   { href: "/mudur/ogrenciler", label: "Öğrenciler", icon: GraduationCap },
+  { href: "/mudur/bireysel-ogrenciler", label: "Bireysel Öğrenciler", icon: UserRound },
+  { href: "/mudur/davetler", label: "Davetler", icon: MailPlus },
+  { href: "/mudur/geri-bildirimler", label: "Geri Bildirimler", icon: MessageSquare },
   { href: "/mudur/kurumlar", label: "Kurumlar", icon: Building2 },
   { href: "/mudur/satis-takibi", label: "Satış Takibi", icon: TrendingUp },
   { href: "/mudur/konu-analizi", label: "Konu Analizi", icon: Target },

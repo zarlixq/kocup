@@ -13,6 +13,7 @@ export type UiScope =
   | "mudur_student_list"
   | "koc_student_list"
   | "kurum_dashboard"
+  | "mudur_individual_list"
 
 // ── Müdür dashboard: leaderboard görünürlük/sıralama tercihleri ──────────
 export type DashboardColumns = {
@@ -63,6 +64,46 @@ export const STUDENT_LIST_DEFAULTS: StudentListPrefs = {
   statusFilter: "active",
 }
 
+// ── Müdür bireysel öğrenci listesi: kolon görünürlüğü + kalıcı filtreler ─
+export type IndividualListColumns = {
+  created: boolean
+  source: boolean
+  utm: boolean
+  segment: boolean
+  verified: boolean
+  setup: boolean
+  lastLogin: boolean
+  sessions7d: boolean
+  compliance: boolean
+}
+
+export type IndividualListPrefs = {
+  columns: IndividualListColumns
+  filters: {
+    source: string
+    utm: string
+    from: string
+    to: string
+    setup: string
+    activity: string
+  }
+}
+
+export const INDIVIDUAL_LIST_DEFAULTS: IndividualListPrefs = {
+  columns: {
+    created: true,
+    source: true,
+    utm: true,
+    segment: true,
+    verified: true,
+    setup: true,
+    lastLogin: true,
+    sessions7d: true,
+    compliance: true,
+  },
+  filters: { source: "__all__", utm: "__all__", from: "", to: "", setup: "__all__", activity: "__all__" },
+}
+
 // ── Güvenli birleştirme: eksik/yeni alanları varsayılandan doldur ────────
 // jsonb şema evrimine dayanıklı — DB'de eski/eksik anahtar olsa da UI kırılmaz.
 function isObj(v: unknown): v is Record<string, unknown> {
@@ -110,6 +151,29 @@ export function mergeStudentListPrefs(raw: unknown): StudentListPrefs {
       sf === "__all__" || sf === "pending" || sf === "active" || sf === "passive"
         ? sf
         : STUDENT_LIST_DEFAULTS.statusFilter,
+  }
+}
+
+export function mergeIndividualListPrefs(raw: unknown): IndividualListPrefs {
+  const d = INDIVIDUAL_LIST_DEFAULTS
+  if (!isObj(raw)) return d
+  const cols = isObj(raw.columns) ? raw.columns : {}
+  const f = isObj(raw.filters) ? raw.filters : {}
+  const oneOf = (v: unknown, list: string[], fb: string) => (typeof v === "string" && list.includes(v) ? v : fb)
+  const date = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "")
+  const columns = Object.fromEntries(
+    (Object.keys(d.columns) as (keyof IndividualListColumns)[]).map((k) => [k, boolOr(cols[k], d.columns[k])]),
+  ) as IndividualListColumns
+  return {
+    columns,
+    filters: {
+      source: oneOf(f.source, ["__all__", "ucretsiz_kayit", "davet", "diger"], "__all__"),
+      utm: typeof f.utm === "string" && f.utm.length <= 100 ? f.utm : "__all__",
+      from: date(f.from),
+      to: date(f.to),
+      setup: oneOf(f.setup, ["__all__", "tamam", "eksik"], "__all__"),
+      activity: oneOf(f.activity, ["__all__", "aktif", "pasif"], "__all__"),
+    },
   }
 }
 

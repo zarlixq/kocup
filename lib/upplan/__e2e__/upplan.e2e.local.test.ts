@@ -37,7 +37,9 @@ async function ensureUser(email: string, role: "student" | "coach", name: string
   const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 })
   const found = list.users.find((u) => u.email === email)
   if (found) return found.id
-  const { data, error } = await admin.auth.admin.createUser({ email, password: PASS, email_confirm: true, user_metadata: { role, full_name: name } })
+  // Rol yalnız tek kullanımlık hibeden alınır (migration 218).
+  const { data: grant } = await admin.from("auth_role_grants").insert({ email, role }).select("id").single()
+  const { data, error } = await admin.auth.admin.createUser({ email, password: PASS, email_confirm: true, user_metadata: { role, full_name: name, role_grant: grant!.id } })
   if (error) throw error
   return data.user!.id
 }

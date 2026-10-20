@@ -25,8 +25,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/kurumlar`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${baseUrl}/koc-basvuru`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${baseUrl}/gizlilik`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${baseUrl}/kvkk`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${baseUrl}/kullanim-kosullari`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${baseUrl}/kvkk-aydinlatma`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${baseUrl}/kullanim-sartlari`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${baseUrl}/cerez-politikasi`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${baseUrl}/ucretsiz-basla`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
     ...TOOLS.map((t) => ({
       url: `${baseUrl}${t.publicPath}`,
       lastModified: now,

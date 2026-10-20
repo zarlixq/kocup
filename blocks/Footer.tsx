@@ -1,6 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { MessageCircle, Mail } from "lucide-react"
+import { LEGAL_LINKS } from "@/lib/legal/versions"
 
 function InstagramIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -27,6 +28,7 @@ function LinkedinIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 const QUICK_LINKS = [
+  { href: "/ucretsiz-basla", label: "Ücretsiz Başla" },
   { href: "/basvuru", label: "Başvuru" },
   { href: "/araclar", label: "Ücretsiz Araçlar" },
   { href: "/kurumlar", label: "Kurumlar" },
@@ -36,12 +38,6 @@ const QUICK_LINKS = [
   { href: "/#sss", label: "SSS" },
 ]
 
-const LEGAL_LINKS = [
-  { href: "/gizlilik", label: "Gizlilik Politikası" },
-  { href: "/kvkk", label: "KVKK Aydınlatma Metni" },
-  { href: "/kullanim-kosullari", label: "Kullanım Koşulları" },
-  { href: "#", label: "Çerez Politikası" },
-]
 
 export default function Footer() {
   const year = new Date().getFullYear()

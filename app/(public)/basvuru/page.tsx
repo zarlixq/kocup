@@ -253,7 +253,7 @@ export default function BasvuruPage() {
                 className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 accent-[#1B6B8A]"
               />
               <span>
-                <Link href="/kvkk" target="_blank" className="text-[#1B6B8A] underline">
+                <Link href="/kvkk-aydinlatma" target="_blank" className="text-[#1B6B8A] underline">
                   KVKK Aydınlatma Metni
                 </Link>{" "}
                 ve{" "}

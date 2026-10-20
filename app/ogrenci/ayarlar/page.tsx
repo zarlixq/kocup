@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { OgrenciPasswordForm } from "@/components/ogrenci/password-form"
 import { NotificationPreferencesForm } from "@/components/ogrenci/notification-preferences-form"
+import { DeleteAccountSection } from "@/components/ogrenci/delete-account-section"
 
 export const metadata = { title: "Ayarlar — KoçUp" }
 
@@ -38,7 +39,7 @@ export default async function OgrenciAyarlarPage() {
     <div className="space-y-6 max-w-2xl">
       <div>
         <h1 className="text-2xl font-bold text-zinc-900">Ayarlar</h1>
-        <p className="text-sm text-zinc-500 mt-1">Şifren ve bildirim tercihlerin.</p>
+        <p className="text-sm text-zinc-500 mt-1">Şifren, bildirim tercihlerin ve hesabın.</p>
       </div>
 
       <div className="bg-white border border-zinc-200 rounded-2xl p-6">
@@ -50,6 +51,8 @@ export default async function OgrenciAyarlarPage() {
         <h2 className="text-base font-semibold text-zinc-900 mb-4">Bildirim Tercihleri</h2>
         <NotificationPreferencesForm initial={initial} />
       </div>
+
+      <DeleteAccountSection />
     </div>
   )
 }

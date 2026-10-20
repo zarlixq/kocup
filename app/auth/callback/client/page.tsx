@@ -2,19 +2,23 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { safeNext } from "@/lib/auth/safe-next"
 
 export default function CallbackClientPage() {
   const [message, setMessage] = useState("Bağlantı doğrulanıyor...")
 
   useEffect(() => {
     const run = async () => {
+      // E-posta doğrulaması gibi akışlar ?next= ile hedef taşır.
+      const next = safeNext(new URLSearchParams(window.location.search).get("next"))
+      const loginPath = next?.startsWith("/ogrenci") ? "/giris/ogrenci" : "/giris/koc"
       try {
         const hash = window.location.hash.startsWith("#")
           ? window.location.hash.substring(1)
           : window.location.hash
 
         if (!hash) {
-          window.location.replace("/giris/koc?error=link_gecersiz")
+          window.location.replace(`${loginPath}?error=link_gecersiz`)
           return
         }
 
@@ -22,7 +26,7 @@ export default function CallbackClientPage() {
         const errorCode = params.get("error_code") ?? params.get("error")
         if (errorCode) {
           window.location.replace(
-            `/giris/koc?error=${encodeURIComponent(errorCode)}`
+            `${loginPath}?error=${encodeURIComponent(errorCode)}`
           )
           return
         }
@@ -31,7 +35,7 @@ export default function CallbackClientPage() {
         const refresh_token = params.get("refresh_token")
 
         if (!access_token || !refresh_token) {
-          window.location.replace("/giris/koc?error=link_gecersiz")
+          window.location.replace(`${loginPath}?error=link_gecersiz`)
           return
         }
 
@@ -43,7 +47,7 @@ export default function CallbackClientPage() {
 
         if (error) {
           window.location.replace(
-            `/giris/koc?error=${encodeURIComponent(error.code ?? "session_failed")}`
+            `${loginPath}?error=${encodeURIComponent(error.code ?? "session_failed")}`
           )
           return
         }
@@ -55,11 +59,11 @@ export default function CallbackClientPage() {
         // Hard navigation — yeni cookie ile Server Component'in yeniden
         // session okuması için gerekli. router.replace soft nav yapar ve
         // RSC payload stale kalabilir.
-        window.location.replace("/sifre-belirle")
+        window.location.replace(next ?? "/sifre-belirle")
       } catch (err) {
         const msg = err instanceof Error ? err.message : "callback_error"
         window.location.replace(
-          `/giris/koc?error=${encodeURIComponent(msg)}`
+          `${loginPath}?error=${encodeURIComponent(msg)}`
         )
       }
     }
