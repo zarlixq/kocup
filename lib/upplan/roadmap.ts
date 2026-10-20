@@ -8,6 +8,8 @@ import {
   EXAM_PERIOD_WEEKS,
   GAP_MULTIPLIER,
   GATE_MASTERY,
+  DERS_TABAN_ORANI,
+  SIFIR_AGIRLIK_TABANI,
   GOAL_TEMPLATES,
   HOURS_BY_STATE,
   PRACTICE_GROUPS,
@@ -116,10 +118,46 @@ export function efficiencyScore(t: {
   netGap: number
   hasConfidentGap: boolean
   hours: number
+  /** Çapraz kayıt: konunun öbür sınavdaki (TYT konusunun AYT'deki) soru × o sınavın katsayısı. */
+  crossValue?: number
 }): number {
   const gain = Math.max(TARGET_MASTERY - clamp(t.effective, 0, 100), 0) / 100
-  const raw = (t.weight * t.coefficient * gain * t.netGap * (t.hasConfidentGap ? GAP_MULTIPLIER : 1)) / Math.max(t.hours, 0.25)
+  const value = t.weight * t.coefficient + (t.crossValue ?? 0)
+  const raw = (value * gain * t.netGap * (t.hasConfidentGap ? GAP_MULTIPLIER : 1)) / Math.max(t.hours, 0.25)
   return Math.round(raw * 1000) / 1000
+}
+
+/**
+ * topic_exam_weights satırından konu soru sayısı: satır yoksa undefined (yedek
+ * hesap kullanılır); avg = 0 ve "sorulmadi" → dersin konu başı ortalamasının
+ * SIFIR_AGIRLIK_TABANI kadarı (tamamen dışarı atılmaz); diğer sıfırlar 0.
+ */
+export function topicWeightFromRow(
+  row: { avg: number; sifirNedeni: string | null } | undefined,
+  subjectAvgPerTopic: number,
+): number | undefined {
+  if (!row) return undefined
+  if (row.avg > 0) return row.avg
+  return row.sifirNedeni === "sorulmadi" ? Math.round(SIFIR_AGIRLIK_TABANI * subjectAvgPerTopic * 1000) / 1000 : 0
+}
+
+/** Dersin puan ağırlığı = sınavdaki soru sayısı × puan katsayısı (puan türü dışı → 0). */
+export function subjectScoreWeight(puan: PuanTuru | null, subjectName: string): number {
+  const q = (SUBJECT_TESTS[subjectName] ?? []).reduce((n, p) => n + p.questions, 0)
+  return Math.round(q * subjectCoefficient(puan, subjectName) * 1000) / 1000
+}
+
+/**
+ * Ders taban payları (dk): kapasite × oran × ders ağırlığı / toplam ağırlık.
+ * Ağırlığı 0 olan ders taban almaz; toplam kapasiteyi aşarsa orantılı küçülür.
+ */
+export function subjectFloors(capacityMinutes: number, weights: Map<string, number>, ratio = DERS_TABAN_ORANI): Map<string, number> {
+  const out = new Map<string, number>()
+  const total = Array.from(weights.values()).reduce((n, w) => n + Math.max(w, 0), 0)
+  if (total <= 0 || capacityMinutes <= 0) return out
+  const pool = Math.min(capacityMinutes * ratio, capacityMinutes)
+  for (const [k, w] of weights) if (w > 0) out.set(k, (pool * w) / total)
+  return out
 }
 
 /**
@@ -294,6 +332,8 @@ export type RoadmapTopicInput = {
   sizeFactor?: number
   /** Konunun bilgi atomu sayısı (kapı zinciri güvenilirliği ve büyüklük). */
   atomCount?: number
+  /** Çapraz kayıt katkısı (öbür sınavdaki soru × o sınavın katsayısı); verimliliğe eklenir. */
+  crossValue?: number
   effective: number
   assessment: "hic_gormedim" | "eksik" | "biliyorum" | null
   examWrongs: number
@@ -360,6 +400,11 @@ export type Roadmap = {
   aytForceStart?: string
   /** Ders bazlı ayrılan saat (plana giren konular + sürekli pratik), çoktan aza. */
   subjectHours?: { subject_id: string; subject_name: string; hours: number }[]
+  /**
+   * Haftalık saat göstergesi (müsaitlik saati cinsinden): şu an, bütün konuları
+   * bitirmek için gereken, ve hangi saatte hangi derslerin tamamen plana gireceği.
+   */
+  weeklyHours?: { current: number; required: number; steps: { hours: number; subjects: string[] }[] }
 }
 
 export type RoadmapInput = {
@@ -372,6 +417,10 @@ export type RoadmapInput = {
   /** Daha önce tamamlanmış konular (yol haritasına girmez). */
   completedTopicIds: string[]
   edges: Edge[]
+  /** Öğrencinin puan türü (ders taban payı ağırlıkları); yoksa taban payı yok. */
+  puanTuru?: PuanTuru | null
+  /** Müsaitlik ızgarasındaki haftalık süre (dk) — "haftada X saat" göstergesi için. */
+  availableWeeklyMinutes?: number
 }
 
 export function overflowMessage(n: number): string {
@@ -388,7 +437,8 @@ export function efficiencyReason(t: RoadmapTopicInput, efficiency: number): stri
         : "pekiştirmen yeterli"
   const x = efficiency >= 10 ? Math.round(efficiency) : efficiency.toFixed(1).replace(".", ",")
   const n = String(round1(t.weight)).replace(".", ",")
-  return `Saat başına yaklaşık ${x} puan: sınavda ortalama ${n} soru çıkıyor${t.weightEstimated ? " (tahmini)" : ""} ve ${state}`
+  // Tahmini ağırlık "yaklaşık" diye geçer (yedek hesap ya da tahmini=true kayıt).
+  return `Saat başına yaklaşık ${x} puan: sınavda ${t.weightEstimated ? "yaklaşık" : "ortalama"} ${n} soru çıkıyor ve ${state}`
 }
 
 function joinNames(names: string[]): string {
@@ -599,7 +649,15 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
   const hoursOf = (t: RoadmapTopicInput) =>
     t.hours ?? Math.round(hoursNeeded(t.assessment, t.effective, input.minutesPerQuestion) * (t.sizeFactor ?? 1) * 100) / 100
   const effOf = (t: RoadmapTopicInput) =>
-    efficiencyScore({ weight: t.weight, coefficient: t.coefficient ?? 1, effective: t.effective, netGap: t.netGap, hasConfidentGap: !!t.gapAtom, hours: hoursOf(t) })
+    efficiencyScore({
+      weight: t.weight,
+      coefficient: t.coefficient ?? 1,
+      effective: t.effective,
+      netGap: t.netGap,
+      hasConfidentGap: !!t.gapAtom,
+      hours: hoursOf(t),
+      crossValue: t.crossValue,
+    })
   const base = new Map<string, number>()
   for (const t of topics) base.set(t.topic_id, effOf(t))
 
@@ -686,35 +744,58 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
   // alınır. Takvim (tarihler) yalnız seçilenlerle kurulur.
   const startLoad = input.existing.reduce((n, e) => n + e.remainingMinutes, 0)
   const capacityMinutes = Math.max(daysBetweenIso(input.today, examPeriodStart), 0) * (studyWeekly / 7) - startLoad
-  // Seçim: verimlilik sırasıyla kesme noktasına kadar; korunan kapı konuları
-  // kapasiteden önce ayrılır. Kesme noktası: ilk sığmayan konudan sonrası düşer
-  // (küçük konu, daha verimli büyük konunun yerine geçmesin).
-  const select = (protectedGate: (id: string) => boolean, skip: (id: string) => boolean) => {
+  // Ders taban payları: puan türüne giren her ders, kapasitenin DERS_TABAN_ORANI
+  // kadarından puan ağırlığı (soru × katsayı) oranında pay alır.
+  const subjectNameOf = new Map(topics.map((t) => [t.subject_id, t.subject_name]))
+  const floors = input.puanTuru
+    ? subjectFloors(
+        capacityMinutes,
+        new Map(Array.from(subjectNameOf).map(([sid, name]) => [sid, subjectScoreWeight(input.puanTuru ?? null, name)])),
+      )
+    : new Map<string, number>()
+  const needOf = (id: string) => goal(byId.get(id)!).need
+
+  // Seçim:
+  //  A) Taban: dersler ağırlık sırasıyla; ders kendi konularında verimlilik
+  //     sırasıyla tabanına kadar alır (ilk konusu her zaman → hiçbir ders sıfır kalmaz).
+  //  B) Kalan kapasite: bütün konular verimlilik sırasıyla, ilk sığmayan konuda kesilir
+  //     (küçük konu, daha verimli büyük konunun yerine geçmesin).
+  //  Kapı: bir AYT konusu alındığında o dersin TYT kapı konuları da AYNI ANDA alınır
+  //  (maliyeti de); kapı yüzünden sığmayan AYT konusu alınmaz. Böylece plana giren
+  //  her AYT dersinin TYT dersi planda ve korunur; tutarsızlık oluşmaz.
+  const select = (skip: (id: string) => boolean) => {
     const out = new Set<string>()
+    const inQueue = new Set(queueIds)
     let used = 0
-    for (const id of queueIds) if (protectedGate(id)) used += goal(byId.get(id)!).need
-    let full = false
-    for (const id of queueIds) {
-      if (protectedGate(id)) {
-        out.add(id)
-        continue
+    const take = (id: string) => {
+      const extra = (gates.get(byId.get(id)!.subject_id) ?? []).filter((g) => inQueue.has(g) && !out.has(g))
+      const cost = needOf(id) + extra.reduce((n, g) => n + needOf(g), 0)
+      if (used + cost > capacityMinutes) return false
+      out.add(id)
+      for (const g of extra) out.add(g)
+      used += cost
+      return true
+    }
+    for (const [sid, floor] of Array.from(floors).sort((x, y) => y[1] - x[1])) {
+      let sUsed = 0
+      for (const id of queueIds) {
+        if (byId.get(id)!.subject_id !== sid || out.has(id) || skip(id)) continue
+        const n = needOf(id)
+        if (sUsed > 0 && sUsed + n > floor) break
+        if (!take(id)) break
+        sUsed += n
       }
-      if (skip(id)) continue
-      const need = goal(byId.get(id)!).need
-      if (!full && used + need <= capacityMinutes) {
-        out.add(id)
-        used += need
-      } else full = true
+    }
+    for (const id of queueIds) {
+      if (out.has(id) || skip(id)) continue
+      if (!take(id)) break
     }
     return out
   }
-  // Kapı tutarlılığı: plana hiç giremeyen AYT dersi "dışarıda" sayılır; konuları
-  // planlanmaz, TYT konuları kapı koruması olmadan kendi verimliliğiyle yarışır.
-  // Dışarıdaki dersler yalnız artar → döngü biter. Plana giren her AYT dersinin
-  // kapısı (TYT konuları) planda kalır.
-  const protects = (id: string) => (gateDependents.get(id) ?? []).some((a) => !outAyt.has(byId.get(a)?.subject_id ?? ""))
+  // Plana hiç giremeyen AYT dersi "dışarıda": konuları planlanmaz, TYT konuları
+  // kapı devralması olmadan kendi verimliliğiyle sıralanır (yalnız artar → biter).
   const isOutAyt = (id: string) => outAyt.has(byId.get(id)!.subject_id)
-  let kept = select(protects, isOutAyt)
+  let kept = select(isOutAyt)
   for (let guard = 0; guard < gates.size + 1; guard++) {
     const newlyOut = Array.from(gates.keys()).filter(
       (sid) => !outAyt.has(sid) && topics.some((t) => t.subject_id === sid) && !topics.some((t) => t.subject_id === sid && kept.has(t.topic_id)),
@@ -723,9 +804,37 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     for (const sid of newlyOut) outAyt.add(sid)
     ;({ effScore, order } = rankTopics(outAyt))
     queueIds = order.filter((id) => !existingByTopic.has(id))
-    kept = select(protects, isOutAyt)
+    kept = select(isOutAyt)
   }
-  const protectsPlanned = protects
+  const keptSubjects = new Set(Array.from(kept).map((id) => byId.get(id)!.subject_id))
+  const protectsPlanned = (id: string) => (gateDependents.get(id) ?? []).some((a) => keptSubjects.has(byId.get(a)?.subject_id ?? ""))
+
+  // Haftalık saat göstergesi (müsaitlik saati): bütün konular için gereken ve
+  // ek saatle tamamen plana girecek dersler (en ucuzdan pahalıya, kümülatif).
+  const planWeeks = Math.max(daysBetweenIso(input.today, examPeriodStart), 7) / 7
+  const availPerCapacity = (input.availableWeeklyMinutes ?? input.weeklyMinutes) / Math.max(input.weeklyMinutes, 1)
+  const toAvailHours = (studyMinutesPerWeek: number) => Math.ceil(((studyMinutesPerWeek + practiceWeekly) * availPerCapacity) / 60)
+  const extraBySubject = new Map<string, number>()
+  for (const id of queueIds) {
+    if (kept.has(id)) continue
+    const sid = byId.get(id)!.subject_id
+    extraBySubject.set(sid, (extraBySubject.get(sid) ?? 0) + needOf(id))
+  }
+  const steps: { hours: number; subjects: string[] }[] = []
+  let cum = 0
+  for (const [sid, extra] of Array.from(extraBySubject).sort((x, y) => x[1] - y[1])) {
+    cum += extra
+    const hours = toAvailHours((capacityMinutes + startLoad + cum) / planWeeks)
+    const last = steps[steps.length - 1]
+    if (last && last.hours === hours) last.subjects.push(subjectNameOf.get(sid) ?? "")
+    else steps.push({ hours, subjects: [subjectNameOf.get(sid) ?? ""] })
+  }
+  const totalNeed = queueIds.reduce((n, id) => n + needOf(id), 0) + startLoad
+  const weeklyHours = {
+    current: Math.round((input.availableWeeklyMinutes ?? input.weeklyMinutes) / 60),
+    required: toAvailHours(totalNeed / planWeeks),
+    steps,
+  }
   const sim = simulatePlan(
     queueIds.filter((id) => kept.has(id)).map((id) => simEntry(id, goal(byId.get(id)!).need)),
     {
@@ -907,6 +1016,7 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     notes,
     aytForceStart,
     subjectHours,
+    weeklyHours: inExamPeriod ? undefined : weeklyHours,
   }
 }
 

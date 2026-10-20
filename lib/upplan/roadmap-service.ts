@@ -7,6 +7,7 @@ import {
   BIG_SHIFT_DAYS,
   DEFAULT_SUBJECT_EXAM_QUESTIONS,
   ALAN_PUAN_TURU,
+  AYT_PREREQ_SUBJECTS,
   GATE_MASTERY,
   LECTURE_MINUTES,
   MAX_ACTIVE_PER_SUBJECT,
@@ -30,6 +31,7 @@ import {
   daysBetweenIso,
   subjectCoefficient,
   topicSizeFactor,
+  topicWeightFromRow,
   isGoalComplete,
   minutesPerQuestion,
   needMinutes,
@@ -158,14 +160,33 @@ export async function gatherRoadmapContext(
   const topicCountBySubject = new Map<string, number>()
   for (const t of scopeTopics) topicCountBySubject.set(t.subject_id, (topicCountBySubject.get(t.subject_id) ?? 0) + 1)
 
+  // Konu sınav ağırlıkları (topic_exam_weights; başka süreç doldurur, burada
+  // yalnız okunur). Konunun kendi sınavındaki satır = soru sayısı; öbür sınavdaki
+  // satır (çapraz kayıt, ör. TYT konusunun AYT'deki katkısı) ayrı tutulur.
   const ids = scopeTopics.map((t) => t.id)
-  const weights = new Map<string, number>()
+  const weights = new Map<string, { avg: number; tahmini: boolean; sifirNedeni: string | null }>()
+  const cross = new Map<string, { exam: string; avg: number }[]>()
+  const topicById = new Map(scopeTopics.map((t) => [t.id, t]))
   for (let i = 0; i < ids.length; i += 300) {
-    const { data } = await db.from("topic_exam_weights").select("topic_id, exam, avg_questions").in("topic_id", ids.slice(i, i + 300))
+    const { data } = await db
+      .from("topic_exam_weights")
+      .select("topic_id, exam, avg_questions, tahmini, sifir_nedeni")
+      .in("topic_id", ids.slice(i, i + 300))
     for (const w of data ?? []) {
-      const subj = subjectById.get(topics.find((t) => t.id === w.topic_id)?.subject_id ?? "")
-      if (!subj || (subj.exam_type ?? "") === w.exam) weights.set(w.topic_id, Number(w.avg_questions))
+      const subj = subjectById.get(topicById.get(w.topic_id)?.subject_id ?? "")
+      if (!subj) continue
+      if ((subj.exam_type ?? "") === w.exam) {
+        weights.set(w.topic_id, { avg: Number(w.avg_questions), tahmini: !!w.tahmini, sifirNedeni: w.sifir_nedeni })
+      } else if (Number(w.avg_questions) > 0) {
+        ;(cross.get(w.topic_id) ?? cross.set(w.topic_id, []).get(w.topic_id)!).push({ exam: w.exam, avg: Number(w.avg_questions) })
+      }
     }
+  }
+  // Çapraz kaydın katsayısı: öbür sınavdaki karşılık dersin (TYT ↔ AYT eşlemesi) puan türü katsayısı.
+  const counterpart = (subjectName: string, exam: string): string | null => {
+    if (exam === "ayt") return Object.entries(AYT_PREREQ_SUBJECTS).find(([, tyt]) => tyt.includes(subjectName))?.[0] ?? null
+    if (exam === "tyt") return AYT_PREREQ_SUBJECTS[subjectName]?.[0] ?? null
+    return null
   }
 
   const resultsBySubject = new Map<string, { correct: number; wrong: number; empty: number }[]>()
@@ -204,14 +225,21 @@ export async function gatherRoadmapContext(
     const m = mastery.get(t.id)
     const subjectQ = SUBJECT_EXAM_QUESTIONS[subj.name] ?? DEFAULT_SUBJECT_EXAM_QUESTIONS
     const count = Math.max(topicCountBySubject.get(t.subject_id) ?? 1, 1)
-    const w = weights.get(t.id)
+    const row = weights.get(t.id)
+    // avg = 0 ve "sorulmadi" → tamamen dışarı atılmasın (topicWeightFromRow).
+    const w = topicWeightFromRow(row, subjectQ / count)
+    const crossValue = (cross.get(t.id) ?? []).reduce((n, c) => {
+      const other = counterpart(subj.name, c.exam)
+      return n + (other ? c.avg * subjectCoefficient(puanTuru, other) : 0)
+    }, 0)
     return {
       topic_id: t.id,
       topic_name: t.name,
       subject_id: t.subject_id,
       subject_name: subj.name,
       weight: w ?? Math.round((subjectQ / count) * 1000) / 1000,
-      weightEstimated: w === undefined,
+      weightEstimated: row === undefined || row.tahmini,
+      crossValue: crossValue || undefined,
       coefficient: subjectCoefficient(puanTuru, subj.name),
       atomCount: atomCount.get(t.id) ?? 0,
       sizeFactor: topicSizeFactor({
@@ -269,6 +297,8 @@ export async function gatherRoadmapContext(
       existing: existingUnique,
       completedTopicIds,
       edges,
+      puanTuru,
+      availableWeeklyMinutes: availableMinutes(profile),
     },
   }
 }

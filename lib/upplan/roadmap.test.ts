@@ -4,6 +4,9 @@ import {
   activeSlotsFor,
   blockTypeFor,
   buildRoadmap,
+  subjectFloors,
+  subjectScoreWeight,
+  topicWeightFromRow,
   topicSizeFactor,
   efficiencyScore,
   hoursNeeded,
@@ -311,7 +314,7 @@ describe("saat başına puan sıralaması", () => {
       ],
     })
     expect(r.items[0].topic_id).toBe("cok")
-    expect(r.items[0].reasons[0]).toMatch(/^Saat başına yaklaşık [\d,]+ puan: sınavda ortalama 2 soru çıkıyor \(tahmini\) ve/)
+    expect(r.items[0].reasons[0]).toMatch(/^Saat başına yaklaşık [\d,]+ puan: sınavda yaklaşık 2 soru çıkıyor ve/)
   })
 
   it("aynı katsayı ve soruda kısa (az saat) konu uzun konudan önce", () => {
@@ -416,5 +419,57 @@ describe("ön koşul verisi olmayan ders ve konu büyüklüğü", () => {
     expect(topicSizeFactor({ subjectName: "AYT Matematik", atomCount: 40, subjectAvgAtoms: 10 })).toBe(2.5)
     expect(topicSizeFactor({ subjectName: "TYT Tarih", avgQuestions: 0.2, subjectAvgQuestions: 0.4 })).toBe(0.3)
     expect(topicSizeFactor({ subjectName: "TYT Din Kültürü" })).toBe(0.4)
+  })
+})
+
+describe("ders taban payı ve haftalık saat göstergesi", () => {
+  const base = { today: TODAY, examDate: EXAM, weeklyMinutes: 300, minutesPerQuestion: 1.5, existing: [], completedTopicIds: [], edges: [], puanTuru: "SAY" as const }
+  const t = (id: string, subject: string, over: Partial<RoadmapTopicInput> = {}) =>
+    topic(id, { subject_id: subject, subject_name: subject, coefficient: subjectCoefficient("SAY", subject), effective: 45, assessment: "eksik", ...over })
+  // Çok verimli TYT Matematik konuları kapasiteyi tek başına doldurabilecek kadar çok.
+  const many = Array.from({ length: 80 }, (_, i) => t(`m${i}`, "TYT Matematik", { weight: 2 }))
+  const fiz = [t("tf1", "TYT Fizik", { weight: 0.3 }), t("tf2", "TYT Fizik", { weight: 0.3 })]
+  const ayt = [t("af1", "AYT Fizik", { weight: 0.3, effective: 10, assessment: "hic_gormedim" }), t("ak1", "AYT Kimya", { weight: 0.3, effective: 10, assessment: "hic_gormedim" })]
+  const kim = [t("tk1", "TYT Kimya", { weight: 0.3 })]
+
+  it("puan türündeki hiçbir ders sıfır saat almaz; AYT dersi tabanla girince TYT kapısı da plana girer", () => {
+    const r = buildRoadmap({ ...base, topics: [...many, ...fiz, ...kim, ...ayt] })
+    const planned = (subject: string) => r.items.filter((i) => i.subject_name === subject && i.status !== "zaman_kalirsa").length
+    expect(r.items.some((i) => i.status === "zaman_kalirsa")).toBe(true)
+    for (const s of ["TYT Matematik", "TYT Fizik", "TYT Kimya", "AYT Fizik", "AYT Kimya"]) expect(planned(s)).toBeGreaterThan(0)
+    // AYT Fizik planda → TYT Fizik'in tüm konuları (kapı) planda ve korunuyor.
+    expect(planned("TYT Fizik")).toBe(2)
+    expect(r.items.filter((i) => i.subject_name === "TYT Fizik").every((i) => i.gate_for === "AYT Fizik")).toBe(true)
+  })
+
+  it("puan türü dışındaki ders taban almaz", () => {
+    const w = new Map([
+      ["mat", subjectScoreWeight("SAY", "AYT Matematik")],
+      ["ede", subjectScoreWeight("SAY", "AYT Edebiyat")],
+    ])
+    expect(w.get("ede")).toBe(0)
+    const f = subjectFloors(10000, w, 0.5)
+    expect(f.has("ede")).toBe(false)
+    expect(Math.round(f.get("mat")!)).toBe(5000)
+  })
+
+  it("taban payları toplamı kapasiteyi aşarsa orantılı küçülür", () => {
+    const f = subjectFloors(1000, new Map([["a", 3], ["b", 1]]), 1.5)
+    expect(f.get("a")! + f.get("b")!).toBeCloseTo(1000)
+    expect(f.get("a")! / f.get("b")!).toBeCloseTo(3)
+  })
+
+  it("sorulmadı = 0 konular tamamen dışarı atılmaz; kaynak saymıyorsa 0", () => {
+    expect(topicWeightFromRow({ avg: 0, sifirNedeni: "sorulmadi" }, 2)).toBe(0.3)
+    expect(topicWeightFromRow({ avg: 0, sifirNedeni: "kaynak_saymiyor" }, 2)).toBe(0)
+    expect(topicWeightFromRow({ avg: 1.4, sifirNedeni: null }, 2)).toBe(1.4)
+    expect(topicWeightFromRow(undefined, 2)).toBeUndefined()
+  })
+
+  it("haftalık saat: kapasite yetmezse gereken > mevcut, ek saatle plana girecek dersler", () => {
+    const r = buildRoadmap({ ...base, availableWeeklyMinutes: 23 * 60, topics: [...many, ...fiz, ...kim, ...ayt] })
+    expect(r.weeklyHours!.current).toBe(23)
+    expect(r.weeklyHours!.required).toBeGreaterThan(23)
+    expect(r.weeklyHours!.steps[0].subjects).toContain("TYT Matematik")
   })
 })

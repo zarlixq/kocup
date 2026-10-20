@@ -96,17 +96,21 @@ describe.sequential("UpPlan iyileştirme e2e", () => {
     report.efficiency = {
       top15: ranked.slice(0, 15).map((i) => `${i.subject_name} / ${i.topic_name}: ${i.efficiency} puan/sa [${i.status}]`),
       subjectHours: p.subjectHours,
+      weeklyHours: p.weeklyHours,
       zamanKalirsaBySubject: zBySubject,
       planlananBySubject: p.items.filter((i) => !i.practice && i.status !== "zaman_kalirsa").reduce<Record<string, number>>((m, i) => ((m[i.subject_name] = (m[i.subject_name] ?? 0) + 1), m), {}),
       practice: p.items.filter((i) => i.practice).map((i) => `${i.subject_name} / ${i.topic_name}`),
     }
-    // Sıralama verimliliğe göre: zaman kalırsa'ya düşenler en düşük verimliler (kapıdan bağımsız konular).
-    // Kapı konuları (gate_for) kapasite seçiminden bağımsız planda kalır; karşılaştırma dışı.
-    const planned = p.items.filter((i) => !i.practice && !i.gate_for && i.status !== "zaman_kalirsa" && !ayt(i.subject_name))
-    const dropped = p.items.filter((i) => i.status === "zaman_kalirsa" && !ayt(i.subject_name))
-    if (dropped.length && planned.length) {
-      expect(Math.max(...dropped.map((i) => i.priority ?? 0))).toBeLessThanOrEqual(Math.min(...planned.map((i) => i.priority ?? 0)) + 1e-9)
+    // Ders taban payı: puan türündeki (SAY) her ders plana girer; plana giren AYT
+    // dersinin TYT kapısı tamamen planda.
+    const plannedIn = (name: string) => p.items.filter((i) => i.subject_name === name && i.status !== "zaman_kalirsa" && !i.practice).length
+    for (const name of ["TYT Türkçe", "TYT Matematik", "TYT Fizik", "TYT Kimya", "TYT Biyoloji", "TYT Tarih", "AYT Matematik", "AYT Fizik", "AYT Kimya", "AYT Biyoloji"]) {
+      expect(plannedIn(name), name).toBeGreaterThan(0)
     }
+    for (const [aytName, tytName] of [["AYT Fizik", "TYT Fizik"], ["AYT Kimya", "TYT Kimya"], ["AYT Biyoloji", "TYT Biyoloji"]]) {
+      if (plannedIn(aytName) > 0) expect(p.items.filter((i) => i.subject_name === tytName).every((i) => i.status !== "zaman_kalirsa")).toBe(true)
+    }
+    expect(p.weeklyHours!.current).toBe(23)
     expect(p.items.filter((i) => i.practice).length).toBeGreaterThan(0)
     report.roadmap = {
       weeklyMinutes: p.weeklyMinutes,

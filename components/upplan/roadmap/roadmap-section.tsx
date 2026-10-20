@@ -116,6 +116,7 @@ function Summary({ view }: { view: RoadmapView }) {
         <Stat label="Planlanan konu" value={String(counts.aktif + counts.sirada)} />
         <Stat label="Deneme dönemi" value={dd(p.examPeriodStart)} />
       </div>
+      {p.weeklyHours && <WeeklyHoursNote w={p.weeklyHours} />}
       {p.subjectHours && p.subjectHours.length > 0 && <SubjectHoursBar rows={p.subjectHours} />}
       {p.overflow && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">{p.overflow.message}</p>
@@ -125,6 +126,32 @@ function Summary({ view }: { view: RoadmapView }) {
           {n}
         </p>
       ))}
+    </div>
+  )
+}
+
+// "Bütün konular için haftada X saat gerekiyor; şu an Y saat" + ek saatle plana girecek dersler.
+function WeeklyHoursNote({ w, emphasize }: { w: NonNullable<RoadmapView["payload"]>["weeklyHours"] & object; emphasize?: boolean }) {
+  const short = w.required > w.current
+  const step = w.steps.find((x) => x.hours > w.current) ?? w.steps[0]
+  return (
+    <div
+      className={
+        short
+          ? `rounded-xl border px-3 py-2.5 text-sm ${emphasize ? "border-amber-300 bg-amber-50 text-amber-900" : "border-amber-200 bg-amber-50/60 text-amber-900"}`
+          : "rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900"
+      }
+    >
+      <p>
+        Bütün konuları sınava kadar bitirmek için haftada yaklaşık <strong className="tabular-nums">{w.required} saat</strong>{" "}
+        gerekiyor; şu an <strong className="tabular-nums">{w.current} saat</strong> çalışıyorsun.
+      </p>
+      {short && step && (
+        <p className="mt-1 text-xs">
+          Haftada <strong className="tabular-nums">{step.hours} saat</strong> çalışırsan şu dersler de tamamen plana girer:{" "}
+          {step.subjects.join(", ")}.
+        </p>
+      )}
     </div>
   )
 }
@@ -258,6 +285,9 @@ function ApprovedRoadmap({ view, onRegenerate, regenerating }: { view: RoadmapVi
       {tab === "sirada" && <QueueList rows={byStatus("sirada")} edges={view.edges} allRows={view.rows} />}
       {tab === "zaman_kalirsa" && (
         <div className="space-y-2">
+          {view.payload?.weeklyHours && view.payload.weeklyHours.required > view.payload.weeklyHours.current && (
+            <WeeklyHoursNote w={view.payload.weeklyHours} emphasize />
+          )}
           {byStatus("zaman_kalirsa").length > 0 && (
             <p className="text-xs text-zinc-500">Bu konular saat başına en az puan getirenler; kapasiten sınava kadar bunlara yetmiyor.</p>
           )}

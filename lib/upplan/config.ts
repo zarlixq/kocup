@@ -333,6 +333,22 @@ export const SUBJECT_TESTS: Record<string, readonly { test: string; questions: n
 /** Alan → puan türü (LGS segmenti alan taşımaz). */
 export const ALAN_PUAN_TURU: Record<string, PuanTuru> = { sayisal: "SAY", ea: "EA", sozel: "SOZ", dil: "DIL" }
 
+/**
+ * Ders taban payı (kapsama kuralı, elle öncelik değil): planlanabilir saatin bu
+ * oranı, puan türüne giren derslere puan ağırlıklarıyla (soru × katsayı) taban
+ * olarak ayrılır; ders kendi içinde verimlilik sırasıyla doldurur. Kalan saat
+ * bütün konular arasında verimliliğe göre. Saf verimlilik azalan getiriyi
+ * görmez ve dersleri sıfıra düşürebilir; taban bunu önler.
+ */
+export const DERS_TABAN_ORANI = 0.5
+
+/**
+ * topic_exam_weights'te avg_questions = 0 ve sifir_nedeni = "sorulmadi" olan
+ * konuya verilen taban ağırlık: dersin konu başı ortalamasının bu oranı
+ * (son yıllarda sorulmamış olması hiç sorulmayacağı anlamına gelmez).
+ */
+export const SIFIR_AGIRLIK_TABANI = 0.15
+
 /** Kazanılabilir pay = (TARGET_MASTERY − etkili ustalık) / 100, alt sınır 0. */
 export const TARGET_MASTERY = 90
 

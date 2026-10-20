@@ -2130,18 +2130,30 @@ export type Database = {
         Row: {
           avg_questions: number
           exam: string
+          kaynaklar: Json | null
+          not: string | null
+          sifir_nedeni: string | null
+          tahmini: boolean | null
           topic_id: string
           updated_at: string
         }
         Insert: {
           avg_questions: number
           exam: string
+          kaynaklar?: Json | null
+          not?: string | null
+          sifir_nedeni?: string | null
+          tahmini?: boolean | null
           topic_id: string
           updated_at?: string
         }
         Update: {
           avg_questions?: number
           exam?: string
+          kaynaklar?: Json | null
+          not?: string | null
+          sifir_nedeni?: string | null
+          tahmini?: boolean | null
           topic_id?: string
           updated_at?: string
         }
