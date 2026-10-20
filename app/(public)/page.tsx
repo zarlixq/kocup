@@ -7,6 +7,7 @@ import { StatsBar } from "@/blocks/StatsBar"
 import HowItWorks from "@/blocks/HowItWorks"
 import Features from "@/blocks/Features"
 import IndependentCoachesCTA from "@/blocks/IndependentCoachesCTA"
+import UpPlanFreeCTA from "@/blocks/UpPlanFreeCTA"
 import Pricing from "@/blocks/Pricing"
 import FAQ from "@/blocks/FAQ"
 import Contact from "@/blocks/Contact"
@@ -108,6 +109,7 @@ export default async function Home() {
         <StatsBar />
         <HowItWorks />
         <Features />
+        <UpPlanFreeCTA />
         <IndependentCoachesCTA />
         <Pricing />
         <FAQ />

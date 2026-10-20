@@ -11,6 +11,7 @@ import {
   Settings,
   Menu,
   LogOut,
+  MailPlus,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -26,6 +27,7 @@ const NAV: NavItem[] = [
   { href: "/kurum", label: "Dashboard", icon: LayoutDashboard },
   { href: "/kurum/koclar", label: "Koçlar", icon: UserCog },
   { href: "/kurum/ogrenciler", label: "Öğrenciler", icon: GraduationCap },
+  { href: "/kurum/davetler", label: "Davetler", icon: MailPlus },
   { href: "/kurum/analitik", label: "Analitik", icon: BarChart3 },
   { href: "/kurum/ayarlar", label: "Ayarlar", icon: Settings },
 ]

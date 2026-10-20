@@ -11,7 +11,7 @@ export const metadata = { title: "Öğrenciler — KoçUp" }
 export default async function OgrencilerPage() {
   const supabase = await createClient()
 
-  const [{ data: studentProfiles }, { data: studentRows }, { data: coaches }, complianceMap, listPrefsRaw] =
+  const [{ data: studentProfiles }, { data: studentRows }, { data: coaches }, complianceMap, listPrefsRaw, { data: pendingInvites }] =
     await Promise.all([
       supabase
         .from("profiles")
@@ -26,6 +26,12 @@ export default async function OgrencilerPage() {
         .order("full_name"),
       getWeeklyComplianceMap(supabase),
       getUiPreference("mudur_student_list"),
+      supabase
+        .from("student_invitations")
+        .select("id, full_name, email, grade, coach_id, sent_at")
+        .eq("status", "gonderildi")
+        .gt("expires_at", new Date().toISOString())
+        .order("sent_at", { ascending: false }),
     ])
   const listPrefs = mergeStudentListPrefs(listPrefsRaw)
 
@@ -78,6 +84,25 @@ export default async function OgrencilerPage() {
         : null,
     }
   })
+
+  // "Koç durumu: Davet bekliyor" filtresi için bekleyen davetler (hesap henüz yok).
+  for (const inv of pendingInvites ?? []) {
+    students.push({
+      id: `davet-${inv.id}`,
+      full_name: inv.full_name,
+      email: inv.email,
+      grade: inv.grade,
+      coach_id: inv.coach_id,
+      coach_name: inv.coach_id ? coachNameById[inv.coach_id] ?? null : null,
+      target_department: null,
+      parent_phone: null,
+      is_active: true,
+      first_login_at: null,
+      created_at: inv.sent_at,
+      compliance: null,
+      pending_invitation: true,
+    })
+  }
 
   const activeJob = await getActiveImportJob()
 

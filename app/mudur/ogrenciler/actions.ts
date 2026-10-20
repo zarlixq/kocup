@@ -159,3 +159,61 @@ export async function deleteStudent(id: string): Promise<ActionResult> {
   revalidatePath("/mudur")
   return { success: true }
 }
+
+/**
+ * Bireysel öğrenciyi kuruma bağla ve/veya koç ata. Kurum bağı service role ile
+ * (profil kurum değişimi guard trigger'ında yalnız service role/admin'e açık);
+ * koç ataması mevcut change_student_coach akışıyla (devir trigger'ı dahil).
+ */
+export async function assignIndividualStudent(
+  studentId: string,
+  organizationId: string | null,
+  coachId: string | null,
+): Promise<ActionResult> {
+  const auth = await requireAdmin()
+  if (!auth.ok) return { success: false, error: auth.error }
+  if (!organizationId && !coachId) return { success: false, error: "Kurum veya koç seçin." }
+
+  const ids = z.string().uuid()
+  if (!ids.safeParse(studentId).success) return { success: false, error: "Geçersiz öğrenci." }
+  if (organizationId && !ids.safeParse(organizationId).success) return { success: false, error: "Geçersiz kurum." }
+  if (coachId && !ids.safeParse(coachId).success) return { success: false, error: "Geçersiz koç." }
+
+  const admin = supabaseAdmin()
+  if (organizationId) {
+    const { data: org } = await admin.from("organizations").select("id").eq("id", organizationId).maybeSingle()
+    if (!org) return { success: false, error: "Kurum bulunamadı." }
+  }
+  if (coachId) {
+    const { data: coach } = await admin.from("profiles").select("role, organization_id").eq("id", coachId).maybeSingle()
+    if (!coach || coach.role !== "coach") return { success: false, error: "Koç bulunamadı." }
+    if ((coach.organization_id ?? null) !== (organizationId ?? null)) {
+      return { success: false, error: organizationId ? "Seçilen koç bu kuruma ait değil." : "Kurum koçu için önce kurumu seçin." }
+    }
+  }
+
+  try {
+    if (organizationId) {
+      const { error: sErr } = await admin.from("students").update({ organization_id: organizationId }).eq("id", studentId)
+      if (sErr) throw sErr
+      const { error: pErr } = await admin.from("profiles").update({ organization_id: organizationId }).eq("id", studentId)
+      if (pErr) throw pErr
+    }
+    if (coachId) {
+      const supabase = await createClient()
+      const { error } = await supabase.rpc("change_student_coach", { p_student_id: studentId, p_new_coach_id: coachId })
+      if (error) {
+        console.error("Bireysel koç atama:", error)
+        return { success: false, error: error.code === "P0001" ? error.message : "Koç atanamadı, tekrar deneyin." }
+      }
+    }
+  } catch (err) {
+    console.error("assignIndividualStudent:", err)
+    return { success: false, error: "Bir hata oluştu, tekrar deneyin." }
+  }
+
+  revalidatePath("/mudur/bireysel-ogrenciler")
+  revalidatePath("/mudur/ogrenciler")
+  revalidatePath(`/mudur/ogrenciler/${studentId}`)
+  return { success: true }
+}

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { Plus_Jakarta_Sans, Instrument_Serif } from "next/font/google"
-import Script from "next/script"
+import { CookieConsent } from "@/components/legal/cookie-consent"
 import "./globals.css"
 import { getSiteUrl } from "@/lib/site-url"
 
@@ -108,23 +108,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {supabaseUrl && (
           <link rel="preconnect" href={supabaseUrl} crossOrigin="anonymous" />
         )}
-
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=AW-18185085898"
-          strategy="afterInteractive"
-        />
-        <Script id="google-ads-tag" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            window.gtag = gtag;
-            gtag('js', new Date());
-            gtag('config', 'AW-18185085898');
-          `}
-        </Script>
       </head>
 
-      <body className="antialiased font-sans">{children}</body>
+      <body className="antialiased font-sans">
+        {children}
+        {/* Google Ads etiketi yalnız çerez onayıyla yüklenir (Çerez Politikası). */}
+        <CookieConsent />
+      </body>
     </html>
   )
 }

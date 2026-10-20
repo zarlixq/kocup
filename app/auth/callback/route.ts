@@ -2,16 +2,21 @@ import { NextResponse, type NextRequest } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import type { Database } from "@/lib/database.types"
+import { safeNext } from "@/lib/auth/safe-next"
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
+  const next = safeNext(searchParams.get("next"))
+  // Öğrenci e-posta doğrulaması (next=/ogrenci/...) → hata öğrenci girişine.
+  const loginPath = next?.startsWith("/ogrenci") ? "/giris/ogrenci" : "/giris/koc"
+  const destination = next ?? "/sifre-belirle"
 
   // Supabase, link'i error ile geri yönlendirdiyse (otp_expired vs.) bu
   // parametreler dolu gelir.
   const errorCode = searchParams.get("error_code")
   if (errorCode) {
     return NextResponse.redirect(
-      `${origin}/giris/koc?error=${encodeURIComponent(errorCode)}`
+      `${origin}${loginPath}?error=${encodeURIComponent(errorCode)}`
     )
   }
 
@@ -42,10 +47,10 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
       return NextResponse.redirect(
-        `${origin}/giris/koc?error=${encodeURIComponent(error.code ?? "exchange_failed")}`
+        `${origin}${loginPath}?error=${encodeURIComponent(error.code ?? "exchange_failed")}`
       )
     }
-    return NextResponse.redirect(`${origin}/sifre-belirle`)
+    return NextResponse.redirect(`${origin}${destination}`)
   }
 
   // Path 2: Token hash — link ?token_hash=...&type=invite ile geldi
@@ -57,14 +62,17 @@ export async function GET(request: NextRequest) {
     })
     if (error) {
       return NextResponse.redirect(
-        `${origin}/giris/koc?error=${encodeURIComponent(error.code ?? "verify_failed")}`
+        `${origin}${loginPath}?error=${encodeURIComponent(error.code ?? "verify_failed")}`
       )
     }
-    return NextResponse.redirect(`${origin}/sifre-belirle`)
+    // Şifre sıfırlama her zaman şifre belirleme ekranına gider.
+    return NextResponse.redirect(`${origin}${tokenType === "recovery" ? "/sifre-belirle" : destination}`)
   }
 
   // Path 3: Implicit flow — token hash fragment'ta (#access_token=...) geldi.
   // Server fragment'ı göremez, client'a yönlendir. 307 redirect tarayıcıda
   // hash fragment'ı korur.
-  return NextResponse.redirect(`${origin}/auth/callback/client`)
+  return NextResponse.redirect(
+    `${origin}/auth/callback/client${next ? `?next=${encodeURIComponent(next)}` : ""}`
+  )
 }

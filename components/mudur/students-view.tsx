@@ -68,6 +68,8 @@ export type StudentRow = {
   first_login_at: string | null
   created_at: string | null
   compliance: { percent: number | null; totalItems: number; doneItems: number } | null
+  /** Henüz kabul edilmemiş öğrenci daveti (öğrenci hesabı yok). */
+  pending_invitation?: boolean
 }
 
 type Coach = { id: string; full_name: string }
@@ -86,6 +88,13 @@ const COMPLIANCE_FILTERS = [
   { value: "none", label: "Program yok" },
   { value: "low", label: "Uyum < %50" },
   { value: "high", label: "Uyum ≥ %50" },
+] as const
+
+const COACH_STATUS_OPTIONS = [
+  { value: "__all__", label: "Tüm koç durumları" },
+  { value: "koclu", label: "Koçlu" },
+  { value: "kocsuz", label: "Koçsuz" },
+  { value: "davet", label: "Davet bekliyor" },
 ] as const
 
 const GRADES = ["7", "8", "9", "10", "11", "12", "Mezun"] as const
@@ -130,6 +139,7 @@ export function StudentsView({
   const [coachFilter, setCoachFilter] = useState<string>(ALL)
   const [statusFilter, setStatusFilter] = useState<string>(initialPrefs.statusFilter)
   const [complianceFilter, setComplianceFilter] = useState<string>("__all__")
+  const [coachStatus, setCoachStatus] = useState<string>("__all__")
   const [columns, setColumns] = useState<StudentListColumns>(initialPrefs.columns)
   const [assignTarget, setAssignTarget] = useState<StudentRow | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<StudentRow | null>(null)
@@ -163,6 +173,11 @@ export function StudentsView({
       if (q && !s.full_name.toLowerCase().includes(q) && !s.email.toLowerCase().includes(q)) {
         return false
       }
+      // Koç durumu: bekleyen davetler yalnız "Davet bekliyor" seçiliyken listelenir.
+      if (coachStatus === "davet") return !!s.pending_invitation && (grade === ALL || s.grade === grade)
+      if (s.pending_invitation) return false
+      if (coachStatus === "koclu" && s.coach_id === null) return false
+      if (coachStatus === "kocsuz" && s.coach_id !== null) return false
       if (grade !== ALL && s.grade !== grade) return false
       if (coachFilter === UNASSIGNED && s.coach_id !== null) return false
       if (coachFilter !== ALL && coachFilter !== UNASSIGNED && s.coach_id !== coachFilter) return false
@@ -180,7 +195,7 @@ export function StudentsView({
       if (complianceFilter === "high" && !(pct !== null && pct >= 50)) return false
       return true
     })
-  }, [students, query, grade, coachFilter, statusFilter, complianceFilter])
+  }, [students, query, grade, coachFilter, statusFilter, complianceFilter, coachStatus])
 
   function handleDelete() {
     if (!deleteTarget) return
@@ -200,7 +215,7 @@ export function StudentsView({
       <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Öğrenciler</h1>
-          <p className="text-sm text-zinc-500 mt-1">{students.length} kayıtlı öğrenci</p>
+          <p className="text-sm text-zinc-500 mt-1">{students.filter((s) => !s.pending_invitation).length} kayıtlı öğrenci</p>
         </div>
         {headerAction}
       </div>
@@ -249,6 +264,19 @@ export function StudentsView({
             {coaches.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.full_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={coachStatus} onValueChange={setCoachStatus}>
+          <SelectTrigger className="md:w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {COACH_STATUS_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -338,6 +366,30 @@ export function StudentsView({
                   first_login_at: s.first_login_at,
                   is_active: s.is_active,
                 })
+                if (s.pending_invitation) {
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-zinc-900">{s.full_name}</span>
+                          <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">Davet bekliyor</Badge>
+                        </div>
+                        <div className="text-xs text-zinc-500">{s.email}</div>
+                      </TableCell>
+                      {columns.grade && <TableCell>{s.grade ? <Badge variant="outline">{s.grade === "Mezun" ? "Mezun" : `${s.grade}. Sınıf`}</Badge> : "—"}</TableCell>}
+                      {columns.coach && <TableCell className="text-zinc-600">{s.coach_name ?? "—"}</TableCell>}
+                      {columns.compliance && <TableCell>—</TableCell>}
+                      {columns.target && <TableCell>—</TableCell>}
+                      {columns.parentPhone && <TableCell>—</TableCell>}
+                      {columns.created && <TableCell className="text-zinc-600">{formatDate(s.created_at)}</TableCell>}
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href="/mudur/davetler">Davetler</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                }
                 return (
                 <TableRow key={s.id} className={status === "inactive" ? "opacity-50" : undefined}>
                   <TableCell>

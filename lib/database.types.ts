@@ -190,6 +190,47 @@ export type Database = {
           },
         ]
       }
+      auth_role_grants: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          organization_id: string | null
+          role: string
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          organization_id?: string | null
+          role: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          organization_id?: string | null
+          role?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auth_role_grants_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_categories: {
         Row: {
           created_at: string
@@ -602,6 +643,44 @@ export type Database = {
           {
             foreignKeyName: "exams_updated_by_fkey"
             columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          page_path: string | null
+          screenshot_path: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          page_path?: string | null
+          screenshot_path?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          page_path?: string | null
+          screenshot_path?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1222,6 +1301,27 @@ export type Database = {
           },
         ]
       }
+      rate_limits: {
+        Row: {
+          bucket: string
+          hits: number
+          key_hash: string
+          window_start: string
+        }
+        Insert: {
+          bucket: string
+          hits?: number
+          key_hash: string
+          window_start: string
+        }
+        Update: {
+          bucket?: string
+          hits?: number
+          key_hash?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       resources: {
         Row: {
           created_at: string | null
@@ -1394,6 +1494,269 @@ export type Database = {
           },
         ]
       }
+      student_acquisition: {
+        Row: {
+          alan: string | null
+          created_at: string
+          grade: string | null
+          invitation_id: string | null
+          is_minor: boolean | null
+          segment: string | null
+          source: string
+          student_id: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          alan?: string | null
+          created_at?: string
+          grade?: string | null
+          invitation_id?: string | null
+          is_minor?: boolean | null
+          segment?: string | null
+          source: string
+          student_id: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          alan?: string | null
+          created_at?: string
+          grade?: string | null
+          invitation_id?: string | null
+          is_minor?: boolean | null
+          segment?: string | null
+          source?: string
+          student_id?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_acquisition_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_user_id: string | null
+          cancelled_at: string | null
+          coach_id: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          full_name: string
+          grade: string | null
+          id: string
+          invited_by: string | null
+          organization_id: string | null
+          phone: string | null
+          segment: string
+          send_count: number
+          sent_at: string
+          status: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          cancelled_at?: string | null
+          coach_id?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          full_name: string
+          grade?: string | null
+          id?: string
+          invited_by?: string | null
+          organization_id?: string | null
+          phone?: string | null
+          segment: string
+          send_count?: number
+          sent_at?: string
+          status?: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          cancelled_at?: string | null
+          coach_id?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          full_name?: string
+          grade?: string | null
+          id?: string
+          invited_by?: string | null
+          organization_id?: string | null
+          phone?: string | null
+          segment?: string
+          send_count?: number
+          sent_at?: string
+          status?: string
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_invitations_accepted_user_id_fkey"
+            columns: ["accepted_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_invitations_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_resource_playlists: {
+        Row: {
+          created_at: string
+          id: string
+          source: string
+          student_id: string
+          subject_id: string
+          teacher_name: string
+          title: string | null
+          youtube_playlist_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          source?: string
+          student_id: string
+          subject_id: string
+          teacher_name: string
+          title?: string | null
+          youtube_playlist_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          source?: string
+          student_id?: string
+          subject_id?: string
+          teacher_name?: string
+          title?: string | null
+          youtube_playlist_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_resource_playlists_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_resource_playlists_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_resource_videos: {
+        Row: {
+          created_at: string
+          id: string
+          match_score: number | null
+          match_status: string
+          playlist_id: string
+          position: number
+          student_id: string
+          title: string
+          topic_id: string | null
+          understanding: string | null
+          watch_status: string
+          watched_at: string | null
+          youtube_video_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_score?: number | null
+          match_status?: string
+          playlist_id: string
+          position?: number
+          student_id: string
+          title: string
+          topic_id?: string | null
+          understanding?: string | null
+          watch_status?: string
+          watched_at?: string | null
+          youtube_video_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_score?: number | null
+          match_status?: string
+          playlist_id?: string
+          position?: number
+          student_id?: string
+          title?: string
+          topic_id?: string | null
+          understanding?: string | null
+          watch_status?: string
+          watched_at?: string | null
+          youtube_video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_resource_videos_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "student_resource_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_resource_videos_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_resource_videos_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_resources: {
         Row: {
           added_by: string
@@ -1526,124 +1889,6 @@ export type Database = {
           },
         ]
       }
-      student_resource_playlists: {
-        Row: {
-          created_at: string
-          id: string
-          source: string
-          student_id: string
-          subject_id: string
-          teacher_name: string
-          title: string | null
-          youtube_playlist_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          source?: string
-          student_id: string
-          subject_id: string
-          teacher_name: string
-          title?: string | null
-          youtube_playlist_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          source?: string
-          student_id?: string
-          subject_id?: string
-          teacher_name?: string
-          title?: string | null
-          youtube_playlist_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_resource_playlists_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_resource_playlists_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      student_resource_videos: {
-        Row: {
-          created_at: string
-          id: string
-          match_score: number | null
-          match_status: string
-          playlist_id: string
-          position: number
-          student_id: string
-          title: string
-          topic_id: string | null
-          understanding: string | null
-          watch_status: string
-          watched_at: string | null
-          youtube_video_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          match_score?: number | null
-          match_status?: string
-          playlist_id: string
-          position?: number
-          student_id: string
-          title: string
-          topic_id?: string | null
-          understanding?: string | null
-          watch_status?: string
-          watched_at?: string | null
-          youtube_video_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          match_score?: number | null
-          match_status?: string
-          playlist_id?: string
-          position?: number
-          student_id?: string
-          title?: string
-          topic_id?: string | null
-          understanding?: string | null
-          watch_status?: string
-          watched_at?: string | null
-          youtube_video_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_resource_videos_playlist_id_fkey"
-            columns: ["playlist_id"]
-            isOneToOne: false
-            referencedRelation: "student_resource_playlists"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_resource_videos_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_resource_videos_topic_id_fkey"
-            columns: ["topic_id"]
-            isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       student_topics: {
         Row: {
           created_at: string | null
@@ -1767,7 +2012,7 @@ export type Database = {
           {
             foreignKeyName: "student_upplan_profile_student_id_fkey"
             columns: ["student_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -2020,10 +2265,10 @@ export type Database = {
           hedef_dogruluk: number | null
           hedef_soru: number | null
           hedef_sure_dk: number | null
+          id: string
           is_practice: boolean
           learned_at: string | null
           learning_phase: string | null
-          id: string
           notes: string | null
           origin: string | null
           origin_coach_id: string | null
@@ -2046,10 +2291,10 @@ export type Database = {
           hedef_dogruluk?: number | null
           hedef_soru?: number | null
           hedef_sure_dk?: number | null
+          id?: string
           is_practice?: boolean
           learned_at?: string | null
           learning_phase?: string | null
-          id?: string
           notes?: string | null
           origin?: string | null
           origin_coach_id?: string | null
@@ -2072,10 +2317,10 @@ export type Database = {
           hedef_dogruluk?: number | null
           hedef_soru?: number | null
           hedef_sure_dk?: number | null
+          id?: string
           is_practice?: boolean
           learned_at?: string | null
           learning_phase?: string | null
-          id?: string
           notes?: string | null
           origin?: string | null
           origin_coach_id?: string | null
@@ -2342,6 +2587,38 @@ export type Database = {
           {
             foreignKeyName: "upplan_roadmaps_student_id_fkey"
             columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_consents: {
+        Row: {
+          accepted_at: string
+          consent_type: string
+          id: string
+          user_id: string
+          version: string
+        }
+        Insert: {
+          accepted_at?: string
+          consent_type: string
+          id?: string
+          user_id: string
+          version: string
+        }
+        Update: {
+          accepted_at?: string
+          consent_type?: string
+          id?: string
+          user_id?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_consents_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2437,6 +2714,13 @@ export type Database = {
           topic_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "weekly_program_items_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "topic_assignments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "weekly_program_items_carried_from_item_id_fkey"
             columns: ["carried_from_item_id"]
@@ -2669,11 +2953,20 @@ export type Database = {
         Args: { p_new_coach_id: string | null; p_student_id: string }
         Returns: undefined
       }
+      check_rate_limit: {
+        Args: {
+          p_bucket: string
+          p_key_hash: string
+          p_limit: number
+          p_window_seconds: number
+        }
+        Returns: boolean
+      }
       coach_change_preview: {
         Args: { p_student_id: string }
         Returns: {
           appointments: number
-          current_coach_id: string | null
+          current_coach_id: string
           goals: number
           items: number
         }[]
@@ -2692,6 +2985,7 @@ export type Database = {
       current_user_org_id: { Args: never; Returns: string }
       current_user_role: { Args: never; Returns: string }
       delete_coach_safely: { Args: { coach_uuid: string }; Returns: undefined }
+      delete_my_account: { Args: never; Returns: undefined }
       delete_student_safely: {
         Args: { student_uuid: string }
         Returns: undefined
@@ -2705,6 +2999,29 @@ export type Database = {
         Returns: boolean
       }
       increment_blog_post_view: { Args: { p_slug: string }; Returns: undefined }
+      individual_students_overview: {
+        Args: never
+        Returns: {
+          alan: string
+          created_at: string
+          email: string
+          email_confirmed: boolean
+          first_session_date: string
+          full_name: string
+          grade: string
+          last_activity_date: string
+          last_sign_in_at: string
+          returned_d7: boolean
+          segment: string
+          sessions_7d: number
+          source: string
+          student_id: string
+          upplan_completed: boolean
+          utm_campaign: string
+          utm_medium: string
+          utm_source: string
+        }[]
+      }
       is_coach_of: { Args: { student_id: string }; Returns: boolean }
       is_org_admin_of: { Args: { target_org_id: string }; Returns: boolean }
       my_coach_id: { Args: never; Returns: string }
@@ -2732,7 +3049,6 @@ export type Database = {
         Args: { p_items: Json; p_session_id: string; p_topic_id?: string }
         Returns: undefined
       }
-      subject_group_key: { Args: { p_subject_id: string }; Returns: string }
       student_error_distribution: {
         Args: { p_since?: string; p_student_id: string }
         Returns: {
@@ -2824,6 +3140,7 @@ export type Database = {
           student_id: string
         }[]
       }
+      subject_group_key: { Args: { p_subject_id: string }; Returns: string }
       update_exam_with_results: {
         Args: {
           p_date: string
@@ -2843,26 +3160,26 @@ export type Database = {
       upplan_cfg: { Args: { p_key: string }; Returns: number }
       upplan_confidence: { Args: { p_evidence_w: number }; Returns: string }
       upplan_penalty: { Args: { p_error_type: string | null }; Returns: number }
-      upplan_set_plan_orders: {
-        Args: { p_ids: string[]; p_orders: number[]; p_student_id: string }
-        Returns: number
-      }
       upplan_recompute_student: {
         Args: { p_student_id: string }
         Returns: number
       }
-      weekly_program_daily_compliance: {
+      upplan_set_plan_orders: {
+        Args: { p_ids: string[]; p_orders: number[]; p_student_id: string }
+        Returns: number
+      }
+      weekly_program_compliance: {
         Args: { p_student_id?: string; p_week_start: string }
         Returns: {
-          day_of_week: number
           done_items: number
           student_id: string
           total_items: number
         }[]
       }
-      weekly_program_compliance: {
+      weekly_program_daily_compliance: {
         Args: { p_student_id?: string; p_week_start: string }
         Returns: {
+          day_of_week: number
           done_items: number
           student_id: string
           total_items: number
@@ -2876,7 +3193,12 @@ export type Database = {
     Enums: {
       appointment_status: "planlandi" | "tamamlandi" | "iptal" | "gelmedi"
       appointment_type: "tanitim" | "koc_gorusme" | "veli_gorusme" | "ozel"
-      assignment_status: "aktif" | "tamamlandi" | "iptal" | "sirada" | "zaman_kalirsa"
+      assignment_status:
+        | "aktif"
+        | "tamamlandi"
+        | "iptal"
+        | "sirada"
+        | "zaman_kalirsa"
       blog_post_status: "draft" | "published" | "archived"
       resource_type: "soru_bankasi" | "konu_anlatimi" | "deneme" | "foy"
     }
@@ -3008,7 +3330,13 @@ export const Constants = {
     Enums: {
       appointment_status: ["planlandi", "tamamlandi", "iptal", "gelmedi"],
       appointment_type: ["tanitim", "koc_gorusme", "veli_gorusme", "ozel"],
-      assignment_status: ["aktif", "tamamlandi", "iptal", "sirada", "zaman_kalirsa"],
+      assignment_status: [
+        "aktif",
+        "tamamlandi",
+        "iptal",
+        "sirada",
+        "zaman_kalirsa",
+      ],
       blog_post_status: ["draft", "published", "archived"],
       resource_type: ["soru_bankasi", "konu_anlatimi", "deneme", "foy"],
     },

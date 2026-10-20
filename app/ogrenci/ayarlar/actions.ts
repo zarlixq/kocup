@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
+import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { supabaseAdmin } from "@/lib/supabase/admin"
+import { deleteOwnAccount } from "@/lib/bireysel/delete-account"
 
 type Result = { ok?: true; error?: string }
 
@@ -124,4 +127,41 @@ export async function updateOgrenciNotificationsAction(
 
   revalidatePath("/ogrenci/ayarlar")
   return { ok: true }
+}
+
+const deleteSchema = z.object({
+  password: z.string().min(1, "Şifreni gir."),
+  confirm: z.literal("SİL", { message: "Onaylamak için SİL yaz." }),
+})
+
+/**
+ * Hesabımı sil — öğrencinin kendi isteğiyle, yalnız kendi verisi. Şifreyle
+ * yeniden doğrulanır; dosyalar + tüm tablolar silinir (delete_my_account RPC).
+ */
+export async function deleteMyAccountAction(formData: FormData): Promise<Result> {
+  const auth = await requireStudent()
+  if (!auth.ok) return { error: auth.error }
+
+  const parsed = deleteSchema.safeParse({
+    password: formData.get("password"),
+    confirm: String(formData.get("confirm") ?? "").trim().toLocaleUpperCase("tr"),
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Form hatalı." }
+
+  const { error: signErr } = await auth.supabase.auth.signInWithPassword({
+    email: auth.userEmail,
+    password: parsed.data.password,
+  })
+  if (signErr) return { error: "Şifren yanlış." }
+
+  try {
+    const res = await deleteOwnAccount(supabaseAdmin(), auth.supabase, auth.userId)
+    if (!res.ok) return { error: res.error }
+  } catch (err) {
+    console.error("deleteMyAccountAction:", err)
+    return { error: "Bir hata oluştu, tekrar deneyin." }
+  }
+
+  await auth.supabase.auth.signOut()
+  redirect("/?hesap=silindi")
 }

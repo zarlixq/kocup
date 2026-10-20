@@ -6,6 +6,7 @@ import { loginKoc } from "@/app/(public)/giris/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { TurnstileWidget } from "@/components/security/turnstile-widget"
 import { BrandLogo } from "@/components/brand/logo"
 
 export default function KocGirisPage() {
@@ -42,6 +43,8 @@ export default function KocGirisPage() {
               </div>
               <Input id="password" name="password" type="password" placeholder="••••••••" required autoComplete="current-password" />
             </div>
+
+            <TurnstileWidget resetKey={state} />
 
             {state?.error && (
               <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{state.error}</p>

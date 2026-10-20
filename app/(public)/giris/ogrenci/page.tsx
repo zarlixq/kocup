@@ -1,15 +1,15 @@
-"use client"
-
 import Link from "next/link"
-import { useActionState } from "react"
-import { loginOgrenci } from "@/app/(public)/giris/actions"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { BrandLogo } from "@/components/brand/logo"
+import { OgrenciGirisForm } from "./form"
 
-export default function OgrenciGirisPage() {
-  const [state, action, pending] = useActionState(loginOgrenci, undefined)
+const LINK_ERRORS: Record<string, string> = {
+  otp_expired: "Bağlantının süresi dolmuş veya daha önce kullanılmış. Giriş yapmayı dene ya da yeni bağlantı iste.",
+  link_gecersiz: "Bağlantı geçersiz. Giriş yapmayı dene ya da yeni bağlantı iste.",
+}
+
+export default async function OgrenciGirisPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams
+  const linkError = error ? LINK_ERRORS[error] ?? "Bağlantı doğrulanamadı. Lütfen tekrar dene." : null
 
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-4">
@@ -24,39 +24,23 @@ export default function OgrenciGirisPage() {
           <h1 className="text-xl font-bold text-zinc-900 mb-1">Öğrenci Girişi</h1>
           <p className="text-sm text-zinc-500 mb-6">Öğrenci panelinize giriş yapın.</p>
 
-          <form action={action} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">E-posta</Label>
-              <Input id="email" name="email" type="email" placeholder="ornek@mail.com" required autoComplete="email" />
-            </div>
+          {linkError && (
+            <p className="mb-4 text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{linkError}</p>
+          )}
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Şifre</Label>
-                <Link
-                  href="/sifremi-unuttum"
-                  className="text-xs text-[#1B6B8A] hover:underline"
-                >
-                  Şifremi unuttum
-                </Link>
-              </div>
-              <Input id="password" name="password" type="password" placeholder="••••••••" required autoComplete="current-password" />
-            </div>
-
-            {state?.error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{state.error}</p>
-            )}
-
-            <Button type="submit" className="w-full bg-[#1B6B8A] hover:bg-[#155a75]" disabled={pending}>
-              {pending ? "Giriş yapılıyor..." : "Giriş Yap"}
-            </Button>
-          </form>
+          <OgrenciGirisForm />
         </div>
 
         <p className="text-center text-sm text-zinc-500 mt-6">
           Henüz hesabın yok mu?{" "}
-          <Link href="/basvuru" className="text-[#1B6B8A] font-medium hover:underline">
-            Başvur
+          <Link href="/ucretsiz-basla" className="text-[#1B6B8A] font-medium hover:underline">
+            Ücretsiz başla
+          </Link>
+        </p>
+        <p className="text-center text-xs text-zinc-400 mt-2">
+          Birebir koçluk mu istiyorsun?{" "}
+          <Link href="/basvuru" className="hover:underline">
+            Koçluk başvurusu
           </Link>
         </p>
       </div>

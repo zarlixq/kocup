@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { BookOpen, FileText, Hash, CheckCircle2, Plus, UserCog } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
@@ -15,7 +16,7 @@ import { CoachCard } from "@/components/ogrenci/coach-card"
 import { WeeklyTasksCard, type TaskItem } from "@/components/ogrenci/weekly-tasks-card"
 import { SelfCoachCard } from "@/components/ogrenci/self-coach-card"
 import { StudentComplianceCard } from "@/components/analytics/student-compliance-card"
-import { getStudentContext, noCoachMessage } from "@/lib/ogrenci/context"
+import { getStudentContext, noCoachMessage, studentKind } from "@/lib/ogrenci/context"
 import { loadAssignmentsWithProgress } from "@/lib/assignments/load"
 import { getStudentComplianceHistory } from "@/lib/analytics/compliance"
 import { buildSubjectRadarData, buildExamTrendData } from "@/lib/charts/builders"
@@ -45,6 +46,16 @@ export default async function OgrenciDashboard() {
     .maybeSingle()
 
   const ctx = await getStudentContext(supabase, studentId)
+
+  // Bireysel öğrenci (kurumsuz + koçsuz) UpPlan'a hiç başlamadıysa ilk iş kurulum.
+  if (studentKind(ctx) === "bagimsiz") {
+    const { data: upplan } = await supabase
+      .from("student_upplan_profile")
+      .select("student_id")
+      .eq("student_id", studentId)
+      .maybeSingle()
+    if (!upplan) redirect("/ogrenci/upplan/kurulum")
+  }
   const coachProfile = ctx.coachId && ctx.coachName
     ? { full_name: ctx.coachName, email: ctx.coachEmail ?? "" }
     : null

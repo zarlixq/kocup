@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { getSiteUrl } from "@/lib/site-url"
+import { createRoleGrant } from "@/lib/auth/role-grant"
 import type { User } from "@supabase/supabase-js"
 
 type InviteStudentParams = {
@@ -79,6 +80,7 @@ export async function inviteStudent(params: InviteStudentParams): Promise<User> 
     redirectTo: `${siteUrl}/auth/callback`,
     data: {
       role: "student",
+      role_grant: await createRoleGrant(params.email, "student", params.organization_id ?? null),
       full_name: params.full_name,
       phone: params.phone ?? undefined,
       organization_id: params.organization_id ?? undefined,
@@ -115,6 +117,7 @@ export async function createStudentWithPassword(
     email_confirm: true,
     user_metadata: {
       role: "student",
+      role_grant: await createRoleGrant(params.email, "student", params.organization_id ?? null),
       full_name: params.full_name,
       phone: params.phone ?? undefined,
       organization_id: params.organization_id ?? undefined,
@@ -135,6 +138,7 @@ export async function inviteCoach(params: InviteCoachParams): Promise<User> {
     redirectTo: `${siteUrl}/auth/callback`,
     data: {
       role: "coach",
+      role_grant: await createRoleGrant(params.email, "coach", params.organization_id ?? null),
       full_name: params.full_name,
       phone: params.phone ?? undefined,
       // organization_id metadata'ya doğrudan yazılır; trigger profile'ı bu org ile
@@ -164,6 +168,7 @@ export async function createCoachWithPassword(
     email_confirm: true,
     user_metadata: {
       role: "coach",
+      role_grant: await createRoleGrant(params.email, "coach", params.organization_id ?? null),
       full_name: params.full_name,
       phone: params.phone ?? undefined,
       organization_id: params.organization_id ?? undefined,
@@ -195,6 +200,7 @@ export async function inviteOrgAdmin(params: InviteOrgAdminParams): Promise<User
     redirectTo: `${siteUrl}/auth/callback`,
     data: {
       role: "org_admin",
+      role_grant: await createRoleGrant(params.email, "org_admin", params.organization_id),
       full_name: params.full_name,
       phone: params.phone ?? undefined,
       organization_id: params.organization_id,
@@ -221,6 +227,7 @@ export async function createOrgAdminWithPassword(
     email_confirm: true,
     user_metadata: {
       role: "org_admin",
+      role_grant: await createRoleGrant(params.email, "org_admin", params.organization_id),
       full_name: params.full_name,
       phone: params.phone ?? undefined,
       organization_id: params.organization_id,
