@@ -240,6 +240,7 @@ export async function gatherRoadmapContext(
       weight: w ?? Math.round((subjectQ / count) * 1000) / 1000,
       weightEstimated: row === undefined || row.tahmini,
       crossValue: crossValue || undefined,
+      notAsked: row !== undefined && row.avg === 0 && row.sifirNedeni === "sorulmadi",
       coefficient: subjectCoefficient(puanTuru, subj.name),
       atomCount: atomCount.get(t.id) ?? 0,
       sizeFactor: topicSizeFactor({

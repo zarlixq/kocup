@@ -459,6 +459,11 @@ describe("ders taban payı ve haftalık saat göstergesi", () => {
     expect(f.get("a")! / f.get("b")!).toBeCloseTo(3)
   })
 
+  it("gerekçe: sorulmadı konusu soru sayısıyla değil durumla, çok küçük verimlilik iki haneyle", () => {
+    const r = buildRoadmap({ ...base, topics: [t("na", "TYT Tarih", { weight: 0.05, notAsked: true, weightEstimated: false })] })
+    expect(r.items[0].reasons[0]).toMatch(/^Saat başına yaklaşık 0,\d\d puan: son yıllarda sorulmadı \(küçük bir pay ayrıldı\) ve eksiklerin var$/)
+  })
+
   it("sorulmadı = 0 konular tamamen dışarı atılmaz; kaynak saymıyorsa 0", () => {
     expect(topicWeightFromRow({ avg: 0, sifirNedeni: "sorulmadi" }, 2)).toBe(0.3)
     expect(topicWeightFromRow({ avg: 0, sifirNedeni: "kaynak_saymiyor" }, 2)).toBe(0)

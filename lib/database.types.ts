@@ -2133,7 +2133,7 @@ export type Database = {
           kaynaklar: Json | null
           not: string | null
           sifir_nedeni: string | null
-          tahmini: boolean | null
+          tahmini: boolean
           topic_id: string
           updated_at: string
         }
@@ -2143,7 +2143,7 @@ export type Database = {
           kaynaklar?: Json | null
           not?: string | null
           sifir_nedeni?: string | null
-          tahmini?: boolean | null
+          tahmini?: boolean
           topic_id: string
           updated_at?: string
         }
@@ -2153,7 +2153,7 @@ export type Database = {
           kaynaklar?: Json | null
           not?: string | null
           sifir_nedeni?: string | null
-          tahmini?: boolean | null
+          tahmini?: boolean
           topic_id?: string
           updated_at?: string
         }

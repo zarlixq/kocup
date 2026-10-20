@@ -334,6 +334,8 @@ export type RoadmapTopicInput = {
   atomCount?: number
   /** Çapraz kayıt katkısı (öbür sınavdaki soru × o sınavın katsayısı); verimliliğe eklenir. */
   crossValue?: number
+  /** topic_exam_weights: son yıllarda sorulmadı (avg 0, sifir_nedeni "sorulmadi"); taban ağırlık verildi. */
+  notAsked?: boolean
   effective: number
   assessment: "hic_gormedim" | "eksik" | "biliyorum" | null
   examWrongs: number
@@ -435,8 +437,10 @@ export function efficiencyReason(t: RoadmapTopicInput, efficiency: number): stri
       : t.effective < UPPLAN_SQL_CONFIG.label_iyi
         ? "eksiklerin var"
         : "pekiştirmen yeterli"
-  const x = efficiency >= 10 ? Math.round(efficiency) : efficiency.toFixed(1).replace(".", ",")
-  const n = String(round1(t.weight)).replace(".", ",")
+  const x = (efficiency >= 10 ? String(Math.round(efficiency)) : efficiency.toFixed(efficiency < 0.1 ? 2 : 1)).replace(".", ",")
+  // "Sorulmadı" kaydı: soru sayısı yerine durum; küçük taban pay verildiği söylenir.
+  if (t.notAsked) return `Saat başına yaklaşık ${x} puan: son yıllarda sorulmadı (küçük bir pay ayrıldı) ve ${state}`
+  const n = String(Math.round(t.weight * 100) / 100).replace(".", ",")
   // Tahmini ağırlık "yaklaşık" diye geçer (yedek hesap ya da tahmini=true kayıt).
   return `Saat başına yaklaşık ${x} puan: sınavda ${t.weightEstimated ? "yaklaşık" : "ortalama"} ${n} soru çıkıyor ve ${state}`
 }
