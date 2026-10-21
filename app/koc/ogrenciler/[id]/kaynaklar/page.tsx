@@ -3,6 +3,8 @@ import { StudentResourcesManager } from "@/components/kaynaklar/student-resource
 import { SubjectComparisonBar } from "@/components/charts/subject-comparison-bar"
 import { loadStudentResourcesView } from "@/lib/resources/queries"
 import { buildResourceComparisonData } from "@/lib/charts/builders"
+import { VideoProgressReadonly } from "@/components/kaynaklar/video-progress-readonly"
+import { loadPlaylists } from "@/lib/resources/videos"
 
 export default async function KocStudentKaynaklarPage({
   params,
@@ -12,9 +14,11 @@ export default async function KocStudentKaynaklarPage({
   const { id } = await params
   const supabase = await createClient()
 
-  const [view, comparison] = await Promise.all([
+  // Video verisi RLS ile: yalnız aynı kurumdaki kendi öğrencisi (migration 221).
+  const [view, comparison, playlists] = await Promise.all([
     loadStudentResourcesView(supabase, id),
     buildResourceComparisonData(supabase, id),
+    loadPlaylists(supabase, id),
   ])
 
   return (
@@ -25,6 +29,8 @@ export default async function KocStudentKaynaklarPage({
         catalog={view.catalog}
         subjects={view.subjects}
       />
+
+      <VideoProgressReadonly playlists={playlists} />
 
       <SubjectComparisonBar
         data={comparison}

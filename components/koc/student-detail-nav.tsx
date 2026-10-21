@@ -10,6 +10,7 @@ export function StudentDetailNav({ studentId }: { studentId: string }) {
 
   const tabs = [
     { href: base, label: "Genel Bakış", exact: true },
+    { href: `${base}/analiz`, label: "Analiz" },
     { href: `${base}/konular`, label: "Konular" },
     { href: `${base}/konu-analizi`, label: "Konu Analizi" },
     { href: `${base}/program`, label: "Program" },

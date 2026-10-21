@@ -3,50 +3,62 @@ import { StudentResourcesManager } from "@/components/kaynaklar/student-resource
 import { SubjectComparisonBar } from "@/components/charts/subject-comparison-bar"
 import { loadStudentResourcesView } from "@/lib/resources/queries"
 import { buildResourceComparisonData } from "@/lib/charts/builders"
-import { VideoPlaylists } from "@/components/kaynaklar/video-playlists"
-import { loadPlaylists, loadTeacherStats, youtubeEnabled } from "@/lib/resources/videos"
+import { VideoModule } from "@/components/kaynaklar/video-module"
+import { loadPlaylists, loadTeacherStats } from "@/lib/resources/videos"
+import { loadPriorityContext } from "@/lib/resources/video-context"
+import { prioritizeVideos } from "@/lib/resources/video-priority"
 import { fetchActiveTopics } from "@/lib/curriculum/active-topics"
+import { filterProgramSubjects } from "@/lib/program/subjects"
 
 export const metadata = { title: "Kaynaklarım — KoçUp" }
 
 export default async function KaynaklarimPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const userId = user!.id
 
-  const [view, comparison, playlists] = await Promise.all([
-    loadStudentResourcesView(supabase, user!.id),
-    buildResourceComparisonData(supabase, user!.id),
-    loadPlaylists(supabase, user!.id),
+  const [view, comparison, playlists, priorityCtx, { data: student }, { data: allSubjects }] = await Promise.all([
+    loadStudentResourcesView(supabase, userId),
+    buildResourceComparisonData(supabase, userId),
+    loadPlaylists(supabase, userId),
+    loadPriorityContext(supabase, userId),
+    supabase.from("students").select("grade").eq("id", userId).maybeSingle(),
+    supabase.from("subjects").select("id, name, exam_type, grade, order").order("order"),
   ])
   const subjectIds = Array.from(new Set(playlists.map((p) => p.subject_id)))
   const [topics, stats] = await Promise.all([
     subjectIds.length ? fetchActiveTopics(supabase) : Promise.resolve([]),
-    loadTeacherStats(supabase, user!.id, playlists),
+    loadTeacherStats(supabase, userId, playlists),
   ])
   const topicsBySubject: Record<string, { id: string; name: string }[]> = {}
   for (const t of topics) if (subjectIds.includes(t.subject_id)) (topicsBySubject[t.subject_id] ??= []).push({ id: t.id, name: t.name })
 
+  // Ekleme dialog'u: öğrencinin sınıfına uygun dersler (LGS / YKS).
+  const videoSubjects = filterProgramSubjects(allSubjects ?? [], student?.grade)
+    .map((s) => ({ id: s.id, name: s.name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "tr"))
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-zinc-900">Kaynaklarım</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Kullandığın kitap, yayın ve video playlist&apos;lerini takip et; soru çözümünü kaynağa bağla.
+          Kullandığın kitap, yayın ve konu anlatımı videolarını takip et; soru çözümünü kaynağa bağla.
         </p>
       </div>
 
       <StudentResourcesManager
-        studentId={user!.id}
+        studentId={userId}
         items={view.items}
         catalog={view.catalog}
         subjects={view.subjects}
       />
 
-      <VideoPlaylists
+      <VideoModule
         playlists={playlists}
-        subjects={view.subjects}
+        subjects={videoSubjects}
         topicsBySubject={topicsBySubject}
-        youtubeEnabled={youtubeEnabled()}
+        suggestions={prioritizeVideos(playlists, priorityCtx)}
         stats={stats}
       />
 

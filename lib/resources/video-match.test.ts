@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 import {
+  formatClock,
+  formatSpan,
   matchVideoTopic,
+  parseIsoDuration,
+  parseYoutubeLink,
   parseManualVideoList,
   parseYoutubePlaylistId,
   parseYoutubeVideoId,
@@ -72,9 +76,37 @@ describe("hoca etkinliği", () => {
     expect(b).toMatchObject({ playlist_id: "biyikli", watched: 2, understoodRate: 50, questions: 100, accuracy: 78, enoughData: true })
     expect(d).toMatchObject({ playlist_id: "diger", questions: 10, enoughData: false })
   })
-  it("öğrenme aşaması: tüm videolar izlendi + anladım/kısmen", () => {
+  it("öğrenme aşaması: tüm videolar izlendi, hiçbiri anlamadım değil", () => {
     expect(videosCompleteLearning([{ watch_status: "izlendi", understanding: "kismen" }])).toBe(true)
+    expect(videosCompleteLearning([{ watch_status: "izlendi", understanding: null }])).toBe(true)
+    expect(videosCompleteLearning([{ watch_status: "izlendi", understanding: null }, { watch_status: "izlenmedi", understanding: null }])).toBe(false)
     expect(videosCompleteLearning([{ watch_status: "izlendi", understanding: "anlamadim" }])).toBe(false)
     expect(videosCompleteLearning([])).toBe(false)
+  })
+})
+
+describe("link tipi", () => {
+  it("playlist / video / kanal / geçersiz", () => {
+    expect(parseYoutubeLink("https://www.youtube.com/playlist?list=PLxyz1234567890abcd")).toEqual({ kind: "playlist", playlistId: "PLxyz1234567890abcd" })
+    expect(parseYoutubeLink("youtube.com/watch?v=dQw4w9WgXcQ&list=PLabcdefghij")).toEqual({ kind: "playlist", playlistId: "PLabcdefghij" })
+    expect(parseYoutubeLink("https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ")).toEqual({ kind: "video", videoId: "dQw4w9WgXcQ" })
+    expect(parseYoutubeLink("https://youtu.be/dQw4w9WgXcQ?t=10")).toEqual({ kind: "video", videoId: "dQw4w9WgXcQ" })
+    expect(parseYoutubeLink("https://m.youtube.com/shorts/dQw4w9WgXcQ")).toEqual({ kind: "video", videoId: "dQw4w9WgXcQ" })
+    expect(parseYoutubeLink("https://www.youtube.com/@biyiklimatematik")).toEqual({ kind: "channel" })
+    expect(parseYoutubeLink("https://www.youtube.com/@biyiklimatematik/playlists")).toEqual({ kind: "channel" })
+    expect(parseYoutubeLink("https://www.youtube.com/channel/UCabcdefghijklmnop")).toEqual({ kind: "channel" })
+    expect(parseYoutubeLink("https://example.com/watch?v=dQw4w9WgXcQ")).toEqual({ kind: "invalid" })
+    expect(parseYoutubeLink("merhaba")).toEqual({ kind: "invalid" })
+  })
+  it("süre", () => {
+    expect(parseIsoDuration("PT1H2M3S")).toBe(3723)
+    expect(parseIsoDuration("PT45S")).toBe(45)
+    expect(parseIsoDuration("P0D")).toBe(0)
+    expect(parseIsoDuration("x")).toBeNull()
+    expect(formatClock(754)).toBe("12:34")
+    expect(formatClock(3725)).toBe("1:02:05")
+    expect(formatSpan(22800)).toBe("6s 20dk")
+    expect(formatSpan(1500)).toBe("25dk")
+    expect(formatSpan(7200)).toBe("2s")
   })
 })

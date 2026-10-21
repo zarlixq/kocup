@@ -10,7 +10,7 @@ type Client = SupabaseClient<Database>
 // ─────────────────────────────────────────────────────────────────────────
 export type WeeklyTrendDatum = {
   weekStart: string  // YYYY-MM-DD (Pazartesi)
-  label: string      // "12/05"
+  label: string      // "12.05"
   total: number
   correct: number
   successRate: number
@@ -63,7 +63,7 @@ export function buildWeeklyTrend(
     }
     result.push({
       weekStart: isoLocal(wkStart),
-      label: `${pad(wkStart.getDate())}/${pad(wkStart.getMonth() + 1)}`,
+      label: `${pad(wkStart.getDate())}.${pad(wkStart.getMonth() + 1)}`,
       total,
       correct,
       successRate: total > 0 ? Math.round((correct / total) * 1000) / 10 : 0,

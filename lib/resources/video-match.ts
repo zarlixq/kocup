@@ -20,6 +20,83 @@ export function parseYoutubeVideoId(input: string): string | null {
   return m ? m[1] : null
 }
 
+export type YoutubeLink =
+  | { kind: "playlist"; playlistId: string }
+  | { kind: "video"; videoId: string }
+  | { kind: "channel" }
+  | { kind: "invalid" }
+
+const YT_HOSTS = new Set(["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com"])
+const PLAYLIST_ID_RE = /^[A-Za-z0-9_-]{10,64}$/
+
+/**
+ * Yapıştırılan linkin tipi. watch?v=…&list=… playlist sayılır (YouTube'un
+ * otomatik "RD…" karışık listeleri hariç → tekli video). Kanal linkleri
+ * (@kanal, /channel/, /c/, /user/) ayrı döner: playlist olarak kabul edilmez.
+ */
+export function parseYoutubeLink(input: string): YoutubeLink {
+  const s = input.trim()
+  if (!s) return { kind: "invalid" }
+  let url: URL
+  try {
+    url = new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`)
+  } catch {
+    return { kind: "invalid" }
+  }
+  const host = url.hostname.toLowerCase()
+  const list = url.searchParams.get("list")
+  const validList = list && PLAYLIST_ID_RE.test(list) && !list.startsWith("RD") ? list : null
+  if (host === "youtu.be") {
+    const id = url.pathname.slice(1).split("/")[0]
+    if (validList) return { kind: "playlist", playlistId: validList }
+    return ID_RE.test(id) ? { kind: "video", videoId: id } : { kind: "invalid" }
+  }
+  if (!YT_HOSTS.has(host)) return { kind: "invalid" }
+  const path = url.pathname
+  if (/^\/(@[^/]+|channel\/|c\/|user\/)/.test(path)) return { kind: "channel" }
+  if (path === "/playlist") return validList ? { kind: "playlist", playlistId: validList } : { kind: "invalid" }
+  if (path === "/watch") {
+    if (validList) return { kind: "playlist", playlistId: validList }
+    const v = url.searchParams.get("v")
+    return v && ID_RE.test(v) ? { kind: "video", videoId: v } : { kind: "invalid" }
+  }
+  const m = path.match(/^\/(?:shorts|embed|live|v)\/([A-Za-z0-9_-]{11})/)
+  return m ? { kind: "video", videoId: m[1] } : { kind: "invalid" }
+}
+
+/** ISO 8601 süre (PT1H2M3S, P1DT2H) → saniye; okunamazsa null. */
+export function parseIsoDuration(iso: string | null | undefined): number | null {
+  if (!iso) return null
+  const m = iso.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/)
+  if (!m) return null
+  const [, d, h, min, sec] = m.map((x) => Number(x ?? 0))
+  return Math.min(d * 86400 + h * 3600 + min * 60 + sec, 86400)
+}
+
+/** Video uzunluğu: 754 → "12:34", 3725 → "1:02:05". */
+export function formatClock(seconds: number | null | undefined): string {
+  if (seconds == null) return "—"
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
+}
+
+/** Toplam süre: 22800 → "6s 20dk", 1500 → "25dk", 0 → "0dk". */
+export function formatSpan(seconds: number): string {
+  const totalMin = Math.round(seconds / 60)
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  if (h === 0) return `${m}dk`
+  return m === 0 ? `${h}s` : `${h}s ${m}dk`
+}
+
+/** Elle eklenen ve başlığı hiç girilmemiş satır ("Video 3"). */
+export function isPlaceholderTitle(title: string): boolean {
+  return /^Video \d+$/.test(title.trim())
+}
+
 export type ManualVideo = { videoId: string; title: string; position: number }
 
 /**
@@ -151,10 +228,11 @@ export function teacherStats(videos: TeacherVideo[], sessions: TopicSession[], m
   return out
 }
 
-/** Konunun öğrenme aşaması videolarla bitti mi: en az bir video ve hepsi izlendi + anladım/kısmen. */
+/**
+ * Konunun öğrenme aşaması videolarla bitti mi: en az bir video, hepsi izlendi
+ * ve hiçbiri "anlamadım" değil (izledim işareti tek başına yeterli; anlama
+ * işareti opsiyonel).
+ */
 export function videosCompleteLearning(videos: { watch_status: string; understanding: string | null }[]): boolean {
-  return (
-    videos.length > 0 &&
-    videos.every((v) => v.watch_status === "izlendi" && (v.understanding === "anladim" || v.understanding === "kismen"))
-  )
+  return videos.length > 0 && videos.every((v) => v.watch_status === "izlendi" && v.understanding !== "anlamadim")
 }

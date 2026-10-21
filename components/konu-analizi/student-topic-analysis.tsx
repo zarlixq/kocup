@@ -133,7 +133,7 @@ export function StudentTopicAnalysis({ sessions }: { sessions: Session[] }) {
         }
       }
       result.push({
-        label: `${String(wkStart.getDate()).padStart(2, "0")}/${String(wkStart.getMonth() + 1).padStart(2, "0")}`,
+        label: `${String(wkStart.getDate()).padStart(2, "0")}.${String(wkStart.getMonth() + 1).padStart(2, "0")}`,
         total,
         successRate: total > 0 ? Math.round((correct / total) * 1000) / 10 : 0,
         durationMin: dur,

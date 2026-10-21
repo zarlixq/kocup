@@ -1643,30 +1643,42 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          kind: string
+          last_synced_at: string | null
           source: string
+          status: string
           student_id: string
           subject_id: string
           teacher_name: string
+          thumbnail_url: string | null
           title: string | null
           youtube_playlist_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          kind?: string
+          last_synced_at?: string | null
           source?: string
+          status?: string
           student_id: string
           subject_id: string
           teacher_name: string
+          thumbnail_url?: string | null
           title?: string | null
           youtube_playlist_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          kind?: string
+          last_synced_at?: string | null
           source?: string
+          status?: string
           student_id?: string
           subject_id?: string
           teacher_name?: string
+          thumbnail_url?: string | null
           title?: string | null
           youtube_playlist_id?: string | null
         }
@@ -1690,12 +1702,15 @@ export type Database = {
       student_resource_videos: {
         Row: {
           created_at: string
+          duration_seconds: number | null
           id: string
           match_score: number | null
           match_status: string
+          note: string | null
           playlist_id: string
           position: number
           student_id: string
+          thumbnail_url: string | null
           title: string
           topic_id: string | null
           understanding: string | null
@@ -1705,12 +1720,15 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          duration_seconds?: number | null
           id?: string
           match_score?: number | null
           match_status?: string
+          note?: string | null
           playlist_id: string
           position?: number
           student_id: string
+          thumbnail_url?: string | null
           title: string
           topic_id?: string | null
           understanding?: string | null
@@ -1720,12 +1738,15 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          duration_seconds?: number | null
           id?: string
           match_score?: number | null
           match_status?: string
+          note?: string | null
           playlist_id?: string
           position?: number
           student_id?: string
+          thumbnail_url?: string | null
           title?: string
           topic_id?: string | null
           understanding?: string | null
@@ -2949,6 +2970,91 @@ export type Database = {
           views: number
         }[]
       }
+      analiz_daily: {
+        Args: {
+          p_from: string
+          p_student: string
+          p_subject?: string
+          p_to: string
+        }
+        Returns: {
+          correct: number
+          day: string
+          minutes: number
+          questions: number
+          video_minutes: number
+          videos: number
+        }[]
+      }
+      analiz_overview: {
+        Args: {
+          p_from: string | null
+          p_student: string
+          p_subject?: string
+          p_to: string
+        }
+        Returns: Json
+      }
+      analiz_subjects: {
+        Args: { p_from: string | null; p_student: string; p_to: string }
+        Returns: {
+          color: string
+          correct: number
+          empty: number
+          exam_type: string
+          last_date: string
+          minutes: number
+          questions: number
+          sort_order: number
+          subject_id: string
+          subject_name: string
+          topics_done: number
+          topics_total: number
+          video_minutes: number
+          video_total: number
+          video_watched: number
+          wrong: number
+        }[]
+      }
+      analiz_topics: {
+        Args: {
+          p_from: string | null
+          p_split?: string
+          p_student: string
+          p_subject?: string
+          p_to: string
+        }
+        Returns: {
+          c_before: number
+          c_recent: number
+          correct: number
+          in_target: boolean
+          konu_status: string
+          last_date: string
+          next_video_id: string
+          q_before: number
+          q_recent: number
+          questions: number
+          questions_all: number
+          sort_order: number
+          subject_id: string
+          subject_name: string
+          topic_id: string
+          topic_name: string
+          videos_total: number
+          videos_watched: number
+          wrong_book: number
+        }[]
+      }
+      analiz_wrong_answers: {
+        Args: {
+          p_from: string | null
+          p_student: string
+          p_subject?: string
+          p_to: string
+        }
+        Returns: Json
+      }
       change_student_coach: {
         Args: { p_new_coach_id: string | null; p_student_id: string }
         Returns: undefined
@@ -3023,6 +3129,7 @@ export type Database = {
         }[]
       }
       is_coach_of: { Args: { student_id: string }; Returns: boolean }
+      is_coach_of_same_org: { Args: { p_student_id: string }; Returns: boolean }
       is_org_admin_of: { Args: { target_org_id: string }; Returns: boolean }
       my_coach_id: { Args: never; Returns: string }
       org_coach_last_login: {

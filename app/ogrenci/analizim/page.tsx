@@ -1,39 +1,28 @@
 import { createClient } from "@/lib/supabase/server"
-import { StudentTopicAnalysis } from "@/components/konu-analizi/student-topic-analysis"
-import { ExamTrendChart } from "@/components/charts/exam-trend-chart"
-import { buildExamTrendData } from "@/lib/charts/builders"
+import { AnalizDashboard } from "@/components/analiz/analiz-dashboard"
 
 export const metadata = { title: "Analizim — KoçUp" }
 
-export default async function OgrenciAnalizimPage() {
-  const supabase = await createClient()
+export default async function OgrenciAnalizimPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  const [sp, supabase] = await Promise.all([searchParams, createClient()])
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  const studentId = user!.id
-
-  const [{ data: sessions }, examTrendData] = await Promise.all([
-    supabase
-      .from("study_sessions")
-      .select(
-        "id, date, total_questions, correct, wrong, duration_minutes, subject_id, subjects(name, order)",
-      )
-      .eq("student_id", studentId),
-    buildExamTrendData(supabase, studentId),
-  ])
 
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold text-zinc-900">Analizim</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Tüm çalışmaların ve denemelerinin özet analizi.
+          Soru çözümlerin, videoların, konuların, programın, denemelerin ve yanlış defterin tek yerde.
         </p>
       </header>
 
-      <StudentTopicAnalysis sessions={sessions ?? []} />
-
-      <ExamTrendChart data={examTrendData} />
+      <AnalizDashboard studentId={user!.id} mode="student" basePath="/ogrenci/analizim" searchParams={sp} />
     </div>
   )
 }

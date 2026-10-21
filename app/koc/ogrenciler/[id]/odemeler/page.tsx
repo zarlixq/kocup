@@ -74,7 +74,7 @@ export default async function StudentOdemelerPage({ params }: { params: Promise<
                   <div className="text-2xl font-bold text-zinc-900 tabular-nums">{formatTRY(p.monthly_price)}</div>
                   <div className="text-xs text-zinc-500">/ ay</div>
                 </div>
-                <div className="text-xs text-zinc-500 mb-4">Ödeme günü: ayın {p.payment_day ?? 1}'i</div>
+                <div className="text-xs text-zinc-500 mb-4">Ödeme günü: ayın {p.payment_day ?? 1}&apos;i</div>
                 {p.notes && <div className="text-xs text-zinc-600 mb-4 whitespace-pre-line">{p.notes}</div>}
                 <div className="flex items-center gap-2">
                   <PackageFormDialog
