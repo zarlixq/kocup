@@ -45,9 +45,10 @@ export default function Footer() {
   return (
     <footer className="bg-[#0A1820] text-white px-5 md:px-8 lg:px-12 pt-16 pb-8">
       <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-10 pb-10 border-b border-white/10">
+        {/* md: marka tam satır + 3 kolon (4 kolonda e-posta sığmıyordu); lg+: 4 kolon. */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 md:gap-10 pb-10 border-b border-white/10">
           {/* Hakkımızda */}
-          <div className="col-span-2 md:col-span-1">
+          <div className="col-span-2 md:col-span-3 lg:col-span-1">
             <Image
               src="/images/logo.png"
               alt="KoçUp Akademi"
@@ -125,8 +126,8 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* İletişim */}
-          <div>
+          {/* İletişim: mobilde satırda tek başına → tam genişlik (adres bölünmesin). */}
+          <div className="col-span-2 md:col-span-1 min-w-0">
             <h4 className="text-sm font-bold text-white mb-4">İletişim</h4>
             <ul className="space-y-3">
               <li>
@@ -149,7 +150,7 @@ export default function Footer() {
                   className="flex items-start gap-2.5 text-sm text-zinc-400 hover:text-white transition-colors"
                 >
                   <Mail className="w-4 h-4 mt-0.5 shrink-0 text-[#F97316]" />
-                  <span>
+                  <span className="min-w-0 break-all">
                     <span className="block text-[10px] uppercase tracking-wider text-zinc-500">Email</span>
                     kocupkocluk@gmail.com
                   </span>
