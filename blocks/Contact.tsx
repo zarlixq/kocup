@@ -3,7 +3,7 @@ import { MessageCircle, Mail, Clock, ArrowRight } from "lucide-react"
 
 export default function Contact() {
   return (
-    <section id="iletisim" className="bg-[#0F1F28] py-20 md:py-28 px-5 md:px-8 lg:px-12 text-white">
+    <section id="iletisim" className="scroll-mt-20 md:scroll-mt-24 bg-[#0F1F28] py-20 md:py-28 px-5 md:px-8 lg:px-12 text-white">
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div className="motion-safe:animate-fade-up">

@@ -13,7 +13,7 @@ type LegalShellProps = {
 export function LegalShell({ title, updated, children, draft = true }: LegalShellProps) {
   return (
     <>
-      <Navbar variant="solid" />
+      <Navbar />
       <main className="bg-zinc-50/40 min-h-screen">
         <div className="max-w-3xl mx-auto px-5 md:px-8 py-12 md:py-16">
           {draft && (

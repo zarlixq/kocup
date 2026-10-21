@@ -26,7 +26,7 @@ const SHOTS = ["Yol haritası", "Haftalık program", "Eksik formüller"]
 
 export default function UpPlanFreeCTA() {
   return (
-    <section id="ucretsiz" className="bg-white px-5 py-16 md:px-8 md:py-24 lg:px-12">
+    <section id="ucretsiz" className="scroll-mt-20 md:scroll-mt-24 bg-white px-5 py-16 md:px-8 md:py-24 lg:px-12">
       <div className="mx-auto max-w-6xl">
         <div className="max-w-2xl">
           <span className="inline-block rounded-full bg-[#F97316]/10 px-3 py-1 text-xs font-semibold text-[#F97316]">

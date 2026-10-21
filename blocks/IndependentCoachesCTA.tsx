@@ -63,7 +63,7 @@ export default function IndependentCoachesCTA() {
   return (
     <section
       id="bagimsiz-koclar"
-      className="relative overflow-hidden bg-gradient-to-br from-[#0F1F28] via-[#143A4D] to-[#1B6B8A] py-20 sm:py-24 px-6 md:px-12 lg:px-24"
+      className="scroll-mt-20 md:scroll-mt-24 relative overflow-hidden bg-gradient-to-br from-[#0F1F28] via-[#143A4D] to-[#1B6B8A] py-20 sm:py-24 px-6 md:px-12 lg:px-24"
     >
       {/* Dekoratif accent blobs */}
       <div

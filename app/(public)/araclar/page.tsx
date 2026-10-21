@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 export default function AraclarHubPage() {
   return (
     <>
-      <Navbar variant="solid" />
+      <Navbar />
       <main className="pb-24 bg-zinc-50/40 min-h-screen">
         <section className="relative bg-gradient-to-br from-[#0F1F28] via-[#143847] to-[#1B6B8A] text-white px-5 md:px-8 lg:px-12 pt-14 md:pt-20 pb-20 md:pb-24 overflow-hidden">
           <div

@@ -5,6 +5,8 @@ import {
   Calendar,
   PieChart,
   UserCheck,
+  Brain,
+  Wind,
 } from "lucide-react"
 
 const FEATURES = [
@@ -38,11 +40,21 @@ const FEATURES = [
     title: "Veli Bilgilendirme",
     desc: "Aylık veya haftalık raporlarla aile sürecin neresinde olduğunu bilir. Şeffaf takip.",
   },
+  {
+    icon: Brain,
+    title: "NLP Danışmanlığı",
+    desc: "Sınav kaygısı, motivasyon, odaklanma ve olumsuz düşünce kalıpları üzerine birebir görüşmeler. Hedefe odaklı bir bakış geliştirmene destek olur.",
+  },
+  {
+    icon: Wind,
+    title: "Nefes Kontrolü",
+    desc: "Sınav öncesi ve sınav anında stresi yönetmene, odağını toplamana yardımcı nefes teknikleri. Günlük rutinine kolayca ekleyebilirsin.",
+  },
 ] as const
 
 export default function Features() {
   return (
-    <section id="hizmetler" className="bg-white py-20 md:py-28 px-5 md:px-8 lg:px-12">
+    <section id="hizmetler" className="scroll-mt-20 md:scroll-mt-24 bg-white py-20 md:py-28 px-5 md:px-8 lg:px-12">
       <div className="max-w-6xl mx-auto">
         <div className="max-w-2xl mb-14 motion-safe:animate-fade-up">
           <span className="inline-block text-xs font-semibold tracking-widest uppercase text-[#F97316] mb-3">
@@ -58,7 +70,7 @@ export default function Features() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
           {FEATURES.map((feature) => {
             const Icon = feature.icon
             return (

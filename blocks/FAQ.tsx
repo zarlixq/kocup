@@ -47,7 +47,7 @@ const FAQS = [
 
 export default function FAQ() {
   return (
-    <section id="sss" className="bg-[#FAFAF8] py-20 md:py-28 px-5 md:px-8 lg:px-12">
+    <section id="sss" className="scroll-mt-20 md:scroll-mt-24 bg-[#FAFAF8] py-20 md:py-28 px-5 md:px-8 lg:px-12">
       <div className="max-w-3xl mx-auto">
         <div className="mb-12 motion-safe:animate-fade-up">
           <span className="inline-block text-xs font-semibold tracking-widest uppercase text-[#F97316] mb-3">
@@ -85,7 +85,7 @@ export default function FAQ() {
             className="inline-flex items-center gap-2 bg-[#25D366] text-white font-semibold px-6 py-3 rounded-full hover:bg-[#1ebe5d] transition-colors text-sm shadow-md shadow-emerald-500/20"
           >
             <MessageCircle className="w-4 h-4" />
-            WhatsApp'tan yaz: 0533 370 43 91
+            WhatsApp&apos;tan yaz: 0533 370 43 91
           </a>
         </div>
       </div>

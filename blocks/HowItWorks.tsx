@@ -38,7 +38,7 @@ const STEPS = [
 
 export default function HowItWorks() {
   return (
-    <section id="nasil-calisir" className="bg-[#FAFAF8] py-20 md:py-28 px-5 md:px-8 lg:px-12">
+    <section id="nasil-calisir" className="scroll-mt-20 md:scroll-mt-24 bg-[#FAFAF8] py-20 md:py-28 px-5 md:px-8 lg:px-12">
       <div className="max-w-6xl mx-auto">
         <div className="max-w-2xl mb-14 motion-safe:animate-fade-up">
           <span className="inline-block text-xs font-semibold tracking-widest uppercase text-[#F97316] mb-3">

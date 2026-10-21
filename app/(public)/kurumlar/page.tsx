@@ -122,7 +122,7 @@ export default function KurumlarPage() {
       <Navbar />
       <main className="bg-white">
         {/* ── HERO ─────────────────────────────────────────────────────── */}
-        <section className="relative -mt-16 md:-mt-[4.5rem] bg-gradient-to-br from-[#0F1F28] via-[#143847] to-[#1B6B8A] text-white overflow-hidden">
+        <section className="relative bg-gradient-to-br from-[#0F1F28] via-[#143847] to-[#1B6B8A] text-white overflow-hidden">
           <div
             className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#F97316]/15 blur-3xl rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none"
             aria-hidden="true"
@@ -131,7 +131,7 @@ export default function KurumlarPage() {
             className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#1B6B8A]/40 blur-3xl rounded-full translate-y-1/2 -translate-x-1/3 pointer-events-none"
             aria-hidden="true"
           />
-          <div className="relative max-w-6xl mx-auto px-5 md:px-8 lg:px-12 pt-28 md:pt-40 pb-16 md:pb-24 min-h-[92svh] md:min-h-0 flex flex-col justify-center">
+          <div className="relative max-w-6xl mx-auto px-5 md:px-8 lg:px-12 pt-12 md:pt-24 pb-16 md:pb-24 min-h-[calc(92svh-4rem)] md:min-h-0 flex flex-col justify-center">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-14 items-center">
               <div className="animate-fade-up">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/90 mb-5">
@@ -174,7 +174,7 @@ export default function KurumlarPage() {
         </section>
 
         {/* ── VİDEO / SEKMELER ─────────────────────────────────────────── */}
-        <section id="video" className="px-5 md:px-8 lg:px-12 py-14 md:py-24 scroll-mt-20">
+        <section id="video" className="px-5 md:px-8 lg:px-12 py-14 md:py-24 scroll-mt-20 md:scroll-mt-24">
           <div className="max-w-4xl mx-auto">
             <div className="text-center max-w-2xl mx-auto mb-8 md:mb-10">
               <span className="inline-block text-xs font-semibold tracking-widest uppercase text-[#F97316] mb-3">
@@ -284,7 +284,7 @@ export default function KurumlarPage() {
         </section>
 
         {/* ── DEMO TALEP ───────────────────────────────────────────────── */}
-        <section id="demo" className="px-5 md:px-8 lg:px-12 py-14 md:py-24 scroll-mt-16">
+        <section id="demo" className="px-5 md:px-8 lg:px-12 py-14 md:py-24 scroll-mt-20 md:scroll-mt-24">
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
             <div>
               <span className="inline-block text-xs font-semibold tracking-widest uppercase text-[#F97316] mb-3">

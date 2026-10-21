@@ -42,7 +42,7 @@ export function CoachesView({ coaches }: { coaches: LandingCoach[] }) {
   }, [coaches.length])
 
   return (
-    <section id="koclarimiz" className="bg-[#0F1F28] py-24 px-6 md:px-12 lg:px-24">
+    <section id="koclarimiz" className="scroll-mt-20 md:scroll-mt-24 bg-[#0F1F28] py-24 px-6 md:px-12 lg:px-24">
       <div className="max-w-5xl mx-auto">
         <div
           ref={(el) => {

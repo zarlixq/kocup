@@ -38,7 +38,7 @@ export const metadata: Metadata = {
 export default function TercihRehberiPage() {
   return (
     <>
-      <Navbar variant="solid" />
+      <Navbar />
       <main className="pb-24 bg-zinc-50/40 min-h-screen">
         <ToolHero
           eyebrow="Tercih Rehberi"

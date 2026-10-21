@@ -12,7 +12,7 @@ const INCLUDED = [
 
 export default function Pricing() {
   return (
-    <section id="fiyatlar" className="bg-white py-20 md:py-28 px-5 md:px-8 lg:px-12">
+    <section id="fiyatlar" className="scroll-mt-20 md:scroll-mt-24 bg-white py-20 md:py-28 px-5 md:px-8 lg:px-12">
       <div className="max-w-5xl mx-auto">
         <div className="max-w-2xl mb-12 motion-safe:animate-fade-up">
           <span className="inline-block text-xs font-semibold tracking-widest uppercase text-[#F97316] mb-3">

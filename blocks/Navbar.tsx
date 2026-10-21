@@ -2,8 +2,8 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect, useState } from "react"
-import { Menu, X } from "lucide-react"
+import { useState } from "react"
+import { Menu } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 
@@ -17,59 +17,35 @@ const NAV_LINKS = [
   { href: "/#sss", label: "SSS" },
 ]
 
-type NavbarProps = {
-  /** "transparent" (Hero üstünde, scroll'da beyaza döner) | "solid" (her zaman beyaz) */
-  variant?: "transparent" | "solid"
-}
-
-export function Navbar({ variant = "transparent" }: NavbarProps) {
+// Herkese açık sayfaların üst çubuğu: her zaman görünür, dolu arka planlı ve
+// sabit (sticky, akışta yer kaplar → içerik altında kalmaz). Scroll'a bağlı
+// göster/gizle ya da şeffaf→dolu geçiş yok. Yükseklik: mobil 64px, md+ 80px;
+// anchor bölümleri scroll-mt-20 md:scroll-mt-24 ile bunu telafi eder.
+export function Navbar() {
   const [open, setOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(variant === "solid")
-
-  useEffect(() => {
-    if (variant === "solid") {
-      setScrolled(true)
-      return
-    }
-    const onScroll = () => setScrolled(window.scrollY > 8)
-    onScroll()
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [variant])
 
   return (
-    <header
-      className={`sticky top-0 z-40 w-full transition-all duration-300 ${
-        scrolled
-          ? "bg-white/85 backdrop-blur-md border-b border-zinc-200/70 shadow-sm"
-          : "bg-transparent border-b border-transparent"
-      }`}
-    >
-      <nav className="max-w-7xl mx-auto flex items-center justify-between gap-3 px-5 md:px-8 lg:px-12 h-16 md:h-[4.5rem]">
+    <header className="sticky top-0 z-40 w-full bg-white border-b border-zinc-200 shadow-sm">
+      <nav className="max-w-7xl mx-auto flex items-center justify-between gap-3 px-5 md:px-8 xl:px-12 h-16 md:h-20">
         <Link href="/" className="flex items-center shrink-0">
+          {/* logo.png 1408×768; gösterim yüksekliği 48px (mobil) / 60px (md+). */}
           <Image
             src="/images/logo.png"
             alt="KoçUp Akademi"
-            width={110}
-            height={40}
-            className={`object-contain h-9 w-auto md:h-10 transition-[filter] duration-300 ${
-              scrolled ? "" : "brightness-0 invert"
-            }`}
+            width={165}
+            height={90}
+            className="object-contain h-12 w-auto md:h-[60px]"
             priority
           />
         </Link>
 
         {/* Desktop nav */}
-        <div className="hidden lg:flex items-center gap-7">
+        <div className="hidden lg:flex items-center gap-4 xl:gap-7">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`text-sm font-medium transition-colors ${
-                scrolled
-                  ? "text-zinc-600 hover:text-[#1B6B8A]"
-                  : "text-white/85 hover:text-white"
-              }`}
+              className="whitespace-nowrap text-sm font-medium text-zinc-600 hover:text-[#1B6B8A] transition-colors"
             >
               {link.label}
             </Link>
@@ -79,27 +55,19 @@ export function Navbar({ variant = "transparent" }: NavbarProps) {
         <div className="flex items-center gap-2 md:gap-3">
           <Link
             href="/giris/ogrenci"
-            className={`hidden sm:inline-flex text-sm font-semibold px-3 py-2 rounded-full transition-colors ${
-              scrolled
-                ? "text-[#1B6B8A] hover:bg-[#1B6B8A]/5"
-                : "text-white/90 hover:bg-white/10"
-            }`}
+            className="hidden sm:inline-flex whitespace-nowrap text-sm font-semibold px-3 py-2 rounded-full text-[#1B6B8A] hover:bg-[#1B6B8A]/5 transition-colors"
           >
             Öğrenci Girişi
           </Link>
           <Link
             href="/giris/koc"
-            className={`hidden md:inline-flex text-sm font-semibold border px-4 py-2 rounded-full transition-colors ${
-              scrolled
-                ? "text-[#F97316] border-[#F97316]/40 hover:bg-[#F97316] hover:text-white hover:border-[#F97316]"
-                : "text-white border-white/30 hover:bg-white hover:text-[#0F1F28] hover:border-white"
-            }`}
+            className="hidden md:inline-flex lg:hidden xl:inline-flex whitespace-nowrap text-sm font-semibold border px-4 py-2 rounded-full text-[#F97316] border-[#F97316]/40 hover:bg-[#F97316] hover:text-white hover:border-[#F97316] transition-colors"
           >
             Koç Girişi
           </Link>
           <Link
             href="/basvuru"
-            className="hidden sm:inline-flex bg-[#F97316] text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-[#ea6c10] transition-colors shadow-md shadow-orange-500/20"
+            className="hidden sm:inline-flex whitespace-nowrap bg-[#F97316] text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-[#ea6c10] transition-colors shadow-md shadow-orange-500/20"
           >
             Ücretsiz İlk Ders
           </Link>
@@ -111,28 +79,21 @@ export function Navbar({ variant = "transparent" }: NavbarProps) {
                 variant="ghost"
                 size="icon"
                 aria-label="Menüyü aç"
-                className={`lg:hidden ${scrolled ? "text-zinc-700" : "text-white hover:bg-white/10"}`}
+                className="xl:hidden h-11 w-11 shrink-0 text-zinc-700"
               >
-                <Menu className="w-5 h-5" />
+                <Menu className="w-6 h-6" />
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-80 p-0 bg-white">
-              <div className="flex items-center justify-between px-5 h-16 border-b border-zinc-200">
+              {/* Kapatma: SheetContent'in kendi × butonu (ikinci bir × yok). */}
+              <div className="flex items-center px-5 h-16 border-b border-zinc-200">
                 <Image
                   src="/images/logo.png"
                   alt="KoçUp Akademi"
-                  width={100}
-                  height={36}
-                  className="object-contain h-9 w-auto"
+                  width={165}
+                  height={90}
+                  className="object-contain h-11 w-auto"
                 />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setOpen(false)}
-                  aria-label="Menüyü kapat"
-                >
-                  <X className="w-5 h-5" />
-                </Button>
               </div>
               <div className="flex flex-col px-2 py-3">
                 {NAV_LINKS.map((link) => (
