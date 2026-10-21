@@ -191,3 +191,53 @@ describe("scheduleWeek", () => {
     }
   })
 })
+
+describe("playlist video günleri", () => {
+  const sumByDay = (items: { day_of_week: number; start_time: string; end_time: string; block_type: string }[], d: number) =>
+    items
+      .filter((i) => i.day_of_week === d && i.block_type !== "deneme")
+      .reduce((s, i) => s + fromHHMM(i.end_time) - fromHHMM(i.start_time), 0)
+
+  it("video süresi günün konu çalışmasına sayılır: ayrı blok, müsaitlik aşılmaz, eşlenen konuya ayrı konu çalışması yok", () => {
+    const r = scheduleWeek({
+      ...base,
+      goals: [goal("a", { lecture_pending: true, topic_id: "t-video" }), goal("b", { lecture_pending: true })],
+      videoDays: [{ day_of_week: 1, minutes: 52, subject_id: "s-a", label: "Kamp (2 video)", topic_ids: ["t-video"] }],
+    })
+    const video = r.items.find((i) => i.baslik.startsWith("Video:"))
+    expect(video).toMatchObject({ day_of_week: 1, start_time: "17:00", end_time: "17:55", block_type: "konu_calisma", topic_id: "t-video" })
+    expect(r.meta.videoMinutes).toBe(55)
+    expect(r.meta.videoOverflowMinutes).toBe(0)
+    // a konusu videoyla çalışılıyor → "Konu çalışması: a" yok; b'nin var.
+    expect(r.items.some((i) => i.baslik === "Konu çalışması: a")).toBe(false)
+    expect(r.items.some((i) => i.baslik === "Konu çalışması: b")).toBe(true)
+    // a'nın soru blokları videonun bittiği andan sonra.
+    for (const i of r.items.filter((x) => x.assignment_id === "a")) {
+      expect(i.day_of_week > 1 || fromHHMM(i.start_time) >= fromHHMM("17:55")).toBe(true)
+    }
+    // Pazartesi toplam blok süresi müsaitliği (5 saat) aşmaz.
+    expect(sumByDay(r.items, 1)).toBeLessThanOrEqual(5 * 60)
+  })
+
+  it("müsaitlikten uzun video kesilir, taşan dakika raporlanır", () => {
+    const r = scheduleWeek({
+      ...base,
+      videoDays: [{ day_of_week: 2, minutes: 400, subject_id: "s-a", label: "Uzun", topic_ids: [] }],
+    })
+    expect(r.meta.videoMinutes).toBe(300)
+    expect(r.meta.videoOverflowMinutes).toBe(100)
+    expect(sumByDay(r.items, 2)).toBe(300)
+  })
+})
+
+describe("playlist video günleri — geçmiş gün", () => {
+  it("bugünden önceki günün videoları programa konmaz, taşma sayılmaz", () => {
+    const r = scheduleWeek({
+      ...base,
+      today: "2026-10-21",
+      videoDays: [{ day_of_week: 1, minutes: 90, subject_id: "s-a", label: "Dün", topic_ids: [] }],
+    })
+    expect(r.items.some((i) => i.baslik.startsWith("Video:"))).toBe(false)
+    expect(r.meta.videoOverflowMinutes).toBe(0)
+  })
+})

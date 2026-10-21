@@ -86,16 +86,43 @@ describe("hoca etkinliği", () => {
 })
 
 describe("link tipi", () => {
-  it("playlist / video / kanal / geçersiz", () => {
-    expect(parseYoutubeLink("https://www.youtube.com/playlist?list=PLxyz1234567890abcd")).toEqual({ kind: "playlist", playlistId: "PLxyz1234567890abcd" })
-    expect(parseYoutubeLink("youtube.com/watch?v=dQw4w9WgXcQ&list=PLabcdefghij")).toEqual({ kind: "playlist", playlistId: "PLabcdefghij" })
+  const PL = "PL2wqvRc1FjTlt-yzGniaw8APzbPI4fTxm"
+  it("1) playlist?list=", () => {
+    expect(parseYoutubeLink(`https://www.youtube.com/playlist?list=${PL}`)).toEqual({ kind: "playlist", playlistId: PL })
+    expect(parseYoutubeLink(`youtube.com/watch?list=${PL}`)).toEqual({ kind: "playlist", playlistId: PL })
+  })
+  it("2) playlist içindeki video (watch?v=…&list=…)", () => {
+    expect(parseYoutubeLink(`https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=${PL}&index=3`)).toEqual({
+      kind: "video_in_playlist",
+      videoId: "dQw4w9WgXcQ",
+      playlistId: PL,
+    })
+    expect(parseYoutubeLink(`https://youtu.be/dQw4w9WgXcQ?list=${PL}`)).toEqual({ kind: "video_in_playlist", videoId: "dQw4w9WgXcQ", playlistId: PL })
+    // YouTube'un otomatik karışık listesi playlist sayılmaz.
     expect(parseYoutubeLink("https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ")).toEqual({ kind: "video", videoId: "dQw4w9WgXcQ" })
-    expect(parseYoutubeLink("https://youtu.be/dQw4w9WgXcQ?t=10")).toEqual({ kind: "video", videoId: "dQw4w9WgXcQ" })
+  })
+  it("3) tekli video watch?v=", () => {
+    expect(parseYoutubeLink("https://m.youtube.com/watch?v=dQw4w9WgXcQ&t=42s")).toEqual({ kind: "video", videoId: "dQw4w9WgXcQ" })
     expect(parseYoutubeLink("https://m.youtube.com/shorts/dQw4w9WgXcQ")).toEqual({ kind: "video", videoId: "dQw4w9WgXcQ" })
-    expect(parseYoutubeLink("https://www.youtube.com/@biyiklimatematik")).toEqual({ kind: "channel" })
-    expect(parseYoutubeLink("https://www.youtube.com/@biyiklimatematik/playlists")).toEqual({ kind: "channel" })
-    expect(parseYoutubeLink("https://www.youtube.com/channel/UCabcdefghijklmnop")).toEqual({ kind: "channel" })
+  })
+  it("4) kısa link youtu.be/", () => {
+    expect(parseYoutubeLink("https://youtu.be/dQw4w9WgXcQ?t=10")).toEqual({ kind: "video", videoId: "dQw4w9WgXcQ" })
+  })
+  it("5) kanal @kullanici", () => {
+    expect(parseYoutubeLink("https://www.youtube.com/@biyiklimatematik")).toEqual({ kind: "channel", channel: { by: "handle", value: "@biyiklimatematik" } })
+    expect(parseYoutubeLink("youtube.com/@biyiklimatematik/playlists")).toEqual({ kind: "channel", channel: { by: "handle", value: "@biyiklimatematik" } })
+  })
+  it("6) kanal /channel/, /c/, /user/", () => {
+    expect(parseYoutubeLink("https://www.youtube.com/channel/UCxHSLxJcuZ8SpF5zgJeQ8Cg")).toEqual({
+      kind: "channel",
+      channel: { by: "id", value: "UCxHSLxJcuZ8SpF5zgJeQ8Cg" },
+    })
+    expect(parseYoutubeLink("https://www.youtube.com/c/BiyikliMatematik/videos")).toEqual({ kind: "channel", channel: { by: "custom", value: "BiyikliMatematik" } })
+    expect(parseYoutubeLink("https://www.youtube.com/user/eskikanal")).toEqual({ kind: "channel", channel: { by: "user", value: "eskikanal" } })
+  })
+  it("geçersiz", () => {
     expect(parseYoutubeLink("https://example.com/watch?v=dQw4w9WgXcQ")).toEqual({ kind: "invalid" })
+    expect(parseYoutubeLink("https://www.youtube.com/playlist")).toEqual({ kind: "invalid" })
     expect(parseYoutubeLink("merhaba")).toEqual({ kind: "invalid" })
   })
   it("süre", () => {

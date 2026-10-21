@@ -63,7 +63,13 @@ export default async function ProgramPage({
   ])
   // Program yalnız onaylı yol haritasından türetilir.
   const roadmapApproved = roadmapRow?.status === "onaylandi"
-  const draftMeta = (draftRow?.meta ?? {}) as { studyMinutes?: number; examCount?: number; unplaced?: number }
+  const draftMeta = (draftRow?.meta ?? {}) as {
+    studyMinutes?: number
+    examCount?: number
+    unplaced?: number
+    videoMinutes?: number
+    videoOverflowMinutes?: number
+  }
   const draft: ProgramDraftView | null = draftRow
     ? {
         status: draftRow.status as ProgramDraftView["status"],
@@ -71,6 +77,8 @@ export default async function ProgramPage({
         studyMinutes: draftMeta.studyMinutes ?? 0,
         examCount: draftMeta.examCount ?? 0,
         unplaced: draftMeta.unplaced ?? 0,
+        videoMinutes: draftMeta.videoMinutes ?? 0,
+        videoOverflowMinutes: draftMeta.videoOverflowMinutes ?? 0,
       }
     : null
   const isPastWeek = addDaysIso(weekStart, 6) < istanbulWeekStartStr()

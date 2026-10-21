@@ -21,6 +21,8 @@ function video(id: string, position: number, extra: Partial<VideoRow> = {}): Vid
     duration_seconds: 600,
     thumbnail_url: null,
     note: null,
+    plan_day: null,
+    planned_date: null,
     ...extra,
   }
 }
@@ -39,6 +41,9 @@ function playlist(id: string, subject: string, videos: VideoRow[], extra: Partia
     youtube_playlist_id: null,
     thumbnail_url: null,
     last_synced_at: null,
+    channel_title: null,
+    issue: null,
+    plan: null,
     videos: videos.map((v) => ({ ...v, playlist_id: id })),
     ...extra,
   }

@@ -1641,10 +1641,16 @@ export type Database = {
       }
       student_resource_playlists: {
         Row: {
+          channel_title: string | null
           created_at: string
           id: string
+          issue: string | null
           kind: string
           last_synced_at: string | null
+          plan_amount: number | null
+          plan_mode: string | null
+          plan_start: string | null
+          plan_weekdays: number[] | null
           source: string
           status: string
           student_id: string
@@ -1655,10 +1661,16 @@ export type Database = {
           youtube_playlist_id: string | null
         }
         Insert: {
+          channel_title?: string | null
           created_at?: string
           id?: string
+          issue?: string | null
           kind?: string
           last_synced_at?: string | null
+          plan_amount?: number | null
+          plan_mode?: string | null
+          plan_start?: string | null
+          plan_weekdays?: number[] | null
           source?: string
           status?: string
           student_id: string
@@ -1669,10 +1681,16 @@ export type Database = {
           youtube_playlist_id?: string | null
         }
         Update: {
+          channel_title?: string | null
           created_at?: string
           id?: string
+          issue?: string | null
           kind?: string
           last_synced_at?: string | null
+          plan_amount?: number | null
+          plan_mode?: string | null
+          plan_start?: string | null
+          plan_weekdays?: number[] | null
           source?: string
           status?: string
           student_id?: string
@@ -1707,6 +1725,8 @@ export type Database = {
           match_score: number | null
           match_status: string
           note: string | null
+          plan_day: number | null
+          planned_date: string | null
           playlist_id: string
           position: number
           student_id: string
@@ -1725,6 +1745,8 @@ export type Database = {
           match_score?: number | null
           match_status?: string
           note?: string | null
+          plan_day?: number | null
+          planned_date?: string | null
           playlist_id: string
           position?: number
           student_id: string
@@ -1743,6 +1765,8 @@ export type Database = {
           match_score?: number | null
           match_status?: string
           note?: string | null
+          plan_day?: number | null
+          planned_date?: string | null
           playlist_id?: string
           position?: number
           student_id?: string
@@ -2895,6 +2919,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      youtube_playlist_cache: {
+        Row: {
+          channel_title: string | null
+          fetched_at: string
+          thumbnail_url: string | null
+          title: string | null
+          videos: Json
+          youtube_playlist_id: string
+        }
+        Insert: {
+          channel_title?: string | null
+          fetched_at?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          videos?: Json
+          youtube_playlist_id: string
+        }
+        Update: {
+          channel_title?: string | null
+          fetched_at?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          videos?: Json
+          youtube_playlist_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

@@ -4,12 +4,14 @@ import { useMemo, useOptimistic, useState, useTransition } from "react"
 import { toast } from "sonner"
 import { Check, Clock, ExternalLink, Lightbulb, ListVideo, Plus, TrendingUp, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { VideoAddDialog } from "@/components/kaynaklar/video-add-dialog"
+import { VideoAddDialog, type PlanContext } from "@/components/kaynaklar/video-add-dialog"
+import { PlanDialog } from "@/components/kaynaklar/plan-dialog"
+import { channelUrlOf } from "@/lib/resources/videos"
 import { VideoPlaylistCard, type PlaylistHandlers } from "@/components/kaynaklar/video-playlist-card"
 import { VideoSubjectTable } from "@/components/kaynaklar/video-subject-table"
 import { VideoActivityChart } from "@/components/kaynaklar/video-activity-chart"
 import { formatClock, formatSpan } from "@/lib/resources/video-match"
-import { youtubeWatchUrl, type PlaylistRow, type PlaylistStatus } from "@/lib/resources/videos"
+import { playlistDisplayName, youtubeWatchUrl, type PlaylistRow, type PlaylistStatus } from "@/lib/resources/videos"
 import { effectiveStatus, summarizeBySubject, videoActivity, watchedOnDay } from "@/lib/resources/video-summary"
 import type { VideoSuggestion } from "@/lib/resources/video-priority"
 import type { TeacherStat } from "@/lib/resources/video-match"
@@ -22,6 +24,7 @@ import {
   refreshPlaylist,
   setVideoNote,
   setVideoTopic,
+  shiftVideoPlan,
   updatePlaylist,
 } from "@/app/ogrenci/kaynaklarim/video-actions"
 
@@ -61,16 +64,20 @@ export function VideoModule({
   topicsBySubject,
   suggestions,
   stats,
+  planContext,
 }: {
   playlists: PlaylistRow[]
   subjects: { id: string; name: string }[]
   topicsBySubject: Record<string, Topic[]>
   suggestions: VideoSuggestion[]
   stats: (TeacherStat & { teacher_name: string })[]
+  planContext: PlanContext
 }) {
   const [items, apply] = useOptimistic(playlists, reduce)
   const [, startTransition] = useTransition()
   const [adding, setAdding] = useState(false)
+  const [fixing, setFixing] = useState<{ playlistId: string; url: string } | null>(null)
+  const [planning, setPlanning] = useState<PlaylistRow | null>(null)
 
   /** Optimistic değişiklik + server action; hata olursa toast (state sunucudan geri gelir). */
   function run(action: OptAction, call: () => Promise<{ success: boolean; error?: string }>, onOk?: () => void) {
@@ -124,8 +131,19 @@ export function VideoModule({
       toast.success(added || updated ? `${added} yeni video eklendi, ${updated} video güncellendi.` : "Playlist güncel.")
     },
     deletePlaylist(playlist) {
-      if (!confirm(`"${playlist.title ?? playlist.teacher_name}" ve izleme işaretlerin silinsin mi?`)) return
+      if (!confirm(`"${playlistDisplayName(playlist)}" ve izleme işaretlerin silinsin mi?`)) return
       run({ type: "removePlaylist", id: playlist.id }, () => deletePlaylist(playlist.id))
+    },
+    fix(playlist) {
+      setFixing({ playlistId: playlist.id, url: channelUrlOf(playlist) ?? "" })
+    },
+    editPlan(playlist) {
+      setPlanning(playlist)
+    },
+    async shift(playlist) {
+      const res = await shiftVideoPlan(playlist.id)
+      if (!res.success) return void toast.error(res.error ?? "Kaydırılamadı.")
+      toast.success(res.data?.moved ? `Kalan plan kaydırıldı (${res.data.moved} gün yeniden tarihlendi).` : "Plan zaten güncel.")
     },
   }
 
@@ -228,7 +246,11 @@ export function VideoModule({
         </>
       )}
 
-      {adding && <VideoAddDialog open onOpenChange={setAdding} subjects={subjects} />}
+      {adding && <VideoAddDialog open onOpenChange={setAdding} subjects={subjects} planContext={planContext} />}
+      {fixing && (
+        <VideoAddDialog open onOpenChange={(o) => !o && setFixing(null)} subjects={subjects} planContext={planContext} fix={fixing} />
+      )}
+      {planning && <PlanDialog playlist={planning} planContext={planContext} onOpenChange={(o) => !o && setPlanning(null)} />}
     </section>
   )
 }

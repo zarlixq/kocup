@@ -1,4 +1,6 @@
-import { parseIsoDuration } from "@/lib/resources/video-match"
+import type { Json } from "@/lib/database.types"
+import { supabaseAdmin } from "@/lib/supabase/admin"
+import { parseIsoDuration, type YoutubeChannelRef } from "@/lib/resources/video-match"
 
 // YouTube erişimi — YALNIZ SUNUCU (server action'lardan çağrılır).
 // YOUTUBE_API_KEY (Data API v3) yalnız burada okunur, istemciye gitmez.
@@ -6,7 +8,7 @@ import { parseIsoDuration } from "@/lib/resources/video-match"
 // playlist'te elle liste.
 
 const YT = "https://www.googleapis.com/youtube/v3"
-const MAX_PLAYLIST_VIDEOS = 300
+const MAX_PLAYLIST_VIDEOS = 500
 
 export type YoutubeVideoMeta = {
   videoId: string
@@ -112,7 +114,7 @@ export async function fetchYoutubePlaylist(playlistId: string): Promise<YoutubeP
 
     return {
       title: snip.title?.slice(0, 200) ?? null,
-      channelTitle: snip.channelTitle?.slice(0, 80) ?? null,
+      channelTitle: snip.channelTitle?.slice(0, 120) ?? null,
       thumbnailUrl: pickThumb(snip.thumbnails, videos[0]?.videoId ?? null),
       videos,
     }
@@ -166,4 +168,123 @@ export async function fetchOembedTitles(videoIds: string[]): Promise<Map<string,
     })
   }
   return out
+}
+
+// ── Önbellek (youtube_playlist_cache) ────────────────────────────────────
+// Önizleme + ekleme aynı listeyi iki kez çekmesin, aynı playlist'i ekleyen
+// başka öğrenciler kota harcamasın. "Yenile" force ile taze çeker.
+export const PLAYLIST_CACHE_HOURS = 24
+
+function isVideoMeta(v: unknown): v is YoutubeVideoMeta {
+  if (!v || typeof v !== "object") return false
+  const o = v as Record<string, unknown>
+  return typeof o.videoId === "string" && typeof o.title === "string" && typeof o.position === "number"
+}
+
+async function readCache(playlistId: string): Promise<(YoutubePlaylistMeta & { fetchedAt: string }) | null> {
+  const { data } = await supabaseAdmin()
+    .from("youtube_playlist_cache")
+    .select("title, channel_title, thumbnail_url, videos, fetched_at")
+    .eq("youtube_playlist_id", playlistId)
+    .maybeSingle()
+  if (!data || !Array.isArray(data.videos)) return null
+  const videos = data.videos.filter(isVideoMeta).map((v) => ({
+    videoId: v.videoId,
+    title: v.title,
+    position: v.position,
+    durationSeconds: typeof v.durationSeconds === "number" ? v.durationSeconds : null,
+    thumbnailUrl: typeof v.thumbnailUrl === "string" ? v.thumbnailUrl : defaultThumbnail(v.videoId),
+  }))
+  return { title: data.title, channelTitle: data.channel_title, thumbnailUrl: data.thumbnail_url, videos, fetchedAt: data.fetched_at }
+}
+
+async function writeCache(playlistId: string, meta: YoutubePlaylistMeta): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from("youtube_playlist_cache")
+    .upsert({
+      youtube_playlist_id: playlistId,
+      title: meta.title,
+      channel_title: meta.channelTitle,
+      thumbnail_url: meta.thumbnailUrl,
+      videos: meta.videos as unknown as Json,
+      fetched_at: new Date().toISOString(),
+    })
+  if (error) console.error("youtube_playlist_cache", error)
+}
+
+/**
+ * Playlist (önbellekli). `force` → YouTube'dan taze çek. Önbellek ≤ 24 saat
+ * ise API çağrılmaz. API hatasında eski önbellek varsa o döner.
+ */
+export async function getPlaylist(
+  playlistId: string,
+  opts: { force?: boolean } = {},
+): Promise<(YoutubePlaylistMeta & { cached: boolean }) | { error: string }> {
+  const cached = await readCache(playlistId)
+  const fresh = cached && Date.now() - new Date(cached.fetchedAt).getTime() < PLAYLIST_CACHE_HOURS * 3600_000
+  if (cached && fresh && !opts.force && cached.videos.length > 0) return { ...cached, cached: true }
+  const res = await fetchYoutubePlaylist(playlistId)
+  if ("error" in res) return cached && cached.videos.length > 0 ? { ...cached, cached: true } : res
+  if (res.videos.length > 0) await writeCache(playlistId, res)
+  return { ...res, cached: false }
+}
+
+// ── Kanal → playlist listesi ─────────────────────────────────────────────
+export type ChannelPlaylist = { id: string; title: string; itemCount: number; thumbnailUrl: string | null }
+export type ChannelPlaylists = { channelTitle: string; playlists: ChannelPlaylist[] }
+
+const MAX_CHANNEL_PLAYLISTS = 200
+
+/** Kanal referansı → kanal kimliği. /c/ linkleri arama ister (100 birim). */
+async function resolveChannelId(ref: YoutubeChannelRef, key: string): Promise<{ id: string; title: string } | null> {
+  type ChannelList = { items?: { id?: string; snippet?: { title?: string } }[] }
+  const one = (j: ChannelList | null) => {
+    const it = j?.items?.[0]
+    return it?.id ? { id: it.id, title: it.snippet?.title ?? "" } : null
+  }
+  if (ref.by === "id") return one(await getJson<ChannelList>(`${YT}/channels?part=snippet&id=${encodeURIComponent(ref.value)}&key=${key}`))
+  if (ref.by === "handle") return one(await getJson<ChannelList>(`${YT}/channels?part=snippet&forHandle=${encodeURIComponent(ref.value)}&key=${key}`))
+  if (ref.by === "user") {
+    const byUser = one(await getJson<ChannelList>(`${YT}/channels?part=snippet&forUsername=${encodeURIComponent(ref.value)}&key=${key}`))
+    if (byUser) return byUser
+  }
+  // /c/ özel adlar API'de doğrudan çözülmez: önce @ad olarak dene, olmazsa arama.
+  const asHandle = one(await getJson<ChannelList>(`${YT}/channels?part=snippet&forHandle=${encodeURIComponent(`@${ref.value}`)}&key=${key}`))
+  if (asHandle) return asHandle
+  const search = await getJson<{ items?: { snippet?: { channelId?: string; channelTitle?: string } }[] }>(
+    `${YT}/search?part=snippet&type=channel&maxResults=1&q=${encodeURIComponent(ref.value)}&key=${key}`,
+  )
+  const s = search?.items?.[0]?.snippet
+  return s?.channelId ? { id: s.channelId, title: s.channelTitle ?? "" } : null
+}
+
+/** Kanalın herkese açık playlist'leri (başlık, video sayısı, kapak), boşlar hariç. */
+export async function fetchChannelPlaylists(ref: YoutubeChannelRef): Promise<ChannelPlaylists | { error: string }> {
+  const key = apiKey()
+  if (!key) return { error: "YouTube API anahtarı tanımlı değil; kanal yerine playlist linkini yapıştır." }
+  try {
+    const ch = await resolveChannelId(ref, key)
+    if (!ch) return { error: "Kanal bulunamadı." }
+    const playlists: ChannelPlaylist[] = []
+    let page: string | undefined
+    do {
+      const json = await getJson<{
+        nextPageToken?: string
+        items?: { id?: string; snippet?: { title?: string; thumbnails?: Thumbs }; contentDetails?: { itemCount?: number } }[]
+      }>(
+        `${YT}/playlists?part=snippet,contentDetails&maxResults=50&channelId=${encodeURIComponent(ch.id)}&key=${key}${page ? `&pageToken=${page}` : ""}`,
+      )
+      if (!json) return { error: "Kanalın playlist'leri okunamadı." }
+      for (const it of json.items ?? []) {
+        const count = it.contentDetails?.itemCount ?? 0
+        if (!it.id || !it.snippet?.title || count === 0) continue
+        playlists.push({ id: it.id, title: it.snippet.title.slice(0, 200), itemCount: count, thumbnailUrl: pickThumb(it.snippet.thumbnails, null) })
+      }
+      page = json.nextPageToken
+    } while (page && playlists.length < MAX_CHANNEL_PLAYLISTS)
+    return { channelTitle: ch.title.slice(0, 120), playlists }
+  } catch (e) {
+    console.error("fetchChannelPlaylists", e)
+    return { error: "YouTube'a bağlanılamadı, tekrar dene." }
+  }
 }

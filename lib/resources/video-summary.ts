@@ -33,7 +33,9 @@ export function playlistProgress(p: Pick<PlaylistRow, "videos">): PlaylistProgre
 }
 
 /** Kart durumu: öğrencinin seçimi ya da tüm videolar izlendiyse tamamlandı. */
-export function effectiveStatus(p: Pick<PlaylistRow, "status" | "videos">): PlaylistRow["status"] {
+export function effectiveStatus(p: Pick<PlaylistRow, "status" | "videos"> & Partial<Pick<PlaylistRow, "issue">>): PlaylistRow["status"] {
+  // Eksik kayıt (kanal linki) tamamlanmış sayılmaz — videoları henüz gelmedi.
+  if (p.issue) return p.status === "tamamlandi" ? "aktif" : p.status
   if (p.status === "tamamlandi" || playlistProgress(p).complete) return "tamamlandi"
   return p.status
 }

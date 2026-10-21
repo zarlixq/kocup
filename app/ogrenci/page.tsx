@@ -22,6 +22,8 @@ import { getStudentComplianceHistory } from "@/lib/analytics/compliance"
 import { buildSubjectRadarData, buildExamTrendData } from "@/lib/charts/builders"
 import { loadToday } from "@/lib/upplan/load"
 import { TodaySection } from "@/components/upplan/today-section"
+import { TodayVideosCard } from "@/components/kaynaklar/today-videos-card"
+import { loadVideoAgenda } from "@/lib/resources/playlist-plan-service"
 
 function initials(name: string) {
   return name
@@ -122,11 +124,18 @@ export default async function OgrenciDashboard() {
   ])
 
   // Hedefler + soru çözümünden otomatik ilerleme (WeeklyTasksCard) ve program uyumu.
-  const [assignments, complianceHistory, today] = await Promise.all([
+  const todayIso = istanbulDateStr(now)
+  const [assignments, complianceHistory, today, videoAgenda, { data: checkin }] = await Promise.all([
     loadAssignmentsWithProgress(supabase, { studentId }),
     getStudentComplianceHistory(supabase, studentId),
     loadToday(supabase, studentId, now),
+    loadVideoAgenda(supabase, studentId, todayIso),
+    supabase.from("user_ui_preferences").select("settings").eq("user_id", studentId).eq("scope", "video_checkin").maybeSingle(),
   ])
+  // "Dünün videolarını izledin mi?" günde bir kez (cevap tarihi DB'de).
+  const checkinDate = checkin?.settings && typeof checkin.settings === "object" && !Array.isArray(checkin.settings) ? checkin.settings.date : null
+  const askCheckin = checkinDate !== todayIso
+  const showVideos = videoAgenda.today.length > 0 || videoAgenda.overdue.length > 0 || videoAgenda.nextDate !== null
   const weeklyTasks: TaskItem[] = assignments
 
   // Yaklaşan randevuda koç ismini çek
@@ -197,6 +206,8 @@ export default async function OgrenciDashboard() {
       </div>
 
       <TodaySection data={today} />
+
+      {showVideos && <TodayVideosCard agenda={videoAgenda} yesterday={istanbulDaysAgoStr(1, now)} askCheckin={askCheckin} />}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard

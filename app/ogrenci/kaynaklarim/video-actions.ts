@@ -4,17 +4,22 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
-import { fetchActiveTopics } from "@/lib/curriculum/active-topics"
-import { isPlaceholderTitle, matchVideoTopic, parseManualVideoList, parseYoutubeLink } from "@/lib/resources/video-match"
+import { isPlaceholderTitle, parseManualVideoList, parseYoutubeLink } from "@/lib/resources/video-match"
 import { topicVideosComplete, TEKLI_GROUP_NAME } from "@/lib/resources/videos"
 import {
   defaultThumbnail,
+  fetchChannelPlaylists,
   fetchDurations,
   fetchOembedTitles,
   fetchVideoMeta,
-  fetchYoutubePlaylist,
+  getPlaylist,
   youtubeApiEnabled,
+  type ChannelPlaylist,
 } from "@/lib/resources/youtube"
+import { detectDayStructure, PLAN_MODES, type DayStructure } from "@/lib/resources/playlist-plan"
+import { applyPlan, extendPlan, shiftPlans, type PlanInput } from "@/lib/resources/playlist-plan-service"
+import { istanbulDateStr } from "@/lib/tz"
+import { insertVideos, linkPlaylistToYoutube, syncYoutubeVideos, writePatches, type VideoPatch } from "@/lib/resources/video-sync"
 
 type ActionResult<T = undefined> = { success: boolean; error?: string; data?: T }
 
@@ -24,8 +29,8 @@ type ActionResult<T = undefined> = { success: boolean; error?: string; data?: T 
 // öğrencinin yazma izni olmadığından service role ile, sahiplik doğrulanarak.
 
 const GENERIC_ERROR = "Bir hata oluştu, tekrar deneyin."
-const CHANNEL_ERROR = "Kanal linki eklenemez, playlist veya video linki gir."
-const INVALID_ERROR = "Geçerli bir YouTube playlist veya video linki gir."
+const CHANNEL_ERROR = "Kanal linkinden bir playlist seç."
+const INVALID_ERROR = "Geçerli bir YouTube playlist, video ya da kanal linki gir."
 
 async function requireStudent() {
   const supabase = await createClient()
@@ -45,6 +50,7 @@ function revalidateVideos() {
   revalidatePath("/ogrenci/konularim")
   revalidatePath("/ogrenci/program")
   revalidatePath("/ogrenci/analizim")
+  revalidatePath("/ogrenci")
 }
 
 /** Konunun tüm videoları izlendi (anlamadım yok) → açık öğrenme aşamalı hedeflerde learned_at. */
@@ -65,80 +71,125 @@ async function syncLearnedFromVideos(studentId: string, topicId: string): Promis
 }
 
 // ── Önizleme ─────────────────────────────────────────────────────────────
+export type PlaylistPreview = {
+  kind: "playlist"
+  playlistId: string
+  title: string | null
+  channel: string | null
+  thumbnailUrl: string | null
+  videoCount: number
+  totalSeconds: number | null
+  alreadyAdded: boolean
+  /** Plan önizlemesi için (başlık + süre, playlist sırasıyla). */
+  videos: { title: string; duration_seconds: number | null }[]
+  dayStructure: DayStructure
+}
+
+export type VideoPreview = {
+  kind: "video"
+  title: string
+  channel: string | null
+  thumbnailUrl: string
+  durationSeconds: number | null
+  alreadyAdded: boolean
+}
+
 export type LinkPreview =
-  | {
-      kind: "playlist"
-      title: string | null
-      channel: string | null
-      thumbnailUrl: string | null
-      videoCount: number
-      totalSeconds: number | null
-      alreadyAdded: boolean
-    }
-  | {
-      kind: "video"
-      title: string
-      channel: string | null
-      thumbnailUrl: string
-      durationSeconds: number | null
-      alreadyAdded: boolean
-    }
+  | PlaylistPreview
+  | VideoPreview
+  /** Playlist içindeki video: öğrenci playlist'in tamamını ya da yalnız videoyu seçer. */
+  | { kind: "video_in_playlist"; video: VideoPreview; playlist: PlaylistPreview | null }
+  /** Kanal linki: kanalın playlist'leri (öğrenci birini seçer). */
+  | { kind: "channel"; channelTitle: string; playlists: (ChannelPlaylist & { alreadyAdded: boolean })[] }
   /** Playlist linki ama API anahtarı yok → elle liste. */
   | { kind: "playlist_manual" }
+
+type Auth = { supabase: Db; userId: string }
+
+async function previewPlaylist(auth: Auth, playlistId: string): Promise<PlaylistPreview | { error: string }> {
+  const res = await getPlaylist(playlistId)
+  if ("error" in res) return res
+  if (res.videos.length === 0) return { error: "Playlist boş görünüyor." }
+  const { data: existing } = await auth.supabase
+    .from("student_resource_playlists")
+    .select("id")
+    .eq("student_id", auth.userId)
+    .eq("youtube_playlist_id", playlistId)
+    .maybeSingle()
+  const known = res.videos.every((v) => v.durationSeconds != null)
+  return {
+    kind: "playlist",
+    playlistId,
+    title: res.title,
+    channel: res.channelTitle,
+    thumbnailUrl: res.thumbnailUrl,
+    videoCount: res.videos.length,
+    totalSeconds: known ? res.videos.reduce((s, v) => s + (v.durationSeconds ?? 0), 0) : null,
+    alreadyAdded: !!existing,
+    videos: res.videos.map((v) => ({ title: v.title, duration_seconds: v.durationSeconds })),
+    dayStructure: detectDayStructure(res.videos.map((v) => v.title)),
+  }
+}
+
+async function previewVideo(auth: Auth, videoId: string): Promise<VideoPreview | { error: string }> {
+  const meta = await fetchVideoMeta(videoId)
+  if ("error" in meta) return meta
+  const { data: dup } = await auth.supabase
+    .from("student_resource_videos")
+    .select("id")
+    .eq("student_id", auth.userId)
+    .eq("youtube_video_id", videoId)
+    .limit(1)
+  return {
+    kind: "video",
+    title: meta.title,
+    channel: meta.channelTitle,
+    thumbnailUrl: meta.thumbnailUrl,
+    durationSeconds: meta.durationSeconds,
+    alreadyAdded: (dup?.length ?? 0) > 0,
+  }
+}
 
 export async function previewVideoLink(url: string): Promise<ActionResult<LinkPreview>> {
   try {
     const auth = await requireStudent()
     if (!auth.ok) return { success: false, error: auth.error }
     const link = parseYoutubeLink(String(url ?? "").slice(0, 500))
-    if (link.kind === "channel") return { success: false, error: CHANNEL_ERROR }
     if (link.kind === "invalid") return { success: false, error: INVALID_ERROR }
 
-    if (link.kind === "playlist") {
-      if (!youtubeApiEnabled()) return { success: true, data: { kind: "playlist_manual" } }
-      const res = await fetchYoutubePlaylist(link.playlistId)
+    if (link.kind === "channel") {
+      const res = await fetchChannelPlaylists(link.channel)
       if ("error" in res) return { success: false, error: res.error }
-      if (res.videos.length === 0) return { success: false, error: "Playlist boş görünüyor." }
-      const { data: existing } = await auth.supabase
+      if (res.playlists.length === 0) return { success: false, error: "Bu kanalda herkese açık playlist bulunamadı." }
+      const { data: mine } = await auth.supabase
         .from("student_resource_playlists")
-        .select("id")
+        .select("youtube_playlist_id")
         .eq("student_id", auth.userId)
-        .eq("youtube_playlist_id", link.playlistId)
-        .maybeSingle()
-      const known = res.videos.every((v) => v.durationSeconds != null)
+        .not("youtube_playlist_id", "is", null)
+      const added = new Set((mine ?? []).map((m) => m.youtube_playlist_id))
       return {
         success: true,
-        data: {
-          kind: "playlist",
-          title: res.title,
-          channel: res.channelTitle,
-          thumbnailUrl: res.thumbnailUrl,
-          videoCount: res.videos.length,
-          totalSeconds: known ? res.videos.reduce((s, v) => s + (v.durationSeconds ?? 0), 0) : null,
-          alreadyAdded: !!existing,
-        },
+        data: { kind: "channel", channelTitle: res.channelTitle, playlists: res.playlists.map((p) => ({ ...p, alreadyAdded: added.has(p.id) })) },
       }
     }
 
-    const meta = await fetchVideoMeta(link.videoId)
-    if ("error" in meta) return { success: false, error: meta.error }
-    const { data: dup } = await auth.supabase
-      .from("student_resource_videos")
-      .select("id")
-      .eq("student_id", auth.userId)
-      .eq("youtube_video_id", link.videoId)
-      .limit(1)
-    return {
-      success: true,
-      data: {
-        kind: "video",
-        title: meta.title,
-        channel: meta.channelTitle,
-        thumbnailUrl: meta.thumbnailUrl,
-        durationSeconds: meta.durationSeconds,
-        alreadyAdded: (dup?.length ?? 0) > 0,
-      },
+    if (link.kind === "playlist") {
+      if (!youtubeApiEnabled()) return { success: true, data: { kind: "playlist_manual" } }
+      const res = await previewPlaylist(auth, link.playlistId)
+      return "error" in res ? { success: false, error: res.error } : { success: true, data: res }
     }
+
+    if (link.kind === "video_in_playlist") {
+      const [video, playlist] = await Promise.all([
+        previewVideo(auth, link.videoId),
+        youtubeApiEnabled() ? previewPlaylist(auth, link.playlistId) : Promise.resolve({ error: "anahtar yok" }),
+      ])
+      if ("error" in video) return { success: false, error: video.error }
+      return { success: true, data: { kind: "video_in_playlist", video, playlist: "error" in playlist ? null : playlist } }
+    }
+
+    const video = await previewVideo(auth, link.videoId)
+    return "error" in video ? { success: false, error: video.error } : { success: true, data: video }
   } catch (e) {
     console.error("previewVideoLink", e)
     return { success: false, error: GENERIC_ERROR }
@@ -146,6 +197,16 @@ export async function previewVideoLink(url: string): Promise<ActionResult<LinkPr
 }
 
 // ── Ekleme ───────────────────────────────────────────────────────────────
+const planSchema = z
+  .object({
+    mode: z.enum(PLAN_MODES as [PlanInput["mode"], ...PlanInput["mode"][]]),
+    amount: z.number().int().min(1).max(600).nullable(),
+    start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Başlangıç tarihi seç."),
+    weekdays: z.array(z.number().int().min(1).max(7)).min(1, "En az bir gün seç.").max(7),
+  })
+  .refine((p) => p.mode === "gun_yapisi" || p.amount !== null, { message: "Günlük video / dakika miktarını gir." })
+  .transform((p) => ({ ...p, weekdays: Array.from(new Set(p.weekdays)).sort((a, b) => a - b) }))
+
 const addSchema = z.object({
   subjectId: z.string().uuid("Ders seç."),
   url: z.string().trim().max(500).optional().default(""),
@@ -153,46 +214,10 @@ const addSchema = z.object({
   teacherName: z.string().trim().max(80).optional().default(""),
   /** API anahtarı yokken playlist: her satırda bir video linki (+ başlık). */
   manualList: z.string().max(40_000).optional().default(""),
+  /** Playlist içindeki video linkinde: tamamı mı, yalnız video mu. */
+  only: z.enum(["playlist", "video"]).optional().default("playlist"),
+  plan: planSchema.nullable().optional().default(null),
 })
-
-type NewVideo = { videoId: string; title: string; position: number; durationSeconds: number | null; thumbnailUrl: string }
-
-async function insertVideos(
-  db: Db,
-  studentId: string,
-  playlistId: string,
-  subjectId: string,
-  videos: NewVideo[],
-): Promise<{ inserted: number; matched: number } | { error: string }> {
-  if (videos.length === 0) return { inserted: 0, matched: 0 }
-  const topics = await fetchActiveTopics(db, { subjectId })
-  let matched = 0
-  const rows = videos.map((v) => {
-    const m = matchVideoTopic(v.title, topics)
-    if (m) matched += 1
-    return {
-      student_id: studentId,
-      playlist_id: playlistId,
-      youtube_video_id: v.videoId,
-      title: v.title,
-      position: v.position,
-      duration_seconds: v.durationSeconds,
-      thumbnail_url: v.thumbnailUrl,
-      topic_id: m?.topic_id ?? null,
-      match_status: m ? "oneri" : "eslesmedi",
-      match_score: m?.score ?? null,
-    }
-  })
-  const { data, error } = await db
-    .from("student_resource_videos")
-    .upsert(rows, { onConflict: "playlist_id,youtube_video_id", ignoreDuplicates: true })
-    .select("id")
-  if (error) {
-    console.error("insertVideos", error)
-    return { error: "Videolar kaydedilemedi." }
-  }
-  return { inserted: data?.length ?? 0, matched }
-}
 
 /** Dersin "Tekli videolar" grubu (yoksa oluşturur). */
 async function ensureTekliGroup(db: Db, studentId: string, subjectId: string): Promise<string | null> {
@@ -220,13 +245,13 @@ async function ensureTekliGroup(db: Db, studentId: string, subjectId: string): P
 
 export async function addVideoSource(
   input: unknown,
-): Promise<ActionResult<{ kind: "playlist" | "video"; videos: number; matched: number }>> {
+): Promise<ActionResult<{ kind: "playlist" | "video"; videos: number; matched: number; planEnd?: string | null }>> {
   try {
     const parsed = addSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Form hatalı." }
     const auth = await requireStudent()
     if (!auth.ok) return { success: false, error: auth.error }
-    const { subjectId, url, title, teacherName, manualList } = parsed.data
+    const { subjectId, url, title, teacherName, manualList, only, plan } = parsed.data
 
     // Elle liste (anahtarsız playlist).
     if (manualList.trim()) {
@@ -266,8 +291,9 @@ export async function addVideoSource(
     if (link.kind === "channel") return { success: false, error: CHANNEL_ERROR }
     if (link.kind === "invalid") return { success: false, error: INVALID_ERROR }
 
-    if (link.kind === "playlist") {
-      const yt = await fetchYoutubePlaylist(link.playlistId)
+    const playlistId = link.kind === "playlist" ? link.playlistId : link.kind === "video_in_playlist" && only === "playlist" ? link.playlistId : null
+    if (playlistId) {
+      const yt = await getPlaylist(playlistId)
       if ("error" in yt) return { success: false, error: yt.error }
       if (yt.videos.length === 0) return { success: false, error: "Playlist boş görünüyor." }
       const name = (title || yt.title || "YouTube playlist").slice(0, 200)
@@ -278,8 +304,9 @@ export async function addVideoSource(
           subject_id: subjectId,
           kind: "playlist",
           teacher_name: (teacherName || yt.channelTitle || name).slice(0, 80),
+          channel_title: yt.channelTitle,
           title: name,
-          youtube_playlist_id: link.playlistId,
+          youtube_playlist_id: playlistId,
           source: "youtube",
           thumbnail_url: yt.thumbnailUrl,
           last_synced_at: new Date().toISOString(),
@@ -293,19 +320,23 @@ export async function addVideoSource(
       }
       const res = await insertVideos(auth.supabase, auth.userId, list.id, subjectId, yt.videos)
       if ("error" in res) return { success: false, error: res.error }
+      const planned = plan ? await applyPlan(auth.supabase, auth.userId, list.id, plan) : null
       revalidateVideos()
-      return { success: true, data: { kind: "playlist", videos: res.inserted, matched: res.matched } }
+      if (planned?.error) return { success: false, error: `Playlist eklendi ama ${planned.error.toLocaleLowerCase("tr")}` }
+      return { success: true, data: { kind: "playlist", videos: res.inserted, matched: res.matched, planEnd: planned?.end ?? null } }
     }
 
     // Tekli video.
+    const videoId = link.kind === "playlist" ? null : link.videoId
+    if (!videoId) return { success: false, error: INVALID_ERROR }
     const { data: dup } = await auth.supabase
       .from("student_resource_videos")
       .select("id")
       .eq("student_id", auth.userId)
-      .eq("youtube_video_id", link.videoId)
+      .eq("youtube_video_id", videoId)
       .limit(1)
     if (dup?.length) return { success: false, error: "Bu video zaten ekli." }
-    const meta = await fetchVideoMeta(link.videoId)
+    const meta = await fetchVideoMeta(videoId)
     if ("error" in meta) return { success: false, error: meta.error }
     const groupId = await ensureTekliGroup(auth.supabase, auth.userId, subjectId)
     if (!groupId) return { success: false, error: "Video kaydedilemedi." }
@@ -317,7 +348,7 @@ export async function addVideoSource(
       .limit(1)
     const res = await insertVideos(auth.supabase, auth.userId, groupId, subjectId, [
       {
-        videoId: link.videoId,
+        videoId: videoId,
         title: (title || meta.title).slice(0, 200),
         position: (last?.[0]?.position ?? -1) + 1,
         durationSeconds: meta.durationSeconds,
@@ -333,10 +364,23 @@ export async function addVideoSource(
   }
 }
 
-// ── Yenile ───────────────────────────────────────────────────────────────
+/// ── Yenile ───────────────────────────────────────────────────────────────
+async function loadPlanOf(db: Db, studentId: string, playlistId: string): Promise<PlanInput | null> {
+  const { data } = await db
+    .from("student_resource_playlists")
+    .select("plan_mode, plan_amount, plan_start, plan_weekdays")
+    .eq("id", playlistId)
+    .eq("student_id", studentId)
+    .maybeSingle()
+  const mode = PLAN_MODES.find((m) => m === data?.plan_mode)
+  if (!data || !mode || !data.plan_start) return null
+  return { mode, amount: data.plan_amount, start: data.plan_start, weekdays: data.plan_weekdays?.length ? data.plan_weekdays : [1, 2, 3, 4, 5, 6, 7] }
+}
+
 /**
- * YouTube playlist'inden yeni videoları ekler, eksik süre/küçük resimleri
- * tamamlar; "Video N" başlıklarını oEmbed ile düzeltir. İzleme işaretlerine dokunmaz.
+ * YouTube'dan taze çeker (önbelleği yeniler); planlı playlist'te yeni
+ * videolar aynı tempoyla planın sonuna eklenir. Anahtarsız / elle listede
+ * başlık ve süre onarımı.
  */
 export async function refreshPlaylist(playlistId: string): Promise<ActionResult<{ added: number; updated: number }>> {
   try {
@@ -350,44 +394,33 @@ export async function refreshPlaylist(playlistId: string): Promise<ActionResult<
       .eq("student_id", auth.userId)
       .maybeSingle()
     if (!list) return { success: false, error: "Playlist bulunamadı." }
-    const { data: current } = await auth.supabase
-      .from("student_resource_videos")
-      .select("id, youtube_video_id, title, duration_seconds, thumbnail_url, position")
-      .eq("playlist_id", playlistId)
-    const existing = current ?? []
-    const byVideo = new Map(existing.map((v) => [v.youtube_video_id, v]))
 
     let added = 0
-    const patches = new Map<string, { title?: string; duration_seconds?: number; thumbnail_url?: string; position?: number }>()
+    let patches = new Map<string, VideoPatch>()
     if (list.youtube_playlist_id && youtubeApiEnabled()) {
-      const yt = await fetchYoutubePlaylist(list.youtube_playlist_id)
+      const yt = await getPlaylist(list.youtube_playlist_id, { force: true })
       if ("error" in yt) return { success: false, error: yt.error }
-      const fresh = yt.videos.filter((v) => !byVideo.has(v.videoId))
-      const res = await insertVideos(auth.supabase, auth.userId, playlistId, list.subject_id, fresh)
+      const res = await syncYoutubeVideos(auth.supabase, auth.userId, playlistId, list.subject_id, yt)
       if ("error" in res) return { success: false, error: res.error }
-      added = res.inserted
-      for (const v of yt.videos) {
-        const cur = byVideo.get(v.videoId)
-        if (!cur) continue
-        const p: { title?: string; duration_seconds?: number; thumbnail_url?: string; position?: number } = {}
-        if (cur.duration_seconds == null && v.durationSeconds != null) p.duration_seconds = v.durationSeconds
-        if (!cur.thumbnail_url) p.thumbnail_url = v.thumbnailUrl
-        if (isPlaceholderTitle(cur.title)) p.title = v.title
-        if (cur.position !== v.position) p.position = v.position
-        if (Object.keys(p).length) patches.set(cur.id, p)
-      }
+      added = res.added
+      patches = res.patches
       await auth.supabase
         .from("student_resource_playlists")
-        .update({ last_synced_at: new Date().toISOString(), thumbnail_url: yt.thumbnailUrl })
+        .update({ last_synced_at: new Date().toISOString(), thumbnail_url: yt.thumbnailUrl, channel_title: yt.channelTitle })
         .eq("id", playlistId)
         .eq("student_id", auth.userId)
     } else {
       // Anahtarsız / elle liste: başlık ve (anahtar varsa) süre onarımı.
+      const { data: current } = await auth.supabase
+        .from("student_resource_videos")
+        .select("id, youtube_video_id, title, duration_seconds, thumbnail_url")
+        .eq("playlist_id", playlistId)
+      const existing = current ?? []
       const placeholders = existing.filter((v) => isPlaceholderTitle(v.title)).map((v) => v.youtube_video_id)
       const noDuration = existing.filter((v) => v.duration_seconds == null).map((v) => v.youtube_video_id)
       const [titles, durations] = await Promise.all([fetchOembedTitles(placeholders.slice(0, 150)), fetchDurations(noDuration)])
       for (const v of existing) {
-        const p: { title?: string; duration_seconds?: number; thumbnail_url?: string } = {}
+        const p: VideoPatch = {}
         const t = titles.get(v.youtube_video_id)
         if (t) p.title = t
         const d = durations.get(v.youtube_video_id)
@@ -396,19 +429,122 @@ export async function refreshPlaylist(playlistId: string): Promise<ActionResult<
         if (Object.keys(p).length) patches.set(v.id, p)
       }
     }
-
-    // Satır bazlı güncelleme (aynı playlist, en fazla birkaç yüz).
-    const results = await Promise.all(
-      Array.from(patches, ([id, p]) => auth.supabase.from("student_resource_videos").update(p).eq("id", id).eq("student_id", auth.userId)),
-    )
-    const failed = results.find((r) => r.error)
-    if (failed?.error) console.error("refreshPlaylist update", failed.error)
+    await writePatches(auth.supabase, auth.userId, patches)
+    const plan = added > 0 ? await loadPlanOf(auth.supabase, auth.userId, playlistId) : null
+    if (plan) await extendPlan(auth.supabase, auth.userId, playlistId, plan)
     revalidateVideos()
     return { success: true, data: { added, updated: patches.size } }
   } catch (e) {
     console.error("refreshPlaylist", e)
     return { success: false, error: GENERIC_ERROR }
   }
+}
+
+// ── Düzelt (kanal linkiyle eklenmiş eksik kayıt) ─────────────────────────
+const fixSchema = z.object({ url: z.string().trim().min(1).max(500), plan: planSchema.nullable().optional().default(null) })
+
+/**
+ * Eksik kaydı seçilen YouTube playlist'ine bağlar: başlık, kanal, kapak ve
+ * videolar gelir; mevcut videolar ve izleme işaretleri korunur (silinmez).
+ */
+export async function fixPlaylistSource(playlistId: string, input: unknown): Promise<ActionResult<{ added: number }>> {
+  try {
+    if (!z.string().uuid().safeParse(playlistId).success) return { success: false, error: "Geçersiz playlist." }
+    const parsed = fixSchema.safeParse(input)
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Form hatalı." }
+    const auth = await requireStudent()
+    if (!auth.ok) return { success: false, error: auth.error }
+    const link = parseYoutubeLink(parsed.data.url)
+    const ytId = link.kind === "playlist" || link.kind === "video_in_playlist" ? link.playlistId : null
+    if (!ytId) return { success: false, error: "Bir YouTube playlist'i seç." }
+    const res = await linkPlaylistToYoutube(auth.supabase, auth.userId, playlistId, ytId)
+    if ("error" in res) return { success: false, error: res.error }
+    if (parsed.data.plan) await applyPlan(auth.supabase, auth.userId, playlistId, parsed.data.plan)
+    revalidateVideos()
+    return { success: true, data: { added: res.added } }
+  } catch (e) {
+    console.error("fixPlaylistSource", e)
+    return { success: false, error: GENERIC_ERROR }
+  }
+}
+
+// ── Çalışma planı ────────────────────────────────────────────────────────
+/** Planı kur / değiştir (plan=null → kaldır). */
+export async function setPlaylistPlan(playlistId: string, plan: unknown): Promise<ActionResult<{ days: number; end: string | null }>> {
+  try {
+    if (!z.string().uuid().safeParse(playlistId).success) return { success: false, error: "Geçersiz playlist." }
+    const parsed = planSchema.nullable().safeParse(plan)
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Plan hatalı." }
+    const auth = await requireStudent()
+    if (!auth.ok) return { success: false, error: auth.error }
+    const res = await applyPlan(auth.supabase, auth.userId, playlistId, parsed.data)
+    if (res.error) return { success: false, error: res.error }
+    revalidateVideos()
+    return { success: true, data: { days: res.days, end: res.end } }
+  } catch (e) {
+    console.error("setPlaylistPlan", e)
+    return { success: false, error: GENERIC_ERROR }
+  }
+}
+
+/** Kaydır: izlenmemiş plan günleri bugünden itibaren yeniden tarihlenir (playlistId yoksa tüm aktif planlar). */
+export async function shiftVideoPlan(playlistId?: string): Promise<ActionResult<{ moved: number }>> {
+  try {
+    if (playlistId !== undefined && !z.string().uuid().safeParse(playlistId).success) return { success: false, error: "Geçersiz playlist." }
+    const auth = await requireStudent()
+    if (!auth.ok) return { success: false, error: auth.error }
+    const res = await shiftPlans(auth.supabase, auth.userId, istanbulDateStr(), playlistId)
+    if (res.error) return { success: false, error: res.error }
+    await rememberCheckin(auth.supabase, auth.userId)
+    revalidateVideos()
+    return { success: true, data: { moved: res.moved } }
+  } catch (e) {
+    console.error("shiftVideoPlan", e)
+    return { success: false, error: GENERIC_ERROR }
+  }
+}
+
+/** Gecikenler → "İzledim": birden çok videoyu izlendi işaretler. */
+export async function markVideosWatched(videoIds: string[]): Promise<ActionResult<{ count: number }>> {
+  try {
+    const parsed = z.array(z.string().uuid()).min(1).max(100).safeParse(videoIds)
+    if (!parsed.success) return { success: false, error: "Geçersiz video." }
+    const auth = await requireStudent()
+    if (!auth.ok) return { success: false, error: auth.error }
+    const { data, error } = await auth.supabase
+      .from("student_resource_videos")
+      .update({ watch_status: "izlendi", watched_at: new Date().toISOString() })
+      .in("id", parsed.data)
+      .eq("student_id", auth.userId)
+      .eq("watch_status", "izlenmedi")
+      .select("topic_id")
+    if (error) return { success: false, error: "Kaydedilemedi." }
+    const topics = Array.from(new Set((data ?? []).map((d) => d.topic_id).filter((t): t is string => !!t)))
+    for (const t of topics) await syncLearnedFromVideos(auth.userId, t)
+    await rememberCheckin(auth.supabase, auth.userId)
+    revalidateVideos()
+    return { success: true, data: { count: data?.length ?? 0 } }
+  } catch (e) {
+    console.error("markVideosWatched", e)
+    return { success: false, error: GENERIC_ERROR }
+  }
+}
+
+// "Dünün videolarını izledin mi?" günde bir kez sorulur: cevap tarihi DB'de
+// (user_ui_preferences, scope video_checkin) — localStorage değil.
+async function rememberCheckin(db: Db, userId: string) {
+  const { error } = await db
+    .from("user_ui_preferences")
+    .upsert({ user_id: userId, scope: "video_checkin", settings: { date: istanbulDateStr() } }, { onConflict: "user_id,scope" })
+  if (error) console.error("rememberCheckin", error)
+}
+
+/** Soruyu bugün için kapat ("Sonra"). */
+export async function dismissVideoCheckin(): Promise<ActionResult> {
+  const auth = await requireStudent()
+  if (!auth.ok) return { success: false, error: auth.error }
+  await rememberCheckin(auth.supabase, auth.userId)
+  return { success: true }
 }
 
 // ── Playlist düzenleme ───────────────────────────────────────────────────

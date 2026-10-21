@@ -15,6 +15,9 @@ export type ProgramDraftView = {
   studyMinutes: number
   examCount: number
   unplaced: number
+  /** Playlist video blokları (dk) ve müsaitliğe sığmayan kısım. */
+  videoMinutes?: number
+  videoOverflowMinutes?: number
 }
 
 const TYPE_TONE: Record<DraftItem["block_type"], string> = {
@@ -137,7 +140,11 @@ export function ProgramDraftPanel({
               <span>{Math.round(draft.studyMinutes / 60)} saat çalışma</span>
               {/* Haftadaki toplam deneme (programda zaten olan + öneri) — program sayfasıyla aynı sayı. */}
               <span>Haftada {draft.examCount} deneme</span>
+              {!!draft.videoMinutes && <span>{draft.videoMinutes} dk playlist videosu (konu çalışmasına sayıldı)</span>}
               {draft.unplaced > 0 && <span className="text-amber-700">{draft.unplaced} blok sığmadı</span>}
+              {!!draft.videoOverflowMinutes && (
+                <span className="text-amber-700">{draft.videoOverflowMinutes} dk video müsaitliğe sığmadı</span>
+              )}
             </div>
           )}
           {draft.items.length === 0 ? (

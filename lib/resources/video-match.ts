@@ -20,19 +20,25 @@ export function parseYoutubeVideoId(input: string): string | null {
   return m ? m[1] : null
 }
 
+export type YoutubeChannelRef = { by: "handle" | "id" | "custom" | "user"; value: string }
+
 export type YoutubeLink =
   | { kind: "playlist"; playlistId: string }
   | { kind: "video"; videoId: string }
-  | { kind: "channel" }
+  /** watch?v=…&list=… — öğrenci playlist'in tamamını ya da yalnız videoyu seçer. */
+  | { kind: "video_in_playlist"; videoId: string; playlistId: string }
+  | { kind: "channel"; channel: YoutubeChannelRef }
   | { kind: "invalid" }
 
 const YT_HOSTS = new Set(["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com"])
 const PLAYLIST_ID_RE = /^[A-Za-z0-9_-]{10,64}$/
+const CHANNEL_RE = /^\/(?:(@[^/?#]+)|channel\/(UC[A-Za-z0-9_-]{10,40})|c\/([^/?#]+)|user\/([^/?#]+))/
 
 /**
- * Yapıştırılan linkin tipi. watch?v=…&list=… playlist sayılır (YouTube'un
+ * Yapıştırılan linkin tipi. watch?v=…&list=… → video_in_playlist (YouTube'un
  * otomatik "RD…" karışık listeleri hariç → tekli video). Kanal linkleri
- * (@kanal, /channel/, /c/, /user/) ayrı döner: playlist olarak kabul edilmez.
+ * (@kanal, /channel/UC…, /c/ad, /user/ad) kanal referansıyla döner; kanalın
+ * playlist'leri ayrıca listelenir.
  */
 export function parseYoutubeLink(input: string): YoutubeLink {
   const s = input.trim()
@@ -46,22 +52,34 @@ export function parseYoutubeLink(input: string): YoutubeLink {
   const host = url.hostname.toLowerCase()
   const list = url.searchParams.get("list")
   const validList = list && PLAYLIST_ID_RE.test(list) && !list.startsWith("RD") ? list : null
+  const withList = (videoId: string): YoutubeLink =>
+    validList ? { kind: "video_in_playlist", videoId, playlistId: validList } : { kind: "video", videoId }
   if (host === "youtu.be") {
     const id = url.pathname.slice(1).split("/")[0]
-    if (validList) return { kind: "playlist", playlistId: validList }
-    return ID_RE.test(id) ? { kind: "video", videoId: id } : { kind: "invalid" }
+    return ID_RE.test(id) ? withList(id) : { kind: "invalid" }
   }
   if (!YT_HOSTS.has(host)) return { kind: "invalid" }
   const path = url.pathname
-  if (/^\/(@[^/]+|channel\/|c\/|user\/)/.test(path)) return { kind: "channel" }
+  const ch = path.match(CHANNEL_RE)
+  if (ch) {
+    const [, handle, id, custom, user] = ch
+    const channel: YoutubeChannelRef = handle
+      ? { by: "handle", value: decodeURIComponent(handle) }
+      : id
+        ? { by: "id", value: id }
+        : custom
+          ? { by: "custom", value: decodeURIComponent(custom) }
+          : { by: "user", value: decodeURIComponent(user) }
+    return { kind: "channel", channel }
+  }
   if (path === "/playlist") return validList ? { kind: "playlist", playlistId: validList } : { kind: "invalid" }
   if (path === "/watch") {
-    if (validList) return { kind: "playlist", playlistId: validList }
     const v = url.searchParams.get("v")
-    return v && ID_RE.test(v) ? { kind: "video", videoId: v } : { kind: "invalid" }
+    if (v && ID_RE.test(v)) return withList(v)
+    return validList ? { kind: "playlist", playlistId: validList } : { kind: "invalid" }
   }
   const m = path.match(/^\/(?:shorts|embed|live|v)\/([A-Za-z0-9_-]{11})/)
-  return m ? { kind: "video", videoId: m[1] } : { kind: "invalid" }
+  return m ? withList(m[1]) : { kind: "invalid" }
 }
 
 /** ISO 8601 süre (PT1H2M3S, P1DT2H) → saniye; okunamazsa null. */

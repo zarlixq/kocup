@@ -76,6 +76,21 @@ export type DraftItem = {
   hedef_soru: number | null
 }
 
+/**
+ * Playlist planından o güne düşen videolar (Kaynaklarım → çalışma planı).
+ * Süreleri o günün konu çalışması zamanına sayılır: ayrı "Video" bloğu olarak
+ * müsaitlikten düşülür; eşlendiği konuların ayrı konu çalışması bloğu konmaz.
+ */
+export type VideoDay = {
+  day_of_week: number
+  minutes: number
+  subject_id: string
+  /** "55 Günde TYT Matematik Kampı (2 video)" */
+  label: string
+  /** Videoların eşlendiği konular (öneri + onaylı). */
+  topic_ids: string[]
+}
+
 export type ScheduleInput = {
   weekStart: string
   /** Bu tarihten önceki günlere blok konmaz (içinde bulunulan hafta). */
@@ -93,12 +108,27 @@ export type ScheduleInput = {
   existingExams?: number
   /** Sürekli pratik grupları (aktif konu sınırı dışında, her hafta). */
   practice?: PracticeGroupInput[]
+  /** Playlist planının bu haftaki video günleri. */
+  videoDays?: VideoDay[]
 }
 
 export type ScheduleResult = {
   items: DraftItem[]
-  meta: { examCount: number; blockCount: number; capacityBlocks: number; unplaced: number; studyMinutes: number; lectures: number }
+  meta: {
+    examCount: number
+    blockCount: number
+    capacityBlocks: number
+    unplaced: number
+    studyMinutes: number
+    lectures: number
+    /** Programa konan video süresi ve müsaitliğe sığmayan kısım (dk). */
+    videoMinutes: number
+    videoOverflowMinutes: number
+  }
 }
+
+/** Video bloğu en az bu kadar (daha kısa boşluklara bölünmez). */
+export const VIDEO_BLOCK_MIN_MINUTES = 10
 
 // ── Zaman yardımcıları ──────────────────────────────────────────────────
 export function toHHMM(min: number): string {
@@ -228,6 +258,49 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
     placedExams += 1
   }
 
+  // 2b) Playlist videoları: günün videolarının toplam süresi (5 dk'ya yuvarlı)
+  //     günün en erken boşluğundan "Video" bloğu olarak düşülür — konu
+  //     çalışmasına sayılır, soru/tekrar blokları kalan müsaitliğe yerleşir.
+  //     Müsaitliği aşan kısım kesilir (videoOverflowMinutes); toplam günlük
+  //     çalışma müsaitliği hiçbir zaman aşılmaz.
+  const videoEnd = new Map<string, { day: number; end: number }>()
+  let videoMinutes = 0
+  let videoOverflow = 0
+  for (const vd of input.videoDays ?? []) {
+    let need = Math.ceil(vd.minutes / 5) * 5
+    const iv = free.get(vd.day_of_week)
+    // Geçmiş gün (free'de yok) programlanmaz; taşma da sayılmaz.
+    if (!iv || need <= 0) continue
+    const cuts: Interval[] = []
+    for (const [a, b] of iv) {
+      if (need <= 0) break
+      const len = Math.min(b - a, need)
+      if (len < Math.min(VIDEO_BLOCK_MIN_MINUTES, need)) continue
+      cuts.push([a, a + len])
+      need -= len
+    }
+    videoOverflow += need
+    let rest = iv
+    for (const [a, b] of cuts) {
+      items.push({
+        day_of_week: vd.day_of_week,
+        start_time: toHHMM(a),
+        end_time: toHHMM(b),
+        subject_id: vd.subject_id,
+        topic_id: vd.topic_ids.length === 1 ? vd.topic_ids[0] : null,
+        assignment_id: null,
+        block_type: "konu_calisma",
+        baslik: `Video: ${vd.label}`,
+        hedef_soru: null,
+      })
+      videoMinutes += b - a
+      rest = subtractInterval(rest, [a, b + BREAK_MINUTES])
+    }
+    free.set(vd.day_of_week, rest)
+    const last = cuts.at(-1)
+    if (last) for (const t of vd.topic_ids) if (!videoEnd.has(t)) videoEnd.set(t, { day: vd.day_of_week, end: last[1] })
+  }
+
   // 3) Blok pozisyonları (seg: aynı boş aralık → arka arkaya bloklar).
   const positions: Position[] = []
   let seg = 0
@@ -260,6 +333,13 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
     .map((g) => ({ g, daysLeft: daysBetweenIso(input.weekStart < input.today ? input.today : input.weekStart, g.son_tarih) }))
     .sort((a, b) => a.daysLeft - b.daysLeft)
   for (const { g } of learning) {
+    // Konu bu hafta playlist videolarıyla çalışılıyor: ayrı konu çalışması yok,
+    // soru blokları videoların bittiği günden sonra.
+    const viaVideo = videoEnd.get(g.topic_id)
+    if (viaVideo) {
+      lectureEnd.set(g.assignment_id, viaVideo)
+      continue
+    }
     const k = g.lecture_pending ? Math.max(1, Math.ceil(KONU_CALISMA_MIN_DK / focus)) : 1
     if (budget < k) {
       if (g.lecture_pending) noLecture.add(g.assignment_id)
@@ -466,6 +546,8 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
       unplaced: remaining.length + noLecture.size,
       studyMinutes: blockMinutes,
       lectures: lectureEnd.size,
+      videoMinutes,
+      videoOverflowMinutes: videoOverflow,
     },
   }
 }

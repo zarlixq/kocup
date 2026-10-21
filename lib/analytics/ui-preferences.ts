@@ -15,6 +15,7 @@ export type UiScope =
   | "kurum_dashboard"
   | "mudur_individual_list"
   | "analiz_filter"
+  | "video_checkin"
 
 // ── Müdür dashboard: leaderboard görünürlük/sıralama tercihleri ──────────
 export type DashboardColumns = {

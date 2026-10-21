@@ -25,7 +25,9 @@ import {
   type PracticeGroupInput,
   type ProgramGoal,
   type ProgramReview,
+  type VideoDay,
 } from "@/lib/upplan/scheduler"
+import { isoWeekday, UNKNOWN_VIDEO_MINUTES } from "@/lib/resources/playlist-plan"
 
 type Client = SupabaseClient<Database>
 
@@ -55,6 +57,57 @@ export type ProgramDraftMeta = {
   unplaced: number
   studyMinutes: number
   focusMinutes: number
+  videoMinutes?: number
+  videoOverflowMinutes?: number
+}
+
+/** Program bloğu başlığı bu önekle başlıyorsa playlist video bloğudur. */
+export const VIDEO_BLOCK_PREFIX = "Video: "
+
+/**
+ * Haftanın playlist video günleri (aktif playlist, izlenmemiş, planlı).
+ * Gün × playlist başına bir kayıt; süre bilinmeyen video UNKNOWN_VIDEO_MINUTES.
+ * Programda o gün zaten video bloğu varsa (önceki onay) tekrar konmaz.
+ */
+export async function loadVideoDays(
+  db: Client,
+  studentId: string,
+  weekStart: string,
+  existing: { day_of_week: number; baslik?: string | null }[],
+): Promise<VideoDay[]> {
+  const { data, error } = await db
+    .from("student_resource_videos")
+    .select("planned_date, duration_seconds, topic_id, match_status, playlist_id, student_resource_playlists!inner(title, teacher_name, channel_title, subject_id, status)")
+    .eq("student_id", studentId)
+    .eq("watch_status", "izlenmedi")
+    .gte("planned_date", weekStart)
+    .lte("planned_date", addDaysIso(weekStart, 6))
+    .eq("student_resource_playlists.status", "aktif")
+  if (error) console.error("loadVideoDays", error)
+  const hasVideoBlock = new Set(existing.filter((i) => i.baslik?.startsWith(VIDEO_BLOCK_PREFIX)).map((i) => i.day_of_week))
+  const map = new Map<string, VideoDay & { count: number; name: string }>()
+  for (const v of data ?? []) {
+    const day = isoWeekday(v.planned_date!)
+    if (hasVideoBlock.has(day)) continue
+    const p = v.student_resource_playlists
+    const key = `${day}:${v.playlist_id}`
+    const cur = map.get(key) ?? {
+      day_of_week: day,
+      minutes: 0,
+      subject_id: p.subject_id,
+      label: "",
+      topic_ids: [],
+      count: 0,
+      name: (p.title?.trim() || p.channel_title || p.teacher_name).slice(0, 80),
+    }
+    cur.minutes += (v.duration_seconds ?? UNKNOWN_VIDEO_MINUTES * 60) / 60
+    cur.count += 1
+    if (v.topic_id && v.match_status !== "eslesmedi" && !cur.topic_ids.includes(v.topic_id)) cur.topic_ids.push(v.topic_id)
+    map.set(key, cur)
+  }
+  return Array.from(map.values())
+    .sort((a, b) => a.day_of_week - b.day_of_week)
+    .map(({ count, name, ...d }) => ({ ...d, label: `${name} (${count} video)` }))
 }
 
 export function isDraftItem(v: unknown): v is DraftItem {
@@ -89,7 +142,7 @@ export async function generateProgramDraft(
     loadMinutesPerQuestion(admin, studentId),
     admin
       .from("weekly_programs")
-      .select("id, weekly_program_items(day_of_week, start_time, end_time, assignment_id, block_type, topic_id)")
+      .select("id, weekly_program_items(day_of_week, start_time, end_time, assignment_id, block_type, topic_id, baslik)")
       .eq("student_id", studentId)
       .eq("week_start", weekStart)
       .maybeSingle(),
@@ -196,6 +249,7 @@ export async function generateProgramDraft(
     for (const t of ts ?? []) reviews.push({ topic_id: t.id, topic_name: t.name, subject_id: t.subject_id, subject_name: t.subjects?.name ?? "", due: weekStart, reason: "unutma" })
   }
 
+  const videoDays = await loadVideoDays(admin, studentId, weekStart, existingItems)
   const res = scheduleWeek({
     weekStart,
     today,
@@ -213,6 +267,7 @@ export async function generateProgramDraft(
     // Haftada zaten deneme varsa eksik kalanı eklenir; sayaç mevcut + yeni (program sayfasıyla tutarlı).
     existingExams: existingItems.filter((i) => i.block_type === "deneme").length,
     practice: Array.from(practiceGroups.values()),
+    videoDays,
   })
   const items = res.items
 

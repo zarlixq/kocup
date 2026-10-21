@@ -2,6 +2,9 @@
 
 import { useState } from "react"
 import {
+  AlertTriangle,
+  CalendarClock,
+  CalendarDays,
   Check,
   CheckCheck,
   ChevronDown,
@@ -15,6 +18,7 @@ import {
   RefreshCw,
   StickyNote,
   Trash2,
+  Wrench,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -29,8 +33,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { SearchCombobox } from "@/components/soru-cozum/search-combobox"
 import { formatClock, formatSpan } from "@/lib/resources/video-match"
-import { playlistDisplayName, youtubeWatchUrl, type PlaylistRow, type PlaylistStatus, type VideoRow } from "@/lib/resources/videos"
+import {
+  playlistDisplayName,
+  playlistSubtitle,
+  youtubeWatchUrl,
+  type PlaylistRow,
+  type PlaylistStatus,
+  type VideoRow,
+} from "@/lib/resources/videos"
 import { effectiveStatus, playlistProgress } from "@/lib/resources/video-summary"
+import { formatDateTr, offsetLabel, planStatus } from "@/lib/resources/playlist-plan"
+import { istanbulDateStr } from "@/lib/tz"
 
 type Topic = { id: string; name: string }
 
@@ -44,6 +57,12 @@ export type PlaylistHandlers = {
   confirmAll: (playlist: PlaylistRow) => void
   refresh: (playlist: PlaylistRow) => Promise<void>
   deletePlaylist: (playlist: PlaylistRow) => void
+  /** Eksik kayıt → playlist seç. */
+  fix: (playlist: PlaylistRow) => void
+  /** Planı kur / düzenle. */
+  editPlan: (playlist: PlaylistRow) => void
+  /** Geciken plan günlerini bugünden itibaren kaydır. */
+  shift: (playlist: PlaylistRow) => Promise<void>
 }
 
 const STATUS_BADGE: Record<PlaylistStatus, { label: string; cls: string }> = {
@@ -79,6 +98,10 @@ export function VideoPlaylistCard({
         : `kalan ${formatSpan(pr.remainingSeconds)}${pr.remainingUnknown ? "+" : ""}`
   const isTekli = playlist.kind === "tekli"
   const editable = !readonly && !!handlers
+  const broken = playlist.issue === "kanal_linki"
+  const today = istanbulDateStr()
+  const plan = playlist.plan ? planStatus(playlist.videos, today, playlist.plan.weekdays) : null
+  const [shifting, setShifting] = useState(false)
 
   return (
     <article className={cn("rounded-2xl border bg-white", status === "tamamlandi" ? "border-emerald-200" : "border-zinc-200")}>
@@ -109,13 +132,14 @@ export function VideoPlaylistCard({
                     {suggestions} eşleşme onay bekliyor
                   </span>
                 )}
+                {broken && (
+                  <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">Eksik kayıt</span>
+                )}
               </span>
               <span className="mt-1 block truncate font-semibold text-zinc-900" title={name}>
                 {name}
               </span>
-              {!isTekli && playlist.title && playlist.teacher_name !== playlist.title && (
-                <span className="block truncate text-xs text-zinc-500">{playlist.teacher_name}</span>
-              )}
+              <span className="block truncate text-xs text-zinc-500">{playlistSubtitle(playlist)}</span>
             </span>
             <ChevronDown className={cn("mt-1 h-5 w-5 shrink-0 text-zinc-400 transition-transform", open && "rotate-180")} />
           </button>
@@ -127,7 +151,17 @@ export function VideoPlaylistCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {!isTekli && (
+                {broken && (
+                  <DropdownMenuItem onSelect={() => handlers.fix(playlist)}>
+                    <Wrench className="h-4 w-4" /> Düzelt (playlist seç)
+                  </DropdownMenuItem>
+                )}
+                {!isTekli && !broken && (
+                  <DropdownMenuItem onSelect={() => handlers.editPlan(playlist)}>
+                    <CalendarDays className="h-4 w-4" /> {playlist.plan ? "Planı düzenle" : "Güne yay (plan)"}
+                  </DropdownMenuItem>
+                )}
+                {!isTekli && !broken && (
                   <DropdownMenuItem
                     disabled={refreshing}
                     onSelect={async () => {
@@ -182,6 +216,53 @@ export function VideoPlaylistCard({
               setRenaming(false)
             }}
           />
+        )}
+
+        {broken && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-2 text-xs text-red-800">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex-1">
+              Bu kayıt kanal linkiyle eklenmiş; playlist&apos;in videoları gelmedi. Kanalın playlist&apos;lerinden doğru olanı seç.
+            </span>
+            {editable && (
+              <Button size="sm" variant="outline" className="h-9 shrink-0 bg-white" onClick={() => handlers.fix(playlist)}>
+                <Wrench className="h-4 w-4" /> Düzelt
+              </Button>
+            )}
+          </div>
+        )}
+
+        {plan?.planned && status !== "tamamlandi" && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+            <CalendarClock className="h-4 w-4 shrink-0 text-[#1B6B8A]" />
+            <span
+              className={cn(
+                "font-medium",
+                plan.offsetDays < 0 ? "text-red-700" : plan.offsetDays > 0 ? "text-emerald-700" : "text-zinc-900",
+              )}
+            >
+              {offsetLabel(plan.offsetDays)}
+            </span>
+            <span className="tabular-nums">Tahmini bitiş {formatDateTr(plan.estimatedEnd ?? plan.plannedEnd)}</span>
+            {plan.estimatedEnd && plan.plannedEnd && plan.estimatedEnd !== plan.plannedEnd && (
+              <span className="tabular-nums text-zinc-400">(plan: {formatDateTr(plan.plannedEnd)})</span>
+            )}
+            {editable && plan.overdue > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto h-9 bg-white"
+                disabled={shifting}
+                onClick={async () => {
+                  setShifting(true)
+                  await handlers.shift(playlist)
+                  setShifting(false)
+                }}
+              >
+                {shifting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />} Kaydır
+              </Button>
+            )}
+          </div>
         )}
 
         <div className="space-y-1">
@@ -329,9 +410,11 @@ function VideoItem({ video, topics, handlers }: { video: VideoRow; topics: Topic
                 {video.duration_seconds != null && <span className="sm:hidden">{formatClock(video.duration_seconds)} · </span>}
                 {watched && video.watched_at
                   ? `İzlendi ${new Date(video.watched_at).toLocaleDateString("tr-TR", { timeZone: "Europe/Istanbul" })}`
-                  : video.duration_seconds == null
-                    ? "Süre bilinmiyor"
-                    : null}
+                  : video.planned_date
+                    ? `Plan: ${formatDateTr(video.planned_date)}`
+                    : video.duration_seconds == null
+                      ? "Süre bilinmiyor"
+                      : null}
               </div>
             </div>
             <a

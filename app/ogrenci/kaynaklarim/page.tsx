@@ -9,6 +9,9 @@ import { loadPriorityContext } from "@/lib/resources/video-context"
 import { prioritizeVideos } from "@/lib/resources/video-priority"
 import { fetchActiveTopics } from "@/lib/curriculum/active-topics"
 import { filterProgramSubjects } from "@/lib/program/subjects"
+import { loadUpplanProfile } from "@/lib/upplan/load"
+import { availabilityMinutes, weekdaysFromAvailability } from "@/lib/resources/playlist-plan"
+import { istanbulDateStr } from "@/lib/tz"
 
 export const metadata = { title: "Kaynaklarım — KoçUp" }
 
@@ -17,13 +20,14 @@ export default async function KaynaklarimPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const userId = user!.id
 
-  const [view, comparison, playlists, priorityCtx, { data: student }, { data: allSubjects }] = await Promise.all([
+  const [view, comparison, playlists, priorityCtx, { data: student }, { data: allSubjects }, upplan] = await Promise.all([
     loadStudentResourcesView(supabase, userId),
     buildResourceComparisonData(supabase, userId),
     loadPlaylists(supabase, userId),
     loadPriorityContext(supabase, userId),
     supabase.from("students").select("grade").eq("id", userId).maybeSingle(),
     supabase.from("subjects").select("id, name, exam_type, grade, order").order("order"),
+    loadUpplanProfile(supabase, userId),
   ])
   const subjectIds = Array.from(new Set(playlists.map((p) => p.subject_id)))
   const [topics, stats] = await Promise.all([
@@ -37,6 +41,14 @@ export default async function KaynaklarimPage() {
   const videoSubjects = filterProgramSubjects(allSubjects ?? [], student?.grade)
     .map((s) => ({ id: s.id, name: s.name }))
     .sort((a, b) => a.name.localeCompare(b.name, "tr"))
+
+  // Playlist planı varsayılanları: UpPlan müsaitlik ızgarası (yoksa her gün).
+  const hasGrid = !!upplan && Object.keys(upplan.availability).length > 0
+  const planContext = {
+    today: istanbulDateStr(),
+    weekdays: weekdaysFromAvailability(upplan?.availability),
+    availability: hasGrid ? availabilityMinutes(upplan!.availability) : null,
+  }
 
   return (
     <div className="space-y-8">
@@ -60,6 +72,7 @@ export default async function KaynaklarimPage() {
         topicsBySubject={topicsBySubject}
         suggestions={prioritizeVideos(playlists, priorityCtx)}
         stats={stats}
+        planContext={planContext}
       />
 
       <SubjectComparisonBar
