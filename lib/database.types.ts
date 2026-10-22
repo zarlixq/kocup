@@ -1733,6 +1733,7 @@ export type Database = {
           playlist_id: string
           position: number
           student_id: string
+          suggested_topic_id: string | null
           thumbnail_url: string | null
           title: string
           topic_id: string | null
@@ -1753,6 +1754,7 @@ export type Database = {
           playlist_id: string
           position?: number
           student_id: string
+          suggested_topic_id?: string | null
           thumbnail_url?: string | null
           title: string
           topic_id?: string | null
@@ -1773,6 +1775,7 @@ export type Database = {
           playlist_id?: string
           position?: number
           student_id?: string
+          suggested_topic_id?: string | null
           thumbnail_url?: string | null
           title?: string
           topic_id?: string | null
@@ -1794,6 +1797,13 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_resource_videos_suggested_topic_id_fkey"
+            columns: ["suggested_topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
             referencedColumns: ["id"]
           },
           {
@@ -2949,6 +2959,45 @@ export type Database = {
           youtube_playlist_id?: string
         }
         Relationships: []
+      }
+      youtube_video_topic_corrections: {
+        Row: {
+          student_id: string
+          topic_id: string | null
+          updated_at: string
+          youtube_playlist_id: string
+          youtube_video_id: string
+        }
+        Insert: {
+          student_id: string
+          topic_id?: string | null
+          updated_at?: string
+          youtube_playlist_id: string
+          youtube_video_id: string
+        }
+        Update: {
+          student_id?: string
+          topic_id?: string | null
+          updated_at?: string
+          youtube_playlist_id?: string
+          youtube_video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_video_topic_corrections_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "youtube_video_topic_corrections_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

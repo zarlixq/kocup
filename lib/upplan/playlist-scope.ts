@@ -22,7 +22,7 @@ export async function loadPlaylistScope(db: Client, studentId: string): Promise<
   if (!lists?.length) return { topics: {}, subjects: {} }
   const { data: videos, error: ve } = await db
     .from("student_resource_videos")
-    .select("playlist_id, topic_id, match_status, plan_day, planned_date, watch_status, position, topics(subject_id)")
+    .select("playlist_id, topic_id, match_status, plan_day, planned_date, watch_status, position, topics!student_resource_videos_topic_id_fkey(subject_id)")
     .eq("student_id", studentId)
     .in("playlist_id", lists.map((l) => l.id))
     .range(0, 4999)

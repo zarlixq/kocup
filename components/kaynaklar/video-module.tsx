@@ -22,6 +22,7 @@ import {
   deleteVideo,
   markVideo,
   refreshPlaylist,
+  reviewVideoSuggestions,
   setVideoNote,
   setVideoTopic,
   shiftVideoPlan,
@@ -123,6 +124,12 @@ export function VideoModule({
     },
     confirmAll(playlist) {
       run({ type: "confirm", id: playlist.id }, () => confirmPlaylistSuggestions(playlist.id), () => toast.success("Eşleşmeler onaylandı."))
+    },
+    async reviewSuggestions(playlist, approve, reject) {
+      const res = await reviewVideoSuggestions(playlist.id, { approve, reject })
+      if (!res.success) return void toast.error(res.error ?? "Kaydedilemedi.")
+      const { approved = 0, rejected = 0 } = res.data ?? {}
+      toast.success([approved && `${approved} eşleşme onaylandı`, rejected && `${rejected} öneri reddedildi`].filter(Boolean).join(", ") + ".")
     },
     async refresh(playlist) {
       const res = await refreshPlaylist(playlist.id)

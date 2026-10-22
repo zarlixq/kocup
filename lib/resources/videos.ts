@@ -27,6 +27,9 @@ export type VideoRow = {
   note: string | null
   plan_day: number | null
   planned_date: string | null
+  /** Güveni düşük otomatik eşleşme: bağlı değil, öğrenci onayı bekliyor. */
+  suggested_topic_id: string | null
+  suggested_topic_name: string | null
 }
 
 export type PlaylistStatus = "aktif" | "duraklatildi" | "tamamlandi"
@@ -123,7 +126,7 @@ export async function loadPlaylists(db: Client, studentId: string): Promise<Play
     db
       .from("student_resource_videos")
       .select(
-        "id, playlist_id, youtube_video_id, title, position, topic_id, match_status, watch_status, understanding, watched_at, duration_seconds, thumbnail_url, note, plan_day, planned_date, topics(name)",
+        "id, playlist_id, youtube_video_id, title, position, topic_id, match_status, watch_status, understanding, watched_at, duration_seconds, thumbnail_url, note, plan_day, planned_date, suggested_topic_id, topics!student_resource_videos_topic_id_fkey(name), suggested:topics!student_resource_videos_suggested_topic_id_fkey(name)",
       )
       .eq("student_id", studentId)
       .order("position")
@@ -149,6 +152,8 @@ export async function loadPlaylists(db: Client, studentId: string): Promise<Play
       note: v.note,
       plan_day: v.plan_day,
       planned_date: v.planned_date,
+      suggested_topic_id: v.suggested_topic_id,
+      suggested_topic_name: v.suggested?.name ?? null,
     }
     ;(byList.get(v.playlist_id) ?? byList.set(v.playlist_id, []).get(v.playlist_id)!).push(row)
   }

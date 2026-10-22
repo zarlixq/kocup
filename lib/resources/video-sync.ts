@@ -1,7 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/database.types"
 import { fetchActiveTopics } from "@/lib/curriculum/active-topics"
-import { isPlaceholderTitle, matchVideoTopic } from "@/lib/resources/video-match"
+import { isPlaceholderTitle } from "@/lib/resources/video-match"
+import { matchPlaylistVideos, type MatchTopic, type TopicCorrection } from "@/lib/resources/video-topic-match"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 import { getPlaylist, type YoutubePlaylistMeta } from "@/lib/resources/youtube"
 import { RELATED_VIDEO_SUBJECTS } from "@/lib/upplan/config"
 
@@ -14,35 +16,79 @@ export type NewVideo = { videoId: string; title: string; position: number; durat
 export type VideoPatch = { title?: string; duration_seconds?: number; thumbnail_url?: string; position?: number }
 
 /** Eşleştirme adayları: playlist'in dersi + kardeş dersler (RELATED_VIDEO_SUBJECTS). */
-export async function loadMatchTopics(db: Client, subjectId: string): Promise<{ own: { id: string; name: string }[]; related: { id: string; name: string }[] }> {
+export async function loadMatchTopics(db: Client, subjectId: string): Promise<MatchTopic[]> {
   const { data: subjects } = await db.from("subjects").select("id, name")
   const name = subjects?.find((s) => s.id === subjectId)?.name ?? ""
   const relatedIds = (subjects ?? []).filter((s) => (RELATED_VIDEO_SUBJECTS[name] ?? []).includes(s.name)).map((s) => s.id)
-  const [own, ...rest] = await Promise.all([subjectId, ...relatedIds].map((id) => fetchActiveTopics(db, { subjectId: id })))
-  return { own, related: rest.flat() }
+  const lists = await Promise.all([subjectId, ...relatedIds].map((id) => fetchActiveTopics(db, { subjectId: id })))
+  return lists.flatMap((list, i) => list.map((t) => ({ id: t.id, name: t.name, own: i === 0 })))
 }
 
-/** Kendi dersindeki eşleşme; kardeş dersteki yalnız puanı açıkça yüksekse. */
-export function matchVideoTopicRelated(title: string, topics: Awaited<ReturnType<typeof loadMatchTopics>>): { topic_id: string; score: number } | null {
-  const own = matchVideoTopic(title, topics.own)
-  const rel = topics.related.length ? matchVideoTopic(title, topics.related) : null
-  return rel && (!own || rel.score > own.score) ? rel : own
+/** Aynı YouTube playlist'i için öğrenci düzeltmeleri (global; yalnız service role okur). */
+export async function loadTopicCorrections(youtubePlaylistId: string | null): Promise<TopicCorrection[]> {
+  if (!youtubePlaylistId) return []
+  const { data, error } = await supabaseAdmin()
+    .from("youtube_video_topic_corrections")
+    .select("youtube_video_id, topic_id, updated_at")
+    .eq("youtube_playlist_id", youtubePlaylistId)
+    .range(0, 4999)
+  if (error) console.error("loadTopicCorrections", error)
+  return data ?? []
 }
 
-/** Videoları ekler (aynı playlist'te tekrar eden atlanır) + konu eşleştirme önerisi. */
+/**
+ * Öğrencinin elle eşleştirmesini global öneri tablosuna yazar (playlist + video
+ * + öğrenci başına son karar; topic_id null = konusuz). Tekli videolar ve
+ * YouTube'a bağlı olmayan playlist'ler atlanır. Best-effort.
+ */
+export async function recordTopicCorrections(studentId: string, videoIds: string[]): Promise<void> {
+  if (videoIds.length === 0) return
+  const admin = supabaseAdmin()
+  const { data, error } = await admin
+    .from("student_resource_videos")
+    .select("youtube_video_id, topic_id, match_status, student_resource_playlists!inner(kind, youtube_playlist_id)")
+    .eq("student_id", studentId)
+    .in("id", videoIds)
+  if (error) return void console.error("recordTopicCorrections", error)
+  const rows = (data ?? [])
+    .filter((v) => v.student_resource_playlists.kind === "playlist" && v.student_resource_playlists.youtube_playlist_id)
+    .map((v) => ({
+      youtube_playlist_id: v.student_resource_playlists.youtube_playlist_id!,
+      youtube_video_id: v.youtube_video_id,
+      student_id: studentId,
+      topic_id: v.match_status === "eslesmedi" ? null : v.topic_id,
+      updated_at: new Date().toISOString(),
+    }))
+  if (!rows.length) return
+  const { error: ue } = await admin.from("youtube_video_topic_corrections").upsert(rows)
+  if (ue) console.error("recordTopicCorrections upsert", ue)
+}
+
+/**
+ * Videoları ekler (aynı playlist'te tekrar eden atlanır) + konu eşleştirmesi
+ * (video-topic-match.ts): güvenli eşleşme bağlanır ('oneri'), güvensiz eşleşme
+ * bağlanmaz, "onay bekliyor" önerisi olur (suggested_topic_id).
+ */
 export async function insertVideos(
   db: Client,
   studentId: string,
   playlistId: string,
   subjectId: string,
   videos: NewVideo[],
-): Promise<{ inserted: number; matched: number } | { error: string }> {
-  if (videos.length === 0) return { inserted: 0, matched: 0 }
-  const topics = await loadMatchTopics(db, subjectId)
+): Promise<{ inserted: number; matched: number; pending: number } | { error: string }> {
+  if (videos.length === 0) return { inserted: 0, matched: 0, pending: 0 }
+  const [topics, { data: list }] = await Promise.all([
+    loadMatchTopics(db, subjectId),
+    db.from("student_resource_playlists").select("kind, youtube_playlist_id").eq("id", playlistId).maybeSingle(),
+  ])
+  const corrections = list?.kind === "playlist" ? await loadTopicCorrections(list.youtube_playlist_id) : []
+  const matches = matchPlaylistVideos(videos.map((v) => ({ videoId: v.videoId, title: v.title })), topics, corrections)
   let matched = 0
+  let pending = 0
   const rows = videos.map((v) => {
-    const m = matchVideoTopicRelated(v.title, topics)
-    if (m) matched += 1
+    const m = matches.get(v.videoId) ?? null
+    if (m?.confident) matched += 1
+    else if (m) pending += 1
     return {
       student_id: studentId,
       playlist_id: playlistId,
@@ -51,8 +97,9 @@ export async function insertVideos(
       position: v.position,
       duration_seconds: v.durationSeconds,
       thumbnail_url: v.thumbnailUrl,
-      topic_id: m?.topic_id ?? null,
-      match_status: m ? "oneri" : "eslesmedi",
+      topic_id: m?.confident ? m.topic_id : null,
+      suggested_topic_id: m && !m.confident ? m.topic_id : null,
+      match_status: m?.confident ? "oneri" : "eslesmedi",
       match_score: m?.score ?? null,
     }
   })
@@ -64,7 +111,7 @@ export async function insertVideos(
     console.error("insertVideos", error)
     return { error: "Videolar kaydedilemedi." }
   }
-  return { inserted: data?.length ?? 0, matched }
+  return { inserted: data?.length ?? 0, matched, pending }
 }
 
 /**

@@ -456,3 +456,29 @@ export const RELATED_VIDEO_SUBJECTS: Record<string, readonly string[]> = {
   "AYT Matematik": ["AYT Geometri"],
   "AYT Geometri": ["AYT Matematik"],
 }
+
+/**
+ * Video konu eşleştirmesi (lib/resources/video-topic-match.ts):
+ * yüksek güven eşiği ve en iyi iki aday arasındaki asgari fark. Altında kalan
+ * eşleşme videoyu konuya bağlamaz, "onay bekliyor" önerisi olur.
+ */
+export const VIDEO_MATCH_HIGH_SCORE = 0.8
+export const VIDEO_MATCH_MARGIN = 0.15
+
+/**
+ * Konu adı başlıkta geçmediğinde müfredat eş anlamlıları (konu adı → ifade).
+ * İfade, temizlenmiş başlıkta kelime başından itibaren aranır (Türkçe
+ * karakterler sadeleştirilir; "yas problem" → "Yaş Problemleri 1").
+ */
+export const VIDEO_TOPIC_ALIASES: Record<string, readonly string[]> = {
+  "Temel Kavramlar": ["temel islem", "pozitif negatif", "faktoriyel", "sayi kumeleri"],
+  "Asal Sayılar": ["asal carpan"],
+  "Denklem Çözme": ["1. dereceden denklem", "birinci dereceden denklem"],
+  "Sayı ve Kesir Problemleri": ["denklem kurma", "sayi problem", "kesir problem"],
+  "Yaş ve Yüzde Problemleri": ["yas problem", "yuzde problem"],
+  "Kar - Zarar ve Faiz Problemleri": ["kar zarar", "faiz problem"],
+  "İşçi - Havuz Problemleri": ["isci", "havuz problem"],
+  "Rutin Olmayan Problemler": ["periyodik", "rutin olmayan"],
+  "Kümeler": ["kartezyen"],
+  "Permütasyon - Kombinasyon": ["permutasyon", "kombinasyon", "binom"],
+}

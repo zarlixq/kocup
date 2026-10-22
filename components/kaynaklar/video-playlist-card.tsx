@@ -44,6 +44,7 @@ import {
 import { effectiveStatus, playlistProgress } from "@/lib/resources/video-summary"
 import { formatDateTr, offsetLabel, planStatus } from "@/lib/resources/playlist-plan"
 import { istanbulDateStr } from "@/lib/tz"
+import { PendingMatches } from "@/components/kaynaklar/pending-matches"
 
 type Topic = { id: string; name: string }
 
@@ -63,6 +64,8 @@ export type PlaylistHandlers = {
   editPlan: (playlist: PlaylistRow) => void
   /** Geciken plan günlerini bugünden itibaren kaydır. */
   shift: (playlist: PlaylistRow) => Promise<void>
+  /** Onay bekleyen eşleşmeler: toplu onay / ret. */
+  reviewSuggestions: (playlist: PlaylistRow, approve: string[], reject: string[]) => Promise<void>
 }
 
 const STATUS_BADGE: Record<PlaylistStatus, { label: string; cls: string }> = {
@@ -87,7 +90,9 @@ export function VideoPlaylistCard({
   const [open, setOpen] = useState(status === "aktif")
   const [renaming, setRenaming] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  // 'oneri' = güvenli otomatik eşleşme (bağlı); suggested = güvensiz, onay bekliyor (bağlı değil).
   const suggestions = playlist.videos.filter((v) => v.match_status === "oneri").length
+  const pending = playlist.videos.filter((v) => v.suggested_topic_id && !v.topic_id)
   const pct = pr.total ? Math.round((pr.watched / pr.total) * 100) : 0
   const name = playlistDisplayName(playlist)
   const remaining =
@@ -127,9 +132,14 @@ export function VideoPlaylistCard({
                 <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", STATUS_BADGE[status].cls)}>
                   {STATUS_BADGE[status].label}
                 </span>
-                {suggestions > 0 && (
+                {pending.length > 0 && (
                   <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                    {suggestions} eşleşme onay bekliyor
+                    {pending.length} eşleşme onay bekliyor
+                  </span>
+                )}
+                {suggestions > 0 && (
+                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                    {suggestions} otomatik eşleşme
                   </span>
                 )}
                 {broken && (
@@ -195,7 +205,7 @@ export function VideoPlaylistCard({
                 )}
                 {suggestions > 0 && (
                   <DropdownMenuItem onSelect={() => handlers.confirmAll(playlist)}>
-                    <CheckCheck className="h-4 w-4" /> Konu önerilerini onayla
+                    <CheckCheck className="h-4 w-4" /> Otomatik eşleşmeleri onayla
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
@@ -288,6 +298,10 @@ export function VideoPlaylistCard({
           <NextUp video={pr.next} onWatched={editable ? () => handlers.toggleWatched(pr.next!) : undefined} />
         )}
       </header>
+
+      {editable && pending.length > 0 && (
+        <PendingMatches key={pending.map((v) => v.id).join(",")} videos={pending} onReview={(a, r) => handlers.reviewSuggestions(playlist, a, r)} />
+      )}
 
       {open && (
         <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
@@ -442,6 +456,9 @@ function VideoItem({ video, topics, handlers }: { video: VideoRow; topics: Topic
               </div>
             ) : (
               <span className="text-xs text-zinc-600">{video.topic_name ?? "Konu eşleşmedi"}</span>
+            )}
+            {!video.topic_id && video.suggested_topic_name && (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-800">Öneri: {video.suggested_topic_name} · onay bekliyor</span>
             )}
             {handlers && video.match_status === "oneri" && video.topic_id && (
               <button

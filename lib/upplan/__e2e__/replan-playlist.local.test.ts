@@ -5,13 +5,16 @@
 // Sıra: önce program taslağı (onaylı yol haritası gerekir), sonra yol haritası taslağı.
 // Çalıştırma: E2E=1 REPLAN=1 npx vitest run lib/upplan/__e2e__/replan-playlist.local.test.ts
 // Kuru:       E2E=1 REPLAN=dry npx vitest run lib/upplan/__e2e__/replan-playlist.local.test.ts
+// Uygula:     E2E=1 REPLAN=apply [STUDENT=<uuid>] … → yol haritası yeniden hesaplanıp UYGULANIR
+//             (koçsuz öğrenci; hedefler silinmez, kuyrukta kalmayanlar iptal), ardından bu
+//             haftanın programı "yeniden oluştur" taslağı olarak üretilir (onayı öğrenci verir).
 import { describe, expect, it } from "vitest"
 import { writeFileSync } from "node:fs"
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/database.types"
 import { loadEnv } from "../../../scripts/lib/env.mjs"
 import { istanbulDateStr, istanbulWeekStartStr } from "@/lib/tz"
-import { generateRoadmapDraft } from "@/lib/upplan/roadmap-service"
+import { applyRoadmap, generateRoadmapDraft, syncRoadmapProgress } from "@/lib/upplan/roadmap-service"
 import { generateProgramDraft } from "@/lib/upplan/program-service"
 
 loadEnv()
@@ -33,7 +36,8 @@ describe.runIf(MODE)("playlist sırası: yeniden hesaplama", () => {
     if (error) throw error
     const { data: users } = await admin.auth.admin.listUsers({ perPage: 1000 })
     const testId = users.users.find((u) => u.email === TEST_EMAIL)?.id
-    const students = Array.from(new Set((lists ?? []).map((l) => l.student_id))).filter((id) => id !== testId)
+    const only = process.env.STUDENT
+    const students = Array.from(new Set((lists ?? []).map((l) => l.student_id))).filter((id) => id !== testId && (!only || id === only))
     const today = istanbulDateStr()
     const week = istanbulWeekStartStr()
     const out: Record<string, unknown>[] = []
@@ -41,6 +45,28 @@ describe.runIf(MODE)("playlist sırası: yeniden hesaplama", () => {
       const { data: rm } = await admin.from("upplan_roadmaps").select("status").eq("student_id", id).maybeSingle()
       const row: Record<string, unknown> = { student: id, roadmapBefore: rm?.status ?? "yok" }
       if (MODE === "dry" || !rm) {
+        out.push(row)
+        continue
+      }
+      if (MODE === "apply") {
+        const draft = await generateRoadmapDraft(admin, id)
+        if ("error" in draft) throw new Error(draft.error)
+        if (draft.coached) {
+          row.roadmap = "koca_onerildi (koç onaylar; program üretilmedi)"
+          out.push(row)
+          continue
+        }
+        const ap = await applyRoadmap(admin, id, id)
+        if (ap.error) throw new Error(ap.error)
+        const events = await syncRoadmapProgress(admin, id, today)
+        const prog = await generateProgramDraft(admin, id, week, today, { replace: true })
+        row.roadmap = {
+          status: "onaylandi",
+          playlistTopics: draft.payload.items.filter((i) => i.playlist).length,
+          active: draft.payload.items.filter((i) => i.status === "aktif").map((i) => `${i.subject_name}: ${i.topic_name}${i.playlist ? ` [${i.playlist.label}]` : ""}`),
+          opened: events.map((e) => `${e.kind}: ${e.topic_name}`),
+        }
+        row.program = "error" in prog ? prog.error : { items: prog.items.map((i) => `${i.day_of_week} ${i.start_time}-${i.end_time} ${i.baslik}`), meta: prog.meta }
         out.push(row)
         continue
       }

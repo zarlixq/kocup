@@ -195,7 +195,7 @@ export async function loadVideoAgenda(db: Client, studentId: string, today: stri
     db
       .from("student_resource_videos")
       .select(
-        "id, playlist_id, youtube_video_id, title, duration_seconds, planned_date, watch_status, understanding, position, topics(name), student_resource_playlists!inner(title, teacher_name, channel_title, status, subjects(name))",
+        "id, playlist_id, youtube_video_id, title, duration_seconds, planned_date, watch_status, understanding, position, topics!student_resource_videos_topic_id_fkey(name), student_resource_playlists!inner(title, teacher_name, channel_title, status, subjects(name))",
       )
       .eq("student_id", studentId)
       .lte("planned_date", today)

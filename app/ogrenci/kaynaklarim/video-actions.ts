@@ -20,7 +20,14 @@ import { detectDayStructure, PLAN_MODES, type DayStructure } from "@/lib/resourc
 import { applyPlan, extendPlan, shiftPlans, type PlanInput } from "@/lib/resources/playlist-plan-service"
 import { istanbulDateStr } from "@/lib/tz"
 import { openWatchedPlaylistGoalsSafe, syncPlaylistGoalsSafe } from "@/lib/upplan/roadmap-service"
-import { insertVideos, linkPlaylistToYoutube, syncYoutubeVideos, writePatches, type VideoPatch } from "@/lib/resources/video-sync"
+import {
+  insertVideos,
+  linkPlaylistToYoutube,
+  recordTopicCorrections,
+  syncYoutubeVideos,
+  writePatches,
+  type VideoPatch,
+} from "@/lib/resources/video-sync"
 
 type ActionResult<T = undefined> = { success: boolean; error?: string; data?: T }
 
@@ -585,17 +592,78 @@ export async function setVideoTopic(videoId: string, topicId: string | null): Pr
   if (!auth.ok) return { success: false, error: auth.error }
   const { data, error } = await auth.supabase
     .from("student_resource_videos")
-    .update({ topic_id: topicId, match_status: topicId ? "onaylandi" : "eslesmedi" })
+    .update({ topic_id: topicId, match_status: topicId ? "onaylandi" : "eslesmedi", suggested_topic_id: null })
     .eq("id", videoId)
     .eq("student_id", auth.userId)
     .select("id")
   if (error || !data?.length) return { success: false, error: "Eşleşme kaydedilemedi." }
+  // Elle eşleştirme aynı playlist'i ekleyecek öğrencilere öneri olur (global tablo).
+  await recordTopicCorrections(auth.userId, [videoId])
   if (topicId) await syncLearnedFromVideos(auth.userId, topicId)
   revalidateVideos()
   return { success: true }
 }
 
 /** Playlist'teki tüm otomatik eşleşme önerilerini onayla. */
+const reviewSchema = z.object({
+  approve: z.array(z.string().uuid()).max(1000),
+  reject: z.array(z.string().uuid()).max(1000),
+})
+
+/**
+ * Onay bekleyen eşleşmeler (suggested_topic_id): onaylananlar önerilen konuya
+ * bağlanır ve öğrenci düzeltmesi olarak global öneri tablosuna yazılır;
+ * reddedilenlerin önerisi kalkar (video eşleşmemiş kalır).
+ */
+export async function reviewVideoSuggestions(playlistId: string, input: unknown): Promise<ActionResult<{ approved: number; rejected: number }>> {
+  try {
+    if (!z.string().uuid().safeParse(playlistId).success) return { success: false, error: "Geçersiz playlist." }
+    const parsed = reviewSchema.safeParse(input)
+    if (!parsed.success) return { success: false, error: "Geçersiz seçim." }
+    const auth = await requireStudent()
+    if (!auth.ok) return { success: false, error: auth.error }
+    const { approve, reject } = parsed.data
+    const { data: rows, error } = await auth.supabase
+      .from("student_resource_videos")
+      .select("id, suggested_topic_id")
+      .eq("playlist_id", playlistId)
+      .eq("student_id", auth.userId)
+      .in("id", approve.length ? approve : ["00000000-0000-0000-0000-000000000000"])
+      .not("suggested_topic_id", "is", null)
+    if (error) return { success: false, error: "Öneriler okunamadı." }
+    const byTopic = new Map<string, string[]>()
+    for (const r of rows ?? []) (byTopic.get(r.suggested_topic_id!) ?? byTopic.set(r.suggested_topic_id!, []).get(r.suggested_topic_id!)!).push(r.id)
+    for (const [topicId, ids] of byTopic) {
+      const { error: ue } = await auth.supabase
+        .from("student_resource_videos")
+        .update({ topic_id: topicId, match_status: "onaylandi", suggested_topic_id: null })
+        .in("id", ids)
+        .eq("student_id", auth.userId)
+      if (ue) return { success: false, error: "Onaylanamadı." }
+    }
+    let rejected = 0
+    if (reject.length) {
+      const { data: rj, error: re } = await auth.supabase
+        .from("student_resource_videos")
+        .update({ suggested_topic_id: null })
+        .in("id", reject)
+        .eq("playlist_id", playlistId)
+        .eq("student_id", auth.userId)
+        .select("id")
+      if (re) return { success: false, error: "Reddedilemedi." }
+      rejected = rj?.length ?? 0
+    }
+    const approvedIds = Array.from(byTopic.values()).flat()
+    await recordTopicCorrections(auth.userId, approvedIds)
+    for (const topicId of byTopic.keys()) await syncLearnedFromVideos(auth.userId, topicId)
+    revalidateVideos()
+    return { success: true, data: { approved: approvedIds.length, rejected } }
+  } catch (e) {
+    console.error("reviewVideoSuggestions", e)
+    return { success: false, error: GENERIC_ERROR }
+  }
+}
+
 export async function confirmPlaylistSuggestions(playlistId: string): Promise<ActionResult<{ count: number }>> {
   if (!z.string().uuid().safeParse(playlistId).success) return { success: false, error: "Geçersiz playlist." }
   const auth = await requireStudent()

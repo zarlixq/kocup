@@ -23,6 +23,8 @@ function video(id: string, position: number, extra: Partial<VideoRow> = {}): Vid
     note: null,
     plan_day: null,
     planned_date: null,
+    suggested_topic_id: null,
+    suggested_topic_name: null,
     ...extra,
   }
 }

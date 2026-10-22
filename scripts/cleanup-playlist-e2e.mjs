@@ -36,6 +36,7 @@ const plan = [
   ["upplan_notifications", "student_id"],
   ["topic_assignments", "student_id"],
   ["upplan_roadmaps", "student_id"],
+  ["youtube_video_topic_corrections", "student_id"],
   ["student_resource_videos", "student_id"],
   ["student_resource_playlists", "student_id"],
   ["user_ui_preferences", "user_id"],
@@ -54,6 +55,7 @@ const control = [
   "upplan_program_drafts",
   "weekly_programs",
   "weekly_program_items",
+  "youtube_video_topic_corrections",
 ]
 const before = Object.fromEntries(await Promise.all(control.map(async (t) => [t, await count(t)])))
 console.log("Toplam (önce):", before)
