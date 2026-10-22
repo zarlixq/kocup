@@ -117,8 +117,8 @@ export async function saveSelfAssessments(items: unknown): Promise<ActionResult>
   }
 }
 
-/** Kurulum adımı (yalnız ileri; "bitti" kurulumu tamamlar). */
-export async function advanceSetup(step: unknown): Promise<ActionResult> {
+/** Kurulum adımı (yalnız ileri; "bitti" kurulumu tamamlar). firstCompletion → dönüşüm olayı. */
+export async function advanceSetup(step: unknown): Promise<ActionResult<{ firstCompletion: boolean }>> {
   try {
     const parsed = z.enum(["tarama", "deneme", "bitti"]).safeParse(step)
     if (!parsed.success) return { success: false, error: "Geçersiz adım." }
@@ -146,7 +146,7 @@ export async function advanceSetup(step: unknown): Promise<ActionResult> {
       return { success: false, error: "Kaydedilemedi, tekrar dene." }
     }
     revalidateUpplan(auth.userId)
-    return { success: true }
+    return { success: true, data: { firstCompletion: parsed.data === "bitti" && !existing.completed_at } }
   } catch (e) {
     console.error("advanceSetup", e)
     return { success: false, error: "Bir hata oluştu, tekrar deneyin." }

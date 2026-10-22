@@ -15,6 +15,9 @@ const nextConfig = {
     return [
       { source: "/kvkk", destination: "/kvkk-aydinlatma", permanent: true },
       { source: "/kullanim-kosullari", destination: "/kullanim-sartlari", permanent: true },
+      // Ücretsiz kayıt /ucretsiz'e taşındı (UTM sorgu parametreleri korunur).
+      { source: "/ucretsiz-basla", destination: "/ucretsiz", permanent: true },
+      { source: "/ucretsiz-basla/:path*", destination: "/ucretsiz/:path*", permanent: true },
     ]
   },
   images: {

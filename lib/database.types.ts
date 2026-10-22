@@ -1061,6 +1061,10 @@ export type Database = {
           referrer: string | null
           session_id: string | null
           tool_slug: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
         }
         Insert: {
           created_at?: string
@@ -1071,6 +1075,10 @@ export type Database = {
           referrer?: string | null
           session_id?: string | null
           tool_slug?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
         }
         Update: {
           created_at?: string
@@ -1081,6 +1089,10 @@ export type Database = {
           referrer?: string | null
           session_id?: string | null
           tool_slug?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
         }
         Relationships: []
       }
@@ -1498,39 +1510,48 @@ export type Database = {
         Row: {
           alan: string | null
           created_at: string
+          email_verified_at: string | null
           grade: string | null
           invitation_id: string | null
           is_minor: boolean | null
           segment: string | null
+          signup_method: string
           source: string
           student_id: string
           utm_campaign: string | null
+          utm_content: string | null
           utm_medium: string | null
           utm_source: string | null
         }
         Insert: {
           alan?: string | null
           created_at?: string
+          email_verified_at?: string | null
           grade?: string | null
           invitation_id?: string | null
           is_minor?: boolean | null
           segment?: string | null
+          signup_method?: string
           source: string
           student_id: string
           utm_campaign?: string | null
+          utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
         }
         Update: {
           alan?: string | null
           created_at?: string
+          email_verified_at?: string | null
           grade?: string | null
           invitation_id?: string | null
           is_minor?: boolean | null
           segment?: string | null
+          signup_method?: string
           source?: string
           student_id?: string
           utm_campaign?: string | null
+          utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
         }
@@ -3157,6 +3178,17 @@ export type Database = {
           p_to: string
         }
         Returns: Json
+      }
+      campaign_funnel: {
+        Args: { p_since: string }
+        Returns: {
+          first_questions: number
+          setups: number
+          signups: number
+          utm_campaign: string
+          utm_source: string
+          visits: number
+        }[]
       }
       change_student_coach: {
         Args: { p_new_coach_id: string; p_student_id: string }

@@ -21,8 +21,13 @@ const NAV_LINKS = [
 // sabit (sticky, akışta yer kaplar → içerik altında kalmaz). Scroll'a bağlı
 // göster/gizle ya da şeffaf→dolu geçiş yok. Yükseklik: mobil 64px, md+ 80px;
 // anchor bölümleri scroll-mt-20 md:scroll-mt-24 ile bunu telafi eder.
-export function Navbar() {
+// campaign: kampanya modunda birincil buton "Ücretsiz başla" (/ucretsiz), "Kurumlar için" linki.
+export function Navbar({ campaign = false }: { campaign?: boolean }) {
   const [open, setOpen] = useState(false)
+  const links = campaign
+    ? NAV_LINKS.map((l) => (l.href === "/kurumlar" ? { ...l, label: "Kurumlar için" } : l))
+    : NAV_LINKS
+  const cta = campaign ? { href: "/ucretsiz", label: "Ücretsiz başla" } : { href: "/basvuru", label: "Ücretsiz İlk Ders" }
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white border-b border-zinc-200 shadow-sm">
@@ -41,7 +46,7 @@ export function Navbar() {
 
         {/* Desktop nav */}
         <div className="hidden lg:flex items-center gap-4 xl:gap-7">
-          {NAV_LINKS.map((link) => (
+          {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -66,10 +71,10 @@ export function Navbar() {
             Koç Girişi
           </Link>
           <Link
-            href="/basvuru"
+            href={cta.href}
             className="hidden sm:inline-flex whitespace-nowrap bg-[#F97316] text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-[#ea6c10] transition-colors shadow-md shadow-orange-500/20"
           >
-            Ücretsiz İlk Ders
+            {cta.label}
           </Link>
 
           {/* Mobile menu */}
@@ -96,7 +101,7 @@ export function Navbar() {
                 />
               </div>
               <div className="flex flex-col px-2 py-3">
-                {NAV_LINKS.map((link) => (
+                {links.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
@@ -123,11 +128,11 @@ export function Navbar() {
                   Koç Girişi
                 </Link>
                 <Link
-                  href="/basvuru"
+                  href={cta.href}
                   onClick={() => setOpen(false)}
                   className="block w-full text-center bg-[#1B6B8A] text-white text-sm font-semibold px-4 py-3 rounded-full hover:bg-[#155873] transition-colors"
                 >
-                  Ücretsiz İlk Ders
+                  {cta.label}
                 </Link>
               </div>
             </SheetContent>

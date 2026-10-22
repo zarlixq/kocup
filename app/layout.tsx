@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Plus_Jakarta_Sans, Instrument_Serif } from "next/font/google"
 import { CookieConsent } from "@/components/legal/cookie-consent"
+import { COOKIE_PRECHECK_SCRIPT } from "@/lib/analytics/consent"
 import "./globals.css"
 import { getSiteUrl } from "@/lib/site-url"
 
@@ -103,8 +104,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tr" className={`${jakarta.variable} ${instrument.variable} scroll-smooth`}>
+    // suppressHydrationWarning: çerez ön-kontrol betiği html'e data-cerez ekler.
+    <html lang="tr" className={`${jakarta.variable} ${instrument.variable} scroll-smooth`} suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: COOKIE_PRECHECK_SCRIPT }} />
         {supabaseUrl && (
           <link rel="preconnect" href={supabaseUrl} crossOrigin="anonymous" />
         )}
@@ -112,8 +115,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
       <body className="antialiased font-sans">
         {children}
-        {/* Google Ads etiketi yalnız çerez onayıyla yüklenir (Çerez Politikası). */}
-        <CookieConsent />
+        {/* Google Ads etiketi ve Meta Pixel yalnız çerez onayıyla yüklenir (Çerez Politikası). */}
+        <CookieConsent metaPixelId={process.env.META_PIXEL_ID ?? null} />
       </body>
     </html>
   )

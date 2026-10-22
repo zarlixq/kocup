@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { z } from "zod"
 import { checkRateLimit, getClientIp, RATE_LIMIT_MESSAGE } from "@/lib/security/rate-limit"
 import { TURNSTILE_ERROR, TURNSTILE_FIELD, verifyTurnstile } from "@/lib/security/turnstile"
+import { isUnverifiedIndividual, requireEmailVerification } from "@/lib/auth/verification"
 
 const LoginSchema = z.object({
   email: z.string().email("Geçerli bir e-posta girin"),
@@ -53,15 +54,26 @@ async function loginWithRole(
     return { success: false, error: "E-posta veya şifre hatalı." }
   }
 
+  const userId = (await supabase.auth.getUser()).data.user!.id
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", (await supabase.auth.getUser()).data.user!.id)
+    .eq("id", userId)
     .maybeSingle()
 
   if (!profile || profile.role !== expectedRole) {
     await supabase.auth.signOut()
     return { success: false, error: "Bu hesap bu panele erişim yetkisine sahip değil." }
+  }
+
+  // Zorunlu doğrulama modu (REQUIRE_EMAIL_VERIFICATION=true): doğrulanmamış bireysel öğrenci giremez.
+  if (expectedRole === "student" && requireEmailVerification() && (await isUnverifiedIndividual(userId))) {
+    await supabase.auth.signOut()
+    return {
+      success: false,
+      error: "E-posta adresin henüz doğrulanmadı. Gelen kutunu kontrol et.",
+      unverifiedEmail: parsed.data.email,
+    }
   }
 
   redirect(redirectTo)

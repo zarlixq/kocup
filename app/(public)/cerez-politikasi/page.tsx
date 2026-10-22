@@ -42,6 +42,10 @@ export default function CerezPolitikasiPage() {
           <strong>Google Ads (_gcl_*, gtag):</strong> reklam kampanyalarımızın sonuçlarını (ör. başvuru formunun
           gönderilmesi) ölçmek için. Yalnızca çerez bildiriminde &quot;Kabul et&quot; derseniz yüklenir.
         </li>
+        <li>
+          <strong>Meta Pixel (_fbp, fbq):</strong> Facebook/Instagram reklamlarımızın sonuçlarını (ör. ücretsiz kaydın
+          tamamlanması) ölçmek için. Yalnızca çerez bildiriminde &quot;Kabul et&quot; derseniz yüklenir.
+        </li>
       </ul>
 
       <h2>3. Birinci Taraf İstatistik Çerezi</h2>
@@ -50,6 +54,10 @@ export default function CerezPolitikasiPage() {
           <strong>kup_sid:</strong> herkese açık sayfalarda anonim ziyaret oturumu kimliği (12 ay). Adınız, e-postanız
           veya IP adresiniz bu kayda yazılmaz; yalnız toplam ziyaret istatistiği için kullanılır. [Hukukçu: bu çerezin
           izne bağlı tutulması gerekip gerekmediği değerlendirilmeli.]
+        </li>
+        <li>
+          <strong>kup_utm:</strong> reklam bağlantısıyla geldiyseniz bağlantıdaki kampanya etiketleri (utm_source,
+          utm_campaign vb.; 30 gün). Hangi reklamdan kayıt olunduğunu ölçmek içindir; kişisel veri içermez.
         </li>
       </ul>
 

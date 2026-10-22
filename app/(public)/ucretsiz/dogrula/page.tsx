@@ -3,17 +3,20 @@ import Link from "next/link"
 import { MailCheck } from "lucide-react"
 import { BrandLogo } from "@/components/brand/logo"
 import { ResendVerificationForm } from "./resend-form"
+import { TrackConversion } from "@/components/analytics/track-conversion"
 
 export const metadata: Metadata = {
   title: "E-postanı Doğrula",
   robots: { index: false, follow: false },
 }
 
-export default async function DogrulaPage({ searchParams }: { searchParams: Promise<{ email?: string }> }) {
-  const { email } = await searchParams
+export default async function DogrulaPage({ searchParams }: { searchParams: Promise<{ email?: string; kayit?: string }> }) {
+  const { email, kayit } = await searchParams
 
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-4">
+      {/* Zorunlu doğrulama modunda kayıt burada tamamlanır. */}
+      {kayit === "1" && <TrackConversion event="signup" param="kayit" />}
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
           <Link href="/">

@@ -1,19 +1,22 @@
 "use client"
 
 import { usePathname } from "next/navigation"
+import { isCampaignActive } from "@/lib/campaign"
 
 export function WhatsappFab() {
   const pathname = usePathname()
   const href = "https://wa.me/905333704391?text=" + encodeURIComponent("Merhaba KoçUp")
-  // /kurumlar'da mobilde sticky demo barı var; balon onunla çakışmasın.
-  const mobileHidden = pathname === "/kurumlar" ? "hidden md:flex" : "flex"
+  // /kurumlar'da mobilde sticky demo barı var; /ucretsiz'de kayıt butonunu örtmesin.
+  const mobileHidden = pathname === "/kurumlar" || pathname === "/ucretsiz" ? "hidden md:flex" : "flex"
+  // Kampanyada ana sayfanın altında sabit "Ücretsiz başla" var; balon üstüne çıkar.
+  const bottom = pathname === "/" && isCampaignActive() ? "bottom-24" : "bottom-5"
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="WhatsApp ile iletişim"
-      className={`fixed bottom-5 right-5 md:bottom-6 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#25D366] text-white shadow-lg shadow-black/20 ${mobileHidden} items-center justify-center hover:scale-110 transition-transform`}
+      className={`fixed ${bottom} right-5 md:bottom-6 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#25D366] text-white shadow-lg shadow-black/20 ${mobileHidden} items-center justify-center hover:scale-110 transition-transform`}
     >
       <svg
         viewBox="0 0 32 32"

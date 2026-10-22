@@ -17,7 +17,7 @@ function clean(value: unknown, max: number): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { path?: unknown; eventType?: unknown; toolSlug?: unknown }
+  let body: { path?: unknown; eventType?: unknown; toolSlug?: unknown; utm?: unknown }
   try {
     body = (await req.json()) as typeof body
   } catch {
@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
 
   const eventType = body.eventType === "tool_use" ? "tool_use" : "page_view"
   const toolSlug = clean(body.toolSlug, 64)
+  const utm = typeof body.utm === "object" && body.utm !== null ? (body.utm as Record<string, unknown>) : {}
 
   const cookieStore = await cookies()
   const hdrs = await headers()
@@ -57,6 +58,10 @@ export async function POST(req: NextRequest) {
     referrer,
     session_id: sessionId,
     is_authenticated: isAuthenticated,
+    utm_source: clean(utm.utm_source, 100),
+    utm_medium: clean(utm.utm_medium, 100),
+    utm_campaign: clean(utm.utm_campaign, 100),
+    utm_content: clean(utm.utm_content, 100),
   })
 
   const res = NextResponse.json({ ok: true })

@@ -3,12 +3,13 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import type { Database } from "@/lib/database.types"
 import { safeNext } from "@/lib/auth/safe-next"
+import { markEmailVerified } from "@/lib/auth/verification"
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const next = safeNext(searchParams.get("next"))
   // Öğrenci e-posta doğrulaması (next=/ogrenci/...) → hata öğrenci girişine.
-  const loginPath = next?.startsWith("/ogrenci") ? "/giris/ogrenci" : "/giris/koc"
+  const loginPath = next?.startsWith("/ogrenci") || next?.startsWith("/ucretsiz") ? "/giris/ogrenci" : "/giris/koc"
   const destination = next ?? "/sifre-belirle"
 
   // Supabase, link'i error ile geri yönlendirdiyse (otp_expired vs.) bu
@@ -44,19 +45,21 @@ export async function GET(request: NextRequest) {
 
   // Path 1: PKCE — link ?code=... ile geldi
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
       return NextResponse.redirect(
         `${origin}${loginPath}?error=${encodeURIComponent(error.code ?? "exchange_failed")}`
       )
     }
+    // E-posta bağlantısı ya da Google → e-posta sahipliği kanıtlandı (bireysel öğrenci).
+    if (data.user) await markEmailVerified(data.user.id)
     return NextResponse.redirect(`${origin}${destination}`)
   }
 
   // Path 2: Token hash — link ?token_hash=...&type=invite ile geldi
   // (Email template'i {{ .TokenHash }} kullanıyorsa)
   if (tokenHash && tokenType) {
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       type: tokenType as "invite" | "recovery" | "magiclink" | "signup" | "email_change",
       token_hash: tokenHash,
     })
@@ -65,6 +68,8 @@ export async function GET(request: NextRequest) {
         `${origin}${loginPath}?error=${encodeURIComponent(error.code ?? "verify_failed")}`
       )
     }
+    // Doğrulama / şifre sıfırlama bağlantısı e-postaya gitti → e-posta doğrulandı.
+    if (data.user) await markEmailVerified(data.user.id)
     // Şifre sıfırlama her zaman şifre belirleme ekranına gider.
     return NextResponse.redirect(`${origin}${tokenType === "recovery" ? "/sifre-belirle" : destination}`)
   }

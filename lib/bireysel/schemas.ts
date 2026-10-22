@@ -34,26 +34,44 @@ function parentRefine<T extends { is_minor: "evet" | "hayir"; accept_parent?: "o
 }
 const PARENT_MESSAGE = { message: "18 yaşından küçüksen velinin bilgisi dahilinde kullandığını onaylamalısın.", path: ["accept_parent"] }
 
+/** Durum: lise sınıfı ya da mezun (tek seçim). */
+export const DURUMLAR = [...YKS_GRADES, "mezun"] as const
+export type Durum = (typeof DURUMLAR)[number]
+
+/** Durumdan students.grade değeri. */
+export function gradeFromDurum(d: Durum): string {
+  return d === "mezun" ? "Mezun" : d
+}
+
+const utmFields = {
+  utm_source: optionalUtm,
+  utm_medium: optionalUtm,
+  utm_campaign: optionalUtm,
+  utm_content: optionalUtm,
+}
+
+const profileFields = {
+  durum: z.enum(DURUMLAR, { message: "Sınıfını ya da mezun olduğunu seç." }),
+  alan: z.enum(ALANLAR, { message: "Alanını seç." }),
+}
+
 export const signupSchema = z
   .object({
     full_name: z.string().trim().min(3, "Ad soyad en az 3 karakter olmalı.").max(120),
     email: z.string().trim().toLowerCase().email("Geçerli bir e-posta gir."),
     password: passwordSchema,
-    status: z.enum(["lise", "mezun"], { message: "Durumunu seç." }),
-    grade: z
-      .string()
-      .optional()
-      .nullable()
-      .transform((v) => (v ? v : null)),
-    alan: z.enum(ALANLAR, { message: "Alanını seç." }),
-    utm_source: optionalUtm,
-    utm_medium: optionalUtm,
-    utm_campaign: optionalUtm,
+    ...profileFields,
+    ...utmFields,
     ...consentFields,
   })
-  .refine((d) => d.status === "mezun" || (d.grade !== null && (YKS_GRADES as readonly string[]).includes(d.grade)), {
-    message: "Sınıfını seç.",
-    path: ["grade"],
+  .refine(parentRefine, PARENT_MESSAGE)
+
+/** Google ile ilk girişte eksik bilgiler (ad/e-posta Google'dan gelir). */
+export const googleCompleteSchema = z
+  .object({
+    ...profileFields,
+    ...utmFields,
+    ...consentFields,
   })
   .refine(parentRefine, PARENT_MESSAGE)
 

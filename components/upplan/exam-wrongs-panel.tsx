@@ -32,6 +32,7 @@ import { saveExamWrongsAction } from "@/app/ogrenci/denemelerim/actions"
 import { AtomPicker } from "@/components/yanlis-defteri/atom-picker"
 import { forgetAtomCatalogs, loadAtomCatalog } from "@/components/yanlis-defteri/atom-catalog-store"
 import { advanceSetup } from "@/app/ogrenci/upplan/actions"
+import { trackConversion } from "@/lib/analytics/conversions"
 
 const NO_VALUE = "__none__"
 
@@ -104,6 +105,7 @@ export function ExamWrongsPanel({
     startFinish(async () => {
       const res = await advanceSetup("bitti")
       if (!res.success) return void toast.error(res.error ?? "Kaydedilemedi.")
+      if (res.data?.firstCompletion) trackConversion("upplan_setup")
       router.push("/ogrenci/upplan")
     })
   }

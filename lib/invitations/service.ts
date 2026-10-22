@@ -202,6 +202,8 @@ export async function acceptInvitation(
       alan: null,
       is_minor: input.isMinor,
       invitation_id: inv.id,
+      // Davet bağlantısı e-postaya gittiği için e-posta doğrulanmış sayılır.
+      email_verified_at: new Date().toISOString(),
     },
   })
 

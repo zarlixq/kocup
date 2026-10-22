@@ -8,6 +8,9 @@ import HowItWorks from "@/blocks/HowItWorks"
 import Features from "@/blocks/Features"
 import IndependentCoachesCTA from "@/blocks/IndependentCoachesCTA"
 import UpPlanFreeCTA from "@/blocks/UpPlanFreeCTA"
+import CampaignHero from "@/blocks/CampaignHero"
+import { MobileStickyCTA } from "@/blocks/MobileStickyCTA"
+import { isCampaignActive } from "@/lib/campaign"
 import Pricing from "@/blocks/Pricing"
 import FAQ from "@/blocks/FAQ"
 import Contact from "@/blocks/Contact"
@@ -93,7 +96,11 @@ export const metadata: Metadata = {
   },
 }
 
+// Kampanya bitince deploy gerekmeden normal hâle dönmesi için 5 dk'da bir yeniden üretim.
+export const revalidate = 300
+
 export default async function Home() {
+  const campaign = isCampaignActive()
   const schemas = [
     organizationSchema(),
     websiteSchema(),
@@ -103,13 +110,15 @@ export default async function Home() {
   return (
     <>
       <JsonLd data={schemas} id="landing-jsonld" />
-      <Navbar />
-      <main>
-        <Hero />
+      <Navbar campaign={campaign} />
+      <main className={campaign ? "pb-20 md:pb-0" : undefined}>
+        {campaign && <CampaignHero />}
+        <Hero headingAs={campaign ? "h2" : "h1"} />
         <StatsBar />
         <HowItWorks />
         <Features />
-        <UpPlanFreeCTA />
+        {/* Kampanyada aynı içerik en üstte; tekrar etmesin. */}
+        {!campaign && <UpPlanFreeCTA />}
         <IndependentCoachesCTA />
         <Pricing />
         <FAQ />
@@ -130,6 +139,7 @@ export default async function Home() {
         </section>
         <Footer />
       </main>
+      {campaign && <MobileStickyCTA />}
     </>
   )
 }

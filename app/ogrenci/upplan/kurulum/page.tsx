@@ -9,6 +9,7 @@ import { loadScanData, loadUpplanProfile } from "@/lib/upplan/load"
 import { ProfileStep } from "@/components/upplan/setup/profile-step"
 import { ScanStep } from "@/components/upplan/setup/scan-step"
 import { ExamStep } from "@/components/upplan/setup/exam-step"
+import { TrackConversion } from "@/components/analytics/track-conversion"
 
 export const metadata = { title: "UpPlan Kurulumu — KoçUp" }
 
@@ -19,7 +20,7 @@ const STEPS: { key: Step; label: string }[] = [
   { key: "deneme", label: "Deneme" },
 ]
 
-export default async function UpplanSetupPage({ searchParams }: { searchParams: Promise<{ adim?: string }> }) {
+export default async function UpplanSetupPage({ searchParams }: { searchParams: Promise<{ adim?: string; kayit?: string }> }) {
   const sp = await searchParams
   const supabase = await createClient()
   const {
@@ -36,6 +37,8 @@ export default async function UpplanSetupPage({ searchParams }: { searchParams: 
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
+      {/* Ücretsiz kayıttan hemen sonra (?kayit=1): CompleteRegistration dönüşümü. */}
+      {sp.kayit === "1" && <TrackConversion event="signup" param="kayit" />}
       <div>
         {done && (
           <Link href="/ogrenci/upplan" className="mb-2 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900">

@@ -28,7 +28,7 @@ function LinkedinIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 const QUICK_LINKS = [
-  { href: "/ucretsiz-basla", label: "Ücretsiz Başla" },
+  { href: "/ucretsiz", label: "Ücretsiz Başla" },
   { href: "/basvuru", label: "Başvuru" },
   { href: "/araclar", label: "Ücretsiz Araçlar" },
   { href: "/kurumlar", label: "Kurumlar" },

@@ -33,7 +33,7 @@ export default async function OgrenciGirisPage({ searchParams }: { searchParams:
 
         <p className="text-center text-sm text-zinc-500 mt-6">
           Henüz hesabın yok mu?{" "}
-          <Link href="/ucretsiz-basla" className="text-[#1B6B8A] font-medium hover:underline">
+          <Link href="/ucretsiz" className="text-[#1B6B8A] font-medium hover:underline">
             Ücretsiz başla
           </Link>
         </p>

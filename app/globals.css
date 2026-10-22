@@ -97,3 +97,8 @@
     }
   }
 }
+
+/* Çerez tercihi verilmişse sunucuda render edilen bant ilk boyamada gizli (cookie-consent.tsx). */
+html[data-cerez] .cookie-banner {
+  display: none;
+}

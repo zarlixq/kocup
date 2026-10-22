@@ -11,7 +11,7 @@ import type { Database } from "@/lib/database.types"
 // Yoksa: Supabase Auth'un kendi e-posta servisine düşeriz (şablonlar Supabase
 // panelinden düzenlenir, saatlik limitlidir).
 
-export const AFTER_VERIFY_PATH = "/ogrenci/upplan/kurulum"
+export const AFTER_VERIFY_PATH = "/ogrenci"
 
 function anonClient() {
   return createSupabaseClient<Database>(
@@ -47,6 +47,10 @@ export async function sendVerificationEmail(
   })
   if (error) {
     console.error("signInWithOtp hatası:", error)
+    // Supabase aynı adrese 60 sn'de bir e-posta gönderir (kayıtta zaten bir tane gitti).
+    if (error.status === 429 || /after \d+ seconds/i.test(error.message)) {
+      return { ok: false, error: "Az önce bir doğrulama e-postası gönderdik. Gelen kutunu kontrol et ya da 1 dakika sonra tekrar dene." }
+    }
     return { ok: false, error: "Doğrulama e-postası gönderilemedi. Biraz sonra tekrar dene." }
   }
   return { ok: true }

@@ -14,6 +14,7 @@ import { deleteOwnAccount } from "@/lib/bireysel/delete-account"
 import { summarize, type IndividualStudentRow } from "@/lib/bireysel/overview"
 import { acceptInvitation, generateInviteToken, lookupInvitationToken } from "@/lib/invitations/service"
 import { istanbulDateStr } from "@/lib/tz"
+import { markEmailVerified } from "@/lib/auth/verification"
 
 loadEnv()
 type C = SupabaseClient<Database>
@@ -129,6 +130,8 @@ describe.sequential("bireysel öğrenci uçtan uca", () => {
     const verify = await s.auth.verifyOtp({ type: "magiclink", token_hash: link.properties!.hashed_token })
     expect(verify.error).toBeNull()
     expect(verify.data.user?.email_confirmed_at).toBeTruthy()
+    // /auth/callback bağlantı doğrulandıktan sonra uygulama tarafındaki bayrağı işaretler (226).
+    await markEmailVerified(signupId)
 
     // Profil, kayıt, onaylar (18 yaş altı → veli beyanı dahil 4 onay)
     const [{ data: prof }, { data: stu }, { data: cons }, { data: acq }] = await Promise.all([

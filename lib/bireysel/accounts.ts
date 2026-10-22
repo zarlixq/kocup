@@ -17,7 +17,11 @@ export type AcquisitionInfo = {
   utm_source?: string | null
   utm_medium?: string | null
   utm_campaign?: string | null
+  utm_content?: string | null
   invitation_id?: string | null
+  signup_method?: "email" | "google"
+  /** Doğrulanmış e-posta (davet bağlantısı, Google). null → yumuşak doğrulama bekliyor. */
+  email_verified_at?: string | null
 }
 
 export type CreateStudentAccountInput = {
@@ -59,11 +63,10 @@ export async function createStudentAccount(
   input: CreateStudentAccountInput,
 ): Promise<CreateStudentAccountResult> {
   const email = input.email.trim().toLowerCase()
-  const orgId = input.organizationId ?? null
 
   let grantId: string
   try {
-    grantId = await createRoleGrant(email, "student", orgId)
+    grantId = await createRoleGrant(email, "student", input.organizationId ?? null)
   } catch (err) {
     console.error("createStudentAccount grant:", err)
     return { ok: false, error: "Bir hata oluştu, tekrar deneyin." }
@@ -88,6 +91,21 @@ export async function createStudentAccount(
     return { ok: false, error: "Hesap oluşturulamadı, tekrar deneyin." }
   }
   const userId = created.user.id
+
+  return provisionStudent(admin, { ...input, userId, email })
+}
+
+export type ProvisionStudentInput = Omit<CreateStudentAccountInput, "password" | "emailConfirmed"> & { userId: string }
+
+/**
+ * Var olan auth kullanıcısı için öğrenci satırları (profil yoksa profil, students,
+ * geliş kaydı, onaylar). Ücretsiz kayıt ve Google ile ilk giriş ortak yolu.
+ * Hata olursa auth kullanıcısı silinir (yarım hesap kalmaz).
+ */
+export async function provisionStudent(admin: Admin, input: ProvisionStudentInput): Promise<CreateStudentAccountResult> {
+  const { userId } = input
+  const email = input.email.trim().toLowerCase()
+  const orgId = input.organizationId ?? null
 
   const rollback = async (step: string, err: unknown) => {
     console.error(`createStudentAccount ${step}:`, err)
@@ -130,7 +148,10 @@ export async function createStudentAccount(
     utm_source: a.utm_source ?? null,
     utm_medium: a.utm_medium ?? null,
     utm_campaign: a.utm_campaign ?? null,
+    utm_content: a.utm_content ?? null,
     invitation_id: a.invitation_id ?? null,
+    signup_method: a.signup_method ?? "email",
+    email_verified_at: a.email_verified_at ?? null,
   })
   if (acqErr) return rollback("acquisition", acqErr)
 

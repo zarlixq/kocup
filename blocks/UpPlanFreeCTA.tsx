@@ -73,7 +73,7 @@ export default function UpPlanFreeCTA() {
 
         <div className="mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <Link
-            href="/ucretsiz-basla"
+            href="/ucretsiz"
             className="inline-flex items-center gap-2 rounded-xl bg-[#F97316] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#ea6a0c]"
           >
             Ücretsiz başla

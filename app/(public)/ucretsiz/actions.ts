@@ -1,10 +1,14 @@
 "use server"
 
+import { after } from "next/server"
 import { redirect } from "next/navigation"
 import { supabaseAdmin } from "@/lib/supabase/admin"
-import { signupSchema } from "@/lib/bireysel/schemas"
+import { createClient } from "@/lib/supabase/server"
+import { gradeFromDurum, signupSchema } from "@/lib/bireysel/schemas"
 import { createStudentAccount } from "@/lib/bireysel/accounts"
 import { sendVerificationEmail } from "@/lib/auth/email-links"
+import { requireEmailVerification } from "@/lib/auth/verification"
+import { UTM_KEYS } from "@/lib/analytics/utm"
 import { checkRateLimit, getClientIp, RATE_LIMIT_MESSAGE } from "@/lib/security/rate-limit"
 import { TURNSTILE_ERROR, TURNSTILE_FIELD, verifyTurnstile } from "@/lib/security/turnstile"
 
@@ -13,10 +17,12 @@ export type SignupState =
   | undefined
 
 const FIELDS = [
-  "full_name", "email", "password", "status", "grade", "alan",
-  "utm_source", "utm_medium", "utm_campaign",
+  "full_name", "email", "password", "durum", "alan", ...UTM_KEYS,
   "is_minor", "accept_terms", "accept_kvkk", "accept_parent",
 ] as const
+
+/** Kayıt sonrası ilk sayfa; ?kayit=1 dönüşüm olayını (CompleteRegistration) tetikler. */
+const AFTER_SIGNUP_PATH = "/ogrenci/upplan/kurulum?kayit=1"
 
 export async function signupAction(_prev: SignupState, formData: FormData): Promise<SignupState> {
   const raw = Object.fromEntries(FIELDS.map((f) => [f, formData.get(f)]))
@@ -35,13 +41,18 @@ export async function signupAction(_prev: SignupState, formData: FormData): Prom
   }
 
   const d = parsed.data
+  const strict = requireEmailVerification()
+  const firstName = d.full_name.split(" ")[0] ?? d.full_name
+  let signedIn = false
   try {
+    // Supabase hesabı onaylı açılır; doğrulama durumu student_acquisition.email_verified_at'te
+    // (zorunlu modda giriş bu kolona göre engellenir — lib/auth/verification.ts).
     const res = await createStudentAccount(supabaseAdmin(), {
       email: d.email,
       password: d.password,
       fullName: d.full_name,
-      emailConfirmed: false,
-      grade: d.status === "mezun" ? "Mezun" : d.grade,
+      emailConfirmed: true,
+      grade: gradeFromDurum(d.durum),
       acquisition: {
         source: "ucretsiz_kayit",
         segment: "yks",
@@ -50,20 +61,37 @@ export async function signupAction(_prev: SignupState, formData: FormData): Prom
         utm_source: d.utm_source,
         utm_medium: d.utm_medium,
         utm_campaign: d.utm_campaign,
+        utm_content: d.utm_content,
+        signup_method: "email",
+        email_verified_at: null,
       },
     })
     if (!res.ok) {
       return { success: false, error: res.error, field: res.code === "email_exists" ? "email" : undefined, values }
     }
 
-    const sent = await sendVerificationEmail(d.email, d.full_name.split(" ")[0] ?? d.full_name)
-    if (!sent.ok) console.error("Doğrulama e-postası gönderilemedi:", sent.error)
+    if (strict) {
+      const sent = await sendVerificationEmail(d.email, firstName)
+      if (!sent.ok) console.error("Doğrulama e-postası gönderilemedi:", sent.error)
+    } else {
+      // Yumuşak doğrulama: oturumu hemen aç, doğrulama e-postası yanıttan sonra gitsin.
+      const supabase = await createClient()
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: d.email, password: d.password })
+      if (signInErr) console.error("signupAction signIn:", signInErr)
+      signedIn = !signInErr
+      after(async () => {
+        const sent = await sendVerificationEmail(d.email, firstName)
+        if (!sent.ok) console.error("Doğrulama e-postası gönderilemedi:", sent.error)
+      })
+    }
   } catch (err) {
     console.error("signupAction:", err)
     return { success: false, error: "Bir hata oluştu, tekrar deneyin.", values }
   }
 
-  redirect(`/ucretsiz-basla/dogrula?email=${encodeURIComponent(d.email)}`)
+  if (strict) redirect(`/ucretsiz/dogrula?email=${encodeURIComponent(d.email)}&kayit=1`)
+  // Oturum açılamadıysa (beklenmez) hesap hazır; girişe yönlendir.
+  redirect(signedIn ? AFTER_SIGNUP_PATH : "/giris/ogrenci")
 }
 
 export type ResendState = { success: boolean; message: string } | undefined
@@ -86,8 +114,12 @@ export async function resendVerificationAction(_prev: ResendState, formData: For
     .maybeSingle()
   if (!profile || profile.role !== "student") return generic
 
-  const { data: authUser } = await admin.auth.admin.getUserById(profile.id)
-  if (!authUser.user || authUser.user.email_confirmed_at) return generic
+  const { data: acq } = await admin
+    .from("student_acquisition")
+    .select("email_verified_at")
+    .eq("student_id", profile.id)
+    .maybeSingle()
+  if (!acq || acq.email_verified_at) return generic
 
   const sent = await sendVerificationEmail(email, profile.full_name.split(" ")[0] ?? profile.full_name)
   if (!sent.ok) return { success: false, message: sent.error }

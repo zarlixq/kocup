@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { safeNext } from "@/lib/auth/safe-next"
+import { markVerifiedFromEmailLink } from "@/lib/auth/verification-actions"
 
 export default function CallbackClientPage() {
   const [message, setMessage] = useState("Bağlantı doğrulanıyor...")
@@ -51,6 +52,9 @@ export default function CallbackClientPage() {
           )
           return
         }
+
+        // E-posta bağlantısıyla gelindiyse bireysel öğrencinin e-postası doğrulandı.
+        await markVerifiedFromEmailLink()
 
         // Hash'i URL'den temizle (token bar'da kalmasın)
         window.history.replaceState(null, "", "/auth/callback/client")

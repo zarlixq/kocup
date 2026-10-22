@@ -8,6 +8,7 @@ import { FileText, Loader2, NotebookPen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDate } from "@/lib/format"
 import { advanceSetup } from "@/app/ogrenci/upplan/actions"
+import { trackConversion } from "@/lib/analytics/conversions"
 
 export function ExamStep({ latestExam }: { latestExam: { id: string; name: string; date: string } | null }) {
   const router = useRouter()
@@ -17,6 +18,7 @@ export function ExamStep({ latestExam }: { latestExam: { id: string; name: strin
     start(async () => {
       const res = await advanceSetup("bitti")
       if (!res.success) return void toast.error(res.error ?? "Kaydedilemedi.")
+      if (res.data?.firstCompletion) trackConversion("upplan_setup")
       router.push("/ogrenci/upplan")
     })
   }

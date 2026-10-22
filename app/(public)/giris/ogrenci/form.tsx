@@ -35,7 +35,7 @@ export function OgrenciGirisForm() {
           <p>{state.error}</p>
           {state.unverifiedEmail && (
             <Link
-              href={`/ucretsiz-basla/dogrula?email=${encodeURIComponent(state.unverifiedEmail)}`}
+              href={`/ucretsiz/dogrula?email=${encodeURIComponent(state.unverifiedEmail)}`}
               className="mt-1 inline-block font-medium text-[#1B6B8A] underline"
             >
               Doğrulama e-postasını tekrar gönder

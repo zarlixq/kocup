@@ -84,11 +84,14 @@ export function IndividualStudentsView({
   organizations,
   coaches,
   initialPrefs = INDIVIDUAL_LIST_DEFAULTS,
+  funnel,
 }: {
   students: IndividualStudentRow[]
   organizations: Option[]
   coaches: CoachOption[]
   initialPrefs?: IndividualListPrefs
+  /** Kampanya hunisi kartı (sunucuda hazırlanır). */
+  funnel?: React.ReactNode
 }) {
   const [, startSave] = useTransition()
   const [columns, setColumns] = useState<IndividualListColumns>(initialPrefs.columns)
@@ -171,6 +174,8 @@ export function IndividualStudentsView({
           color="orange"
         />
       </div>
+
+      {funnel}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ActiveStudentsArea data={daily} title="Günlük kayıt — son 30 gün" emptyText="Son 30 günde kayıt yok" height={220} />

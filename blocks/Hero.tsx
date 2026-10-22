@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { ArrowRight, Sparkles, ShieldCheck, BarChart3 } from "lucide-react"
 
-export default function Hero() {
+// headingAs: kampanya modunda sayfanın h1'i kampanya hero'sunda → burada h2.
+export default function Hero({ headingAs: Heading = "h1" }: { headingAs?: "h1" | "h2" }) {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-[#0F1F28] via-[#143847] to-[#1B6B8A] text-white">
       {/* Decorative blobs */}
@@ -27,10 +28,10 @@ export default function Hero() {
               Sertifikalı Eğitim Koçluğu Platformu
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-[-0.03em] mb-6">
+            <Heading className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-[-0.03em] mb-6">
               Eğitim koçluğunda{" "}
               <span className="text-[#F97316]">dijital dönüşüm.</span>
-            </h1>
+            </Heading>
 
             <p className="text-base md:text-lg text-blue-100/90 leading-relaxed max-w-xl mb-9">
               MYK onaylı koçlarla bireysel takip, konu analizi, deneme yönlendirmesi ve veri destekli haftalık program. Öğrencinin için bütüncül bir hazırlık sistemi.
