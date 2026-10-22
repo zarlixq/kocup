@@ -1,8 +1,9 @@
+import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight, CalendarRange, Route, SearchCheck } from "lucide-react"
 
 // Koçu olmayan öğrencilere yönelik ücretsiz UpPlan bölümü (ana sayfa).
-// Ekran görüntüsü alanları yer tutucudur — gerçek görüntüler public/images/upplan/ altına eklenecek.
+// Ekran görüntüleri public/images/upplan/ altında.
 
 const FEATURES = [
   {
@@ -22,7 +23,11 @@ const FEATURES = [
   },
 ]
 
-const SHOTS = ["Yol haritası", "Haftalık program", "Eksik formüller"]
+const SHOTS = [
+  { src: "/images/upplan/yol-haritasi.png", alt: "UpPlan yol haritası ekranı" },
+  { src: "/images/upplan/haftalik-program.png", alt: "UpPlan haftalık program ekranı" },
+  { src: "/images/upplan/yanlis-defteri.png", alt: "Yanlış defteri ve açık haritası ekranı" },
+]
 
 export default function UpPlanFreeCTA() {
   return (
@@ -53,11 +58,15 @@ export default function UpPlanFreeCTA() {
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {SHOTS.map((s) => (
-            <div
-              key={s}
-              className="flex aspect-[4/3] items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-400"
-            >
-              Ekran görüntüsü: {s}
+            <div key={s.src} className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 shadow-sm">
+              <Image
+                src={s.src}
+                alt={s.alt}
+                width={1600}
+                height={920}
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="h-auto w-full"
+              />
             </div>
           ))}
         </div>
