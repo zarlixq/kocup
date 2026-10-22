@@ -69,6 +69,7 @@ export default async function ProgramPage({
     unplaced?: number
     videoMinutes?: number
     videoOverflowMinutes?: number
+    replaceItemIds?: string[]
   }
   const draft: ProgramDraftView | null = draftRow
     ? {
@@ -79,6 +80,7 @@ export default async function ProgramPage({
         unplaced: draftMeta.unplaced ?? 0,
         videoMinutes: draftMeta.videoMinutes ?? 0,
         videoOverflowMinutes: draftMeta.videoOverflowMinutes ?? 0,
+        replaceCount: draftMeta.replaceItemIds?.length ?? 0,
       }
     : null
   const isPastWeek = addDaysIso(weekStart, 6) < istanbulWeekStartStr()

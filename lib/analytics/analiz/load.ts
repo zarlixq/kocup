@@ -9,6 +9,7 @@ import { playlistProgressRows, type PlaylistProgressRow } from "@/lib/resources/
 import { buildResourceComparisonData } from "@/lib/charts/builders"
 import type { SubjectComparisonDatum } from "@/components/charts/subject-comparison-bar"
 import { ALL_TIME_START, addDays } from "@/lib/analytics/analiz/filter"
+import { sqlArg } from "@/lib/supabase/sql-arg"
 
 // Analizim veri katmanı — YALNIZ SUNUCU. Ağır toplama SQL'de (migration 222,
 // SECURITY INVOKER → RLS: öğrenci kendisi, koç kendi öğrencisi). React cache()
@@ -81,7 +82,7 @@ function asPeriod(v: unknown): PeriodStats | null {
 
 export const loadOverview = cache(async (studentId: string, from: string | null, to: string, subjectId: string | null): Promise<Overview> => {
   const db = await createClient()
-  const { data, error } = await db.rpc("analiz_overview", { p_student: studentId, p_from: from, p_to: to, p_subject: subjectId ?? undefined })
+  const { data, error } = await db.rpc("analiz_overview", { p_student: studentId, p_from: sqlArg(from), p_to: to, p_subject: subjectId ?? undefined })
   if (error) throw error
   const r = (data ?? {}) as Record<string, unknown>
   return {
@@ -95,7 +96,7 @@ export const loadOverview = cache(async (studentId: string, from: string | null,
 
 export const loadSubjects = cache(async (studentId: string, from: string | null, to: string): Promise<SubjectStat[]> => {
   const db = await createClient()
-  const { data, error } = await db.rpc("analiz_subjects", { p_student: studentId, p_from: from, p_to: to })
+  const { data, error } = await db.rpc("analiz_subjects", { p_student: studentId, p_from: sqlArg(from), p_to: to })
   if (error) throw error
   return (data ?? []).sort((a, b) => (a.exam_type ?? "").localeCompare(b.exam_type ?? "") || a.sort_order - b.sort_order)
 })
@@ -105,7 +106,7 @@ export const loadTopics = cache(
     const db = await createClient()
     const { data, error } = await db.rpc("analiz_topics", {
       p_student: studentId,
-      p_from: from,
+      p_from: sqlArg(from),
       p_to: to,
       p_subject: subjectId ?? undefined,
       p_split: split,
@@ -129,7 +130,7 @@ export const loadDaily = cache(async (studentId: string, from: string | null, to
 
 export const loadWrongStats = cache(async (studentId: string, from: string | null, to: string, subjectId: string | null): Promise<WrongStats> => {
   const db = await createClient()
-  const { data, error } = await db.rpc("analiz_wrong_answers", { p_student: studentId, p_from: from, p_to: to, p_subject: subjectId ?? undefined })
+  const { data, error } = await db.rpc("analiz_wrong_answers", { p_student: studentId, p_from: sqlArg(from), p_to: to, p_subject: subjectId ?? undefined })
   if (error) throw error
   const r = (data ?? {}) as Partial<WrongStats>
   return {

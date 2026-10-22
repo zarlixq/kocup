@@ -33,8 +33,15 @@ export default async function KocUpplanPage({ params }: { params: Promise<{ id: 
   const weekDraft = (ws: string): ProgramDraftView | null => {
     const d = (drafts ?? []).find((x) => x.week_start === ws)
     if (!d) return null
-    const m = (d.meta ?? {}) as { studyMinutes?: number; examCount?: number; unplaced?: number }
-    return { status: d.status as ProgramDraftView["status"], items: parseDraftItems(d.items), studyMinutes: m.studyMinutes ?? 0, examCount: m.examCount ?? 0, unplaced: m.unplaced ?? 0 }
+    const m = (d.meta ?? {}) as { studyMinutes?: number; examCount?: number; unplaced?: number; replaceItemIds?: string[] }
+    return {
+      status: d.status as ProgramDraftView["status"],
+      items: parseDraftItems(d.items),
+      studyMinutes: m.studyMinutes ?? 0,
+      examCount: m.examCount ?? 0,
+      unplaced: m.unplaced ?? 0,
+      replaceCount: m.replaceItemIds?.length ?? 0,
+    }
   }
 
   return (

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
+import { sqlArg } from "@/lib/supabase/sql-arg"
 
 type ActionResult = { success: boolean; error?: string }
 
@@ -33,7 +34,7 @@ export async function assignCoach(
   const supabase = await createClient()
   const { error } = await supabase.rpc("change_student_coach", {
     p_student_id: studentId,
-    p_new_coach_id: coachId,
+    p_new_coach_id: sqlArg(coachId),
   })
 
   if (error) {

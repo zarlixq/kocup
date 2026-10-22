@@ -5,7 +5,7 @@ import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { applyRoadmap, generateRoadmapDraft, redateQueue, syncRoadmapProgress } from "@/lib/upplan/roadmap-service"
-import { applyProgramDraft, generateProgramDraft } from "@/lib/upplan/program-service"
+import { applyProgramDraft, countReplaceableItems, generateProgramDraft } from "@/lib/upplan/program-service"
 
 type ActionResult<T = undefined> = { success: boolean; error?: string; data?: T }
 
@@ -176,7 +176,34 @@ export async function generateMyProgramDraft(weekStart: string): Promise<ActionR
   })
 }
 
-export async function decideMyProgramDraft(weekStart: string, approve: boolean): Promise<ActionResult<{ count: number }>> {
+/** "Bu haftayı yeniden oluştur" onay dialogu: değişecek / korunacak kalem sayısı. */
+export async function previewRebuildMyWeek(weekStart: string): Promise<ActionResult<{ replace: number; keep: number }>> {
+  return guard("previewRebuildMyWeek", async () => {
+    if (!isoDate.safeParse(weekStart).success) return { success: false, error: "Geçersiz hafta." }
+    const auth = await requireStudent()
+    if (!auth.ok) return { success: false, error: auth.error }
+    return { success: true, data: await countReplaceableItems(supabaseAdmin(), auth.userId, weekStart) }
+  })
+}
+
+/**
+ * Bu haftayı yeniden oluştur: onaylanmış ama tamamlanmamış UpPlan kalemleri
+ * (bugün ve sonrası) yokmuş gibi yeni taslak üretilir; onaylanınca eskiler
+ * silinip yerine taslak yazılır. Tamamlanan ve elle eklenen kalemler korunur.
+ */
+export async function rebuildMyProgramWeek(weekStart: string): Promise<ActionResult<{ coached: boolean; count: number; replace: number }>> {
+  return guard("rebuildMyProgramWeek", async () => {
+    if (!isoDate.safeParse(weekStart).success) return { success: false, error: "Geçersiz hafta." }
+    const auth = await requireStudent()
+    if (!auth.ok) return { success: false, error: auth.error }
+    const res = await generateProgramDraft(supabaseAdmin(), auth.userId, weekStart, undefined, { replace: true })
+    if ("error" in res) return { success: false, error: res.error }
+    revalidateRoadmap(auth.userId)
+    return { success: true, data: { coached: res.coached, count: res.items.length, replace: res.meta.replaceItemIds?.length ?? 0 } }
+  })
+}
+
+export async function decideMyProgramDraft(weekStart: string, approve: boolean): Promise<ActionResult<{ count: number; replaced: number }>> {
   return guard("decideMyProgramDraft", async () => {
     if (!isoDate.safeParse(weekStart).success) return { success: false, error: "Geçersiz hafta." }
     const auth = await requireStudent()
@@ -197,12 +224,12 @@ export async function decideMyProgramDraft(weekStart: string, approve: boolean):
         .eq("student_id", auth.userId)
         .eq("week_start", weekStart)
       revalidateRoadmap(auth.userId)
-      return { success: true, data: { count: 0 } }
+      return { success: true, data: { count: 0, replaced: 0 } }
     }
     const res = await applyProgramDraft(admin, admin, auth.userId, weekStart, auth.userId)
     if (res.error) return { success: false, error: res.error }
     revalidateRoadmap(auth.userId)
-    return { success: true, data: { count: res.count ?? 0 } }
+    return { success: true, data: { count: res.count ?? 0, replaced: res.replaced ?? 0 } }
   })
 }
 

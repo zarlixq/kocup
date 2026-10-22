@@ -62,6 +62,40 @@ export type ProgramDraftMeta = {
   focusMinutes: number
   videoMinutes?: number
   videoOverflowMinutes?: number
+  /** "Bu haftayı yeniden oluştur": onayda yerini yeni taslağa bırakacak UpPlan kalemleri. */
+  replaceItemIds?: string[]
+}
+
+/**
+ * "Bu haftayı yeniden oluştur" ile değişecek kalemler: UpPlan'ın yazdığı
+ * (created_by_role='ai'), tamamlanmamış, bugün ya da sonraki günlerdeki kalemler.
+ * Tamamlananlar, öğrencinin/koçun elle eklediği kalemler ve geçmiş günler
+ * (uyum geçmişi) korunur.
+ */
+export function replaceableItems<T extends { day_of_week: number; created_by_role: string; is_completed: boolean }>(
+  items: T[],
+  weekStart: string,
+  today: string,
+): T[] {
+  return items.filter((i) => i.created_by_role === "ai" && !i.is_completed && addDaysIso(weekStart, i.day_of_week - 1) >= today)
+}
+
+/** Haftanın değişecek ve korunacak kalem sayısı (onay dialogu için). */
+export async function countReplaceableItems(
+  admin: Client,
+  studentId: string,
+  weekStart: string,
+  today = istanbulDateStr(),
+): Promise<{ replace: number; keep: number }> {
+  const { data } = await admin
+    .from("weekly_programs")
+    .select("weekly_program_items(id, day_of_week, created_by_role, is_completed)")
+    .eq("student_id", studentId)
+    .eq("week_start", weekStart)
+    .maybeSingle()
+  const items = data?.weekly_program_items ?? []
+  const replace = replaceableItems(items, weekStart, today).length
+  return { replace, keep: items.length - replace }
 }
 
 /** Program bloğu başlığı bu önekle başlıyorsa playlist video bloğudur. */
@@ -128,6 +162,8 @@ export async function generateProgramDraft(
   studentId: string,
   weekStart: string,
   today = istanbulDateStr(),
+  /** true: değişecek UpPlan kalemleri yokmuş gibi yerleştir; onayda silinip yerine bu taslak yazılır. */
+  opts: { replace?: boolean } = {},
 ): Promise<{ items: DraftItem[]; meta: ProgramDraftMeta; coached: boolean } | { error: string }> {
   const profile = await loadUpplanProfile(admin, studentId)
   if (!profile) return { error: "Önce UpPlan kurulumunu tamamla." }
@@ -146,7 +182,7 @@ export async function generateProgramDraft(
     loadMinutesPerQuestion(admin, studentId),
     admin
       .from("weekly_programs")
-      .select("id, weekly_program_items(day_of_week, start_time, end_time, assignment_id, block_type, topic_id, baslik)")
+      .select("id, weekly_program_items(id, day_of_week, start_time, end_time, assignment_id, block_type, topic_id, baslik, created_by_role, is_completed)")
       .eq("student_id", studentId)
       .eq("week_start", weekStart)
       .maybeSingle(),
@@ -160,7 +196,10 @@ export async function generateProgramDraft(
       .eq("status", "sirada")
       .lte("baslangic_tarihi", weekEnd),
   ])
-  const existingItems = program?.weekly_program_items ?? []
+  const programItems = program?.weekly_program_items ?? []
+  const replaced = opts.replace ? replaceableItems(programItems, weekStart, today) : []
+  const replacedIds = new Set(replaced.map((i) => i.id))
+  const existingItems = programItems.filter((i) => !replacedIds.has(i.id))
   const scope = playlist.topics
   // Kapsamdaki derste (playlist bu hafta sürüyor) UpPlan yalnız playlist konularını
   // programlar; playlist'te olmayan konular playlist bitince (öğrenci/koç hedefi korunur).
@@ -319,7 +358,11 @@ export async function generateProgramDraft(
   const items = res.items
 
   const coached = !!student?.coach_id
-  const meta: ProgramDraftMeta = { ...res.meta, focusMinutes: profile.focus_minutes }
+  const meta: ProgramDraftMeta = {
+    ...res.meta,
+    focusMinutes: profile.focus_minutes,
+    ...(opts.replace ? { replaceItemIds: Array.from(replacedIds) } : {}),
+  }
   const { error } = await admin.from("upplan_program_drafts").upsert({
     student_id: studentId,
     week_start: weekStart,
@@ -348,55 +391,78 @@ export async function applyProgramDraft(
   weekStart: string,
   decidedBy: string,
   pick?: number[],
-): Promise<{ error?: string; count?: number }> {
+): Promise<{ error?: string; count?: number; replaced?: number }> {
   const { data: draft } = await admin
     .from("upplan_program_drafts")
-    .select("items, status")
+    .select("items, status, meta")
     .eq("student_id", studentId)
     .eq("week_start", weekStart)
     .maybeSingle()
   if (!draft || (draft.status !== "taslak" && draft.status !== "koca_onerildi")) return { error: "Onaylanacak taslak yok." }
   const all = parseDraftItems(draft.items)
   const items = pick ? all.filter((_, i) => pick.includes(i)) : all
-  if (items.length === 0) return { error: "Seçili kalem yok." }
+  const replaceIds = ((draft.meta ?? {}) as ProgramDraftMeta).replaceItemIds ?? []
+  if (items.length === 0 && replaceIds.length === 0) return { error: "Seçili kalem yok." }
 
   const prog = await ensureProgram(writer, studentId, weekStart, decidedBy)
   if ("error" in prog) return { error: prog.error }
-  const { data: last } = await writer
-    .from("weekly_program_items")
-    .select("order_index")
-    .eq("program_id", prog.id)
-    .order("order_index", { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  let order = (last?.order_index ?? 0) + 1
-  const writerIsAdmin = writer === admin
-  const { error } = await writer.from("weekly_program_items").insert(
-    items.map((i) => ({
-      program_id: prog.id,
-      day_of_week: i.day_of_week,
-      start_time: i.start_time,
-      end_time: i.end_time,
-      subject_id: i.subject_id,
-      topic_id: i.topic_id,
-      assignment_id: i.assignment_id,
-      block_type: i.block_type,
-      baslik: i.baslik.slice(0, 120),
-      hedef_soru: i.hedef_soru,
-      aciklama: "UpPlan",
-      order_index: order++,
-      ...(writerIsAdmin ? { created_by_role: "ai" } : {}),
-    })),
-  )
-  if (error) {
-    console.error("applyProgramDraft", error)
-    return { error: "Program yazılamadı." }
+  if (items.length) {
+    const { data: last } = await writer
+      .from("weekly_program_items")
+      .select("order_index")
+      .eq("program_id", prog.id)
+      .order("order_index", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    let order = (last?.order_index ?? 0) + 1
+    const writerIsAdmin = writer === admin
+    const { error } = await writer.from("weekly_program_items").insert(
+      items.map((i) => ({
+        program_id: prog.id,
+        day_of_week: i.day_of_week,
+        start_time: i.start_time,
+        end_time: i.end_time,
+        subject_id: i.subject_id,
+        topic_id: i.topic_id,
+        assignment_id: i.assignment_id,
+        block_type: i.block_type,
+        baslik: i.baslik.slice(0, 120),
+        hedef_soru: i.hedef_soru,
+        aciklama: "UpPlan",
+        order_index: order++,
+        ...(writerIsAdmin ? { created_by_role: "ai" } : {}),
+      })),
+    )
+    if (error) {
+      console.error("applyProgramDraft", error)
+      return { error: "Program yazılamadı." }
+    }
+  }
+  // Yeniden oluşturma: yeni kalemler yazıldıktan sonra taslaktaki eski UpPlan
+  // kalemleri silinir — yalnız hâlâ UpPlan'ın, tamamlanmamış ve bugün/sonrasındaysa
+  // (bu arada tamamlanan ya da elle düzenlenen korunur).
+  let replaced = 0
+  if (replaceIds.length) {
+    const { data: cur } = await admin
+      .from("weekly_program_items")
+      .select("id, day_of_week, created_by_role, is_completed")
+      .eq("program_id", prog.id)
+      .in("id", replaceIds)
+    const ids = replaceableItems(cur ?? [], weekStart, istanbulDateStr()).map((i) => i.id)
+    if (ids.length) {
+      const { error: de } = await admin.from("weekly_program_items").delete().in("id", ids).eq("program_id", prog.id)
+      if (de) {
+        console.error("applyProgramDraft replace", de)
+        return { error: "Yeni bloklar eklendi ama eski UpPlan blokları kaldırılamadı; tekrar dene." }
+      }
+      replaced = ids.length
+    }
   }
   await admin
     .from("upplan_program_drafts")
     .update({ status: "onaylandi", decided_at: new Date().toISOString(), decided_by: decidedBy })
     .eq("student_id", studentId)
     .eq("week_start", weekStart)
-  return { count: items.length }
+  return { count: items.length, replaced }
 }
 

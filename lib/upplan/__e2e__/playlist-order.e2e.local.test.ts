@@ -17,7 +17,8 @@ import { matchVideoTopic, parseYoutubeLink } from "@/lib/resources/video-match"
 import { fetchChannelPlaylists, getPlaylist } from "@/lib/resources/youtube"
 import { applyPlan, shiftPlans } from "@/lib/resources/playlist-plan-service"
 import { applyRoadmap, generateRoadmapDraft, syncPlaylistGoals, syncRoadmapProgress } from "@/lib/upplan/roadmap-service"
-import { generateProgramDraft } from "@/lib/upplan/program-service"
+import { applyProgramDraft, countReplaceableItems, generateProgramDraft } from "@/lib/upplan/program-service"
+import { isoWeekday } from "@/lib/resources/playlist-plan"
 import { loadRoadmapView } from "@/lib/upplan/roadmap-view"
 import { loadPlaylistScope } from "@/lib/upplan/playlist-scope"
 import type { PlaylistScope } from "@/lib/upplan/playlist-order"
@@ -175,6 +176,50 @@ describe.sequential("playlist konu sırası e2e", () => {
       meta: res.meta,
       items: res.items.map((i) => `${days[i.day_of_week]} ${i.start_time}–${i.end_time} ${i.baslik}`),
     }
+  })
+
+  it("bu haftayı yeniden oluştur: UpPlan kalemleri değişir, tamamlanan ve elle eklenen korunur", { timeout: 120000 }, async () => {
+    const first = await applyProgramDraft(admin, admin, A, WEEK, A)
+    expect(first.error).toBeUndefined()
+    const load = async () => {
+      const { data } = await admin
+        .from("weekly_programs")
+        .select("id, weekly_program_items(id, created_by_role, is_completed, day_of_week, baslik)")
+        .eq("student_id", A)
+        .eq("week_start", WEEK)
+        .single()
+      return data!
+    }
+    const prog = await load()
+    const ai = prog.weekly_program_items.filter((i) => i.created_by_role === "ai")
+    expect(ai.length).toBeGreaterThan(1)
+    // Biri tamamlandı; öğrenci kendi kalemini ekledi (RLS ile, trigger 'student' yazar).
+    await admin.from("weekly_program_items").update({ is_completed: true, completed_at: new Date().toISOString() }).eq("id", ai[0].id)
+    const { data: own, error: oe } = await a
+      .from("weekly_program_items")
+      .insert({ program_id: prog.id, day_of_week: isoWeekday(TODAY), start_time: "23:00", end_time: "23:30", baslik: "Kendi çalışmam", order_index: 999 })
+      .select("id, created_by_role")
+      .single()
+    if (oe) throw oe
+    expect(own.created_by_role).toBe("student")
+
+    const cnt = await countReplaceableItems(admin, A, WEEK, TODAY)
+    expect(cnt.replace).toBe(ai.length - 1)
+    expect(cnt.keep).toBe(2)
+    const draft = await generateProgramDraft(admin, A, WEEK, TODAY, { replace: true })
+    if ("error" in draft) throw new Error(draft.error)
+    expect(draft.meta.replaceItemIds?.length).toBe(cnt.replace)
+    const res = await applyProgramDraft(admin, admin, A, WEEK, A)
+    expect(res.error).toBeUndefined()
+    expect(res.replaced).toBe(cnt.replace)
+
+    const after = (await load()).weekly_program_items
+    const ids = new Set(after.map((i) => i.id))
+    expect(ids.has(ai[0].id)).toBe(true)
+    expect(ids.has(own.id)).toBe(true)
+    expect(ai.slice(1).some((i) => ids.has(i.id))).toBe(false)
+    expect(after.length).toBe(2 + (res.count ?? 0))
+    report.rebuild = { before: ai.length + 1, replaced: res.replaced, added: res.count, kept: ["tamamlanan UpPlan bloğu", "öğrencinin kendi kalemi"], after: after.length }
   })
 
   it("kaydırma: playlist günleri ve yol haritası tarihleri bir gün kayar", { timeout: 120000 }, async () => {

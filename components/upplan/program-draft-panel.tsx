@@ -2,12 +2,22 @@
 
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
-import { CheckCircle2, Loader2, Sparkles, X } from "lucide-react"
+import { CheckCircle2, Loader2, RefreshCw, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { DAYS } from "@/lib/days"
 import type { DraftItem } from "@/lib/upplan/scheduler"
-import { decideMyProgramDraft, generateMyProgramDraft } from "@/app/ogrenci/upplan/roadmap-actions"
+import { decideMyProgramDraft, generateMyProgramDraft, previewRebuildMyWeek, rebuildMyProgramWeek } from "@/app/ogrenci/upplan/roadmap-actions"
 
 export type ProgramDraftView = {
   status: "taslak" | "onaylandi" | "reddedildi" | "koca_onerildi"
@@ -18,6 +28,8 @@ export type ProgramDraftView = {
   /** Playlist video blokları (dk) ve müsaitliğe sığmayan kısım. */
   videoMinutes?: number
   videoOverflowMinutes?: number
+  /** "Bu haftayı yeniden oluştur" taslağı: onayda yerini bu taslağa bırakacak UpPlan bloğu sayısı. */
+  replaceCount?: number
 }
 
 const TYPE_TONE: Record<DraftItem["block_type"], string> = {
@@ -85,6 +97,29 @@ export function ProgramDraftPanel({
 }) {
   const [pending, start] = useTransition()
   const [open, setOpen] = useState(draft?.status === "taslak")
+  const [rebuild, setRebuild] = useState<{ replace: number; keep: number } | null>(null)
+
+  function askRebuild() {
+    start(async () => {
+      const res = await previewRebuildMyWeek(weekStart)
+      if (!res.success || !res.data) return void toast.error(res.error ?? "Program okunamadı.")
+      setRebuild(res.data)
+    })
+  }
+
+  function confirmRebuild() {
+    start(async () => {
+      const res = await rebuildMyProgramWeek(weekStart)
+      setRebuild(null)
+      if (!res.success || !res.data) return void toast.error(res.error ?? "Taslak oluşturulamadı.")
+      toast.success(
+        res.data.coached
+          ? "Yeni program önerin koçuna iletildi."
+          : `Yeni taslak hazır: onaylarsan ${res.data.replace} UpPlan bloğu bununla değişecek.`,
+      )
+      setOpen(true)
+    })
+  }
 
   function generate() {
     start(async () => {
@@ -100,7 +135,9 @@ export function ProgramDraftPanel({
     start(async () => {
       const res = await decideMyProgramDraft(weekStart, approve)
       if (!res.success) return void toast.error(res.error ?? "İşlem başarısız.")
-      toast.success(approve ? `${res.data?.count ?? 0} blok programına eklendi.` : "Taslak reddedildi.")
+      if (!approve) return void toast.success("Taslak reddedildi.")
+      const replaced = res.data?.replaced ?? 0
+      toast.success(`${res.data?.count ?? 0} blok programına eklendi${replaced ? `, ${replaced} eski UpPlan bloğu kaldırıldı` : ""}.`)
     })
   }
 
@@ -130,8 +167,32 @@ export function ProgramDraftPanel({
           <Button size="sm" variant={draft ? "outline" : "accent"} onClick={generate} disabled={pending}>
             {pending && <Loader2 className="h-4 w-4 animate-spin" />} {draft ? "Yeniden oluştur" : "Öneri oluştur"}
           </Button>
+          <Button size="sm" variant="ghost" onClick={askRebuild} disabled={pending}>
+            <RefreshCw className="h-3.5 w-3.5" /> Bu haftayı yeniden oluştur
+          </Button>
         </div>
       </div>
+
+      <AlertDialog open={!!rebuild} onOpenChange={(o) => !pending && !o && setRebuild(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bu haftayı yeniden oluştur?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {rebuild?.replace
+                ? `UpPlan'ın eklediği, tamamlanmamış ${rebuild.replace} blok (bugün ve sonrası) yeni taslakla değişecek.`
+                : "Değişecek UpPlan bloğu yok; yeni taslak mevcut programının boşluklarına yerleşir."}{" "}
+              {rebuild?.keep ? `${rebuild.keep} kalem korunacak: tamamlananlar, senin ve koçunun eklediği bloklar, geçmiş günler.` : ""}{" "}
+              Önce taslağı görürsün; bloklar ancak onaylayınca değişir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRebuild} disabled={pending}>
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />} Taslağı oluştur
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {showDraft && (
         <>
@@ -142,17 +203,23 @@ export function ProgramDraftPanel({
               <span>Haftada {draft.examCount} deneme</span>
               {!!draft.videoMinutes && <span>{draft.videoMinutes} dk playlist videosu (konu çalışmasına sayıldı)</span>}
               {draft.unplaced > 0 && <span className="text-amber-700">{draft.unplaced} blok sığmadı</span>}
+              {!!draft.replaceCount && (
+                <span className="font-medium text-[#1B6B8A]">Onaylarsan {draft.replaceCount} UpPlan bloğu bununla değişir</span>
+              )}
               {!!draft.videoOverflowMinutes && (
                 <span className="text-amber-700">{draft.videoOverflowMinutes} dk video müsaitliğe sığmadı</span>
               )}
             </div>
           )}
-          {draft.items.length === 0 ? (
+          {draft.items.length === 0 && !!draft.replaceCount && (
+            <p className="text-sm text-amber-700">Yeni taslakta blok çıkmadı; onaylarsan {draft.replaceCount} UpPlan bloğu kaldırılır.</p>
+          )}
+          {draft.items.length === 0 && !draft.replaceCount ? (
             <p className="text-sm text-zinc-600">Eklenecek blok yok: aktif hedeflerin bu hafta için zaten yerleşmiş ya da hedefin yok.</p>
           ) : (
             <DraftDays items={draft.items} />
           )}
-          {draft.status === "taslak" && !coached && draft.items.length > 0 && (
+          {draft.status === "taslak" && !coached && (draft.items.length > 0 || !!draft.replaceCount) && (
             <div className="flex flex-wrap justify-end gap-2">
               <Button size="sm" variant="ghost" onClick={() => decide(false)} disabled={pending}>
                 <X className="h-3.5 w-3.5" /> Reddet

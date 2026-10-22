@@ -3042,7 +3042,7 @@ export type Database = {
       }
       analiz_overview: {
         Args: {
-          p_from: string | null
+          p_from: string
           p_student: string
           p_subject?: string
           p_to: string
@@ -3050,7 +3050,7 @@ export type Database = {
         Returns: Json
       }
       analiz_subjects: {
-        Args: { p_from: string | null; p_student: string; p_to: string }
+        Args: { p_from: string; p_student: string; p_to: string }
         Returns: {
           color: string
           correct: number
@@ -3072,7 +3072,7 @@ export type Database = {
       }
       analiz_topics: {
         Args: {
-          p_from: string | null
+          p_from: string
           p_split?: string
           p_student: string
           p_subject?: string
@@ -3102,7 +3102,7 @@ export type Database = {
       }
       analiz_wrong_answers: {
         Args: {
-          p_from: string | null
+          p_from: string
           p_student: string
           p_subject?: string
           p_to: string
@@ -3110,7 +3110,7 @@ export type Database = {
         Returns: Json
       }
       change_student_coach: {
-        Args: { p_new_coach_id: string | null; p_student_id: string }
+        Args: { p_new_coach_id: string; p_student_id: string }
         Returns: undefined
       }
       check_rate_limit: {
@@ -3151,7 +3151,7 @@ export type Database = {
         Returns: undefined
       }
       effective_mastery: {
-        Args: { p_as_of?: string; p_last: string | null; p_stored: number }
+        Args: { p_as_of?: string; p_last: string; p_stored: number }
         Returns: number
       }
       exam_belongs_to_visible_student: {
@@ -3268,7 +3268,7 @@ export type Database = {
           evidence_n: number
           forgetting: boolean
           label: string
-          last_practiced_at: string | null
+          last_practiced_at: string
           stored: number
           subject_id: string
           topic_id: string
@@ -3321,7 +3321,7 @@ export type Database = {
       }
       upplan_cfg: { Args: { p_key: string }; Returns: number }
       upplan_confidence: { Args: { p_evidence_w: number }; Returns: string }
-      upplan_penalty: { Args: { p_error_type: string | null }; Returns: number }
+      upplan_penalty: { Args: { p_error_type: string }; Returns: number }
       upplan_recompute_student: {
         Args: { p_student_id: string }
         Returns: number
