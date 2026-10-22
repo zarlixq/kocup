@@ -34,6 +34,13 @@ import {
   UPPLAN_SQL_CONFIG,
   type BlockType,
 } from "@/lib/upplan/config"
+import {
+  coveredNotBefore,
+  playlistGoalDates,
+  playlistTopicLabel,
+  type PlaylistScope,
+  type PlaylistSubjects,
+} from "@/lib/upplan/playlist-order"
 
 // UpPlan yol haritası — saf fonksiyonlar (LLM yok, test edilir).
 //
@@ -51,6 +58,9 @@ import {
 //          eşit bölünür, biten konunun yerine sıradaki (ön koşulu/kapısı açık) girer
 //          → her hedefin kendi gerçekçi bitiş tarihi olur
 // SINIR  = sınavdan önceki son 6 hafta deneme dönemi; oraya taşan konular "zaman kalırsa"
+// PLAYLIST = aktif planlı playlist'in kapsadığı konularda sıra ve tarih playlist'ten
+//          (playlist-order.ts): verimlilik sırası / "zaman kalırsa" elemesi yok,
+//          süreleri kapasiteden düşülür, simülasyonda günlük yük olarak ayrılır
 
 export type Segment = "yks" | "lgs"
 
@@ -351,6 +361,8 @@ export type ExistingGoal = {
   /** Kalan süre ihtiyacı (dk). */
   remainingMinutes: number
   son_tarih: string
+  /** Hedefte ilerleme var (soru çözülmüş ya da konu öğrenilmiş). */
+  progressed?: boolean
 }
 
 export type RoadmapItemStatus = "aktif" | "sirada" | "zaman_kalirsa"
@@ -385,6 +397,8 @@ export type RoadmapItem = {
   gate_for?: string
   /** Sürekli pratik konusu (tamamlanmaz, aktif sınırına sayılmaz, her hafta pratik bloğu). */
   practice?: boolean
+  /** Konu sırasını belirleyen playlist ("Bıyıklı Matematik · 3. Gün"). */
+  playlist?: { playlist_id: string; label: string; day: number | null }
 }
 
 export type Roadmap = {
@@ -423,6 +437,10 @@ export type RoadmapInput = {
   puanTuru?: PuanTuru | null
   /** Müsaitlik ızgarasındaki haftalık süre (dk) — "haftada X saat" göstergesi için. */
   availableWeeklyMinutes?: number
+  /** Konu sırasını playlist'in belirlediği konular (buildPlaylistScope). */
+  playlistTopics?: PlaylistScope
+  /** Kapsamdaki dersler: playlist'te olmayan konuları playlist bitince başlar. */
+  playlistSubjects?: PlaylistSubjects
 }
 
 export function overflowMessage(n: number): string {
@@ -555,6 +573,8 @@ export type SimEntry = {
   prereqs: string[]
   /** Kapı konuları: hepsi bitmeden (ya da forceStart gelmeden) başlamaz. */
   gate: string[]
+  /** Bu tarihten önce başlamaz (kapsamdaki dersin playlist'te olmayan konusu). */
+  notBefore?: string
 }
 
 export type SimResult = { start: string | null; end: string | null; forced: boolean }
@@ -576,6 +596,10 @@ export function simulatePlan(
     maxPerSubject?: number
     maxLearning?: number
     preActive?: SimEntry[]
+    /** Takvimi dışarıda belli konular (playlist): bu tarihten sonra bitmiş sayılır. */
+    external?: Map<string, string>
+    /** Günlük ayrılmış yük (dk; playlist konuları) — o günün kapasitesinden düşer. */
+    reserved?: Map<string, number>
   },
 ): Map<string, SimResult> {
   const perDay = Math.max(opts.weeklyMinutes, 1) / 7
@@ -588,14 +612,17 @@ export function simulatePlan(
     res.set(e.id, { start: opts.start, end: null, forced: false })
     return { e, done: 0 }
   })
-  const inPlan = new Set([...entries, ...(opts.preActive ?? [])].map((e) => e.id))
+  const external = opts.external ?? new Map<string, string>()
+  const inPlan = new Set([...entries, ...(opts.preActive ?? [])].map((e) => e.id).concat(Array.from(external.keys())))
   const pending = [...entries]
   const horizonDays = Math.max(daysBetweenIso(opts.start, opts.horizon), 0)
 
   for (let d = 0; d <= horizonDays && (pending.length || active.length); d++) {
     const date = addDaysIso(opts.start, d)
+    for (const [id, end] of external) if (end < date) finished.add(id)
     for (let i = 0; i < pending.length && active.length < opts.slots; i++) {
       const e = pending[i]
+      if (e.notBefore && date < e.notBefore) continue
       if (e.prereqs.some((p) => inPlan.has(p) && !finished.has(p))) continue
       const gateOpen = e.gate.every((g) => !inPlan.has(g) || finished.has(g))
       const forced = !gateOpen && date >= opts.forceStart
@@ -608,7 +635,7 @@ export function simulatePlan(
       i -= 1
     }
     if (!active.length) continue
-    const share = perDay / active.length
+    const share = Math.max(perDay - (opts.reserved?.get(date) ?? 0), 0) / active.length
     for (let i = active.length - 1; i >= 0; i--) {
       const r = active[i]
       r.done += share
@@ -623,13 +650,27 @@ export function simulatePlan(
   return res
 }
 
+/** Konu yüklerini (dk) başlangıç–bitiş günlerine eşit yayar (from'dan önceki günler atlanır). */
+export function reservedByDate(entries: { need: number; start: string; end: string }[], from: string): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const e of entries) {
+    const s = e.start < from ? from : e.start
+    const days = daysBetweenIso(s, e.end) + 1
+    if (days <= 0 || e.need <= 0) continue
+    for (let i = 0; i < days; i++) {
+      const d = addDaysIso(s, i)
+      out.set(d, (out.get(d) ?? 0) + e.need / days)
+    }
+  }
+  return out
+}
+
 // ── Ana fonksiyon ───────────────────────────────────────────────────────
 export function buildRoadmap(input: RoadmapInput): Roadmap {
   const examPeriodStart = addDaysIso(input.examDate, -EXAM_PERIOD_WEEKS * 7)
   const aytForceStart = addDaysIso(input.examDate, -AYT_FORCE_START_WEEKS * 7)
   const slots = activeSlotsFor(input.weeklyMinutes)
   const completed = new Set(input.completedTopicIds)
-  const existingByTopic = new Map(input.existing.map((e) => [e.topic_id, e]))
   const notes: string[] = []
 
   // Sürekli pratik konuları takvime (aktif sınırı, simülasyon) girmez; ayrı listelenir.
@@ -638,6 +679,25 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
   const topics = input.topics.filter((t) => !completed.has(t.topic_id) && !practiceIds.has(t.topic_id))
   const byId = new Map(topics.map((t) => [t.topic_id, t]))
   const nodes = new Set(topics.map((t) => t.topic_id))
+
+  // Playlist kapsamı: öğrencinin/koçun elle koyduğu hedef korunur; UpPlan'ın
+  // önceki hedefi playlist takvimine göre yeniden planlanır (ilerleme varsa aktif kalır).
+  const pl = input.playlistTopics ?? {}
+  const humanGoal = new Set(input.existing.filter((e) => e.source !== "ai").map((e) => e.topic_id))
+  const scoped = new Map(topics.filter((t) => pl[t.topic_id] && !humanGoal.has(t.topic_id)).map((t) => [t.topic_id, pl[t.topic_id]]))
+  const scopedDates = new Map(Array.from(scoped, ([id, p]) => [id, playlistGoalDates(p, input.today, input.examDate)]))
+  const progressedScoped = new Set(input.existing.filter((e) => e.progressed && scoped.has(e.topic_id)).map((e) => e.topic_id))
+  // Kapsamdaki dersin playlist'te olmayan konusu playlist bitince başlar.
+  const ps = input.playlistSubjects ?? {}
+  const waitOf = (id: string): string | null => {
+    const t = byId.get(id)
+    if (!t || scoped.has(id) || humanGoal.has(id)) return null
+    const nb = coveredNotBefore(ps, t.subject_id)
+    return nb && nb > input.today ? nb : null
+  }
+  // UpPlan'ın önceki hedefi, ilerleme yoksa ve bekleyen konuysa yeniden planlanır.
+  const existingList = input.existing.filter((e) => !scoped.has(e.topic_id) && !(e.source === "ai" && !e.progressed && waitOf(e.topic_id)))
+  const existingByTopic = new Map(existingList.map((e) => [e.topic_id, e]))
   const { edges, broken } = acyclicEdges(input.edges, nodes)
   if (broken.length) notes.push(`${broken.length} ön koşul döngüsü kırıldı.`)
 
@@ -731,12 +791,13 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     // Kapı konusu olan ön koşulu kapı yönetir (son tarihte zorla açılabilsin).
     prereqs: (prereqsOf.get(id) ?? []).filter((p) => (byId.get(p)?.effective ?? 0) < GATE_MASTERY && !gateOf(id).includes(p)),
     gate: gateOf(id),
+    ...(waitOf(id) ? { notBefore: waitOf(id)! } : {}),
   })
 
   const inExamPeriod = input.today >= examPeriodStart
   const outAyt = new Set<string>()
   let { effScore, order } = rankTopics(outAyt)
-  let queueIds = order.filter((id) => !existingByTopic.has(id))
+  let queueIds = order.filter((id) => !existingByTopic.has(id) && !scoped.has(id))
   // Sürekli pratik haftalık süresi takvim kapasitesinden düşülür.
   const practiceGroups = PRACTICE_GROUPS.filter((g) => practiceTopics.some((t) => t.subject_name === g.subject && g.topics.includes(t.topic_name)))
   const practiceWeekly = Math.round(practiceGroups.reduce((n, g) => n + g.blocksPerWeek * g.questionsPerBlock * input.minutesPerQuestion, 0))
@@ -746,8 +807,10 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
   // dönemine kadarki kapasite dolana dek konu alınır; kalanlar (en düşük
   // verimliler) "zaman kalırsa". Kapısı kapalı AYT dersinin TYT konusu her zaman
   // alınır. Takvim (tarihler) yalnız seçilenlerle kurulur.
-  const startLoad = input.existing.reduce((n, e) => n + e.remainingMinutes, 0)
-  const capacityMinutes = Math.max(daysBetweenIso(input.today, examPeriodStart), 0) * (studyWeekly / 7) - startLoad
+  const startLoad = existingList.reduce((n, e) => n + e.remainingMinutes, 0)
+  // Playlist konuları seçime girmez ama süreleri kapasiteden düşülür.
+  const scopedNeed = Array.from(scoped.keys()).reduce((n, id) => n + goal(byId.get(id)!).need, 0)
+  const capacityMinutes = Math.max(daysBetweenIso(input.today, examPeriodStart), 0) * (studyWeekly / 7) - startLoad - scopedNeed
   // Ders taban payları: puan türüne giren her ders, kapasitenin DERS_TABAN_ORANI
   // kadarından puan ağırlığı (soru × katsayı) oranında pay alır.
   const subjectNameOf = new Map(topics.map((t) => [t.subject_id, t.subject_name]))
@@ -802,15 +865,18 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
   let kept = select(isOutAyt)
   for (let guard = 0; guard < gates.size + 1; guard++) {
     const newlyOut = Array.from(gates.keys()).filter(
-      (sid) => !outAyt.has(sid) && topics.some((t) => t.subject_id === sid) && !topics.some((t) => t.subject_id === sid && kept.has(t.topic_id)),
+      (sid) =>
+        !outAyt.has(sid) &&
+        topics.some((t) => t.subject_id === sid) &&
+        !topics.some((t) => t.subject_id === sid && (kept.has(t.topic_id) || scoped.has(t.topic_id))),
     )
     if (!newlyOut.length) break
     for (const sid of newlyOut) outAyt.add(sid)
     ;({ effScore, order } = rankTopics(outAyt))
-    queueIds = order.filter((id) => !existingByTopic.has(id))
+    queueIds = order.filter((id) => !existingByTopic.has(id) && !scoped.has(id))
     kept = select(isOutAyt)
   }
-  const keptSubjects = new Set(Array.from(kept).map((id) => byId.get(id)!.subject_id))
+  const keptSubjects = new Set([...Array.from(kept), ...Array.from(scoped.keys())].map((id) => byId.get(id)!.subject_id))
   const protectsPlanned = (id: string) => (gateDependents.get(id) ?? []).some((a) => keptSubjects.has(byId.get(a)?.subject_id ?? ""))
 
   // Haftalık saat göstergesi (müsaitlik saati): bütün konular için gereken ve
@@ -828,12 +894,12 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
   let cum = 0
   for (const [sid, extra] of Array.from(extraBySubject).sort((x, y) => x[1] - y[1])) {
     cum += extra
-    const hours = toAvailHours((capacityMinutes + startLoad + cum) / planWeeks)
+    const hours = toAvailHours((capacityMinutes + startLoad + scopedNeed + cum) / planWeeks)
     const last = steps[steps.length - 1]
     if (last && last.hours === hours) last.subjects.push(subjectNameOf.get(sid) ?? "")
     else steps.push({ hours, subjects: [subjectNameOf.get(sid) ?? ""] })
   }
-  const totalNeed = queueIds.reduce((n, id) => n + needOf(id), 0) + startLoad
+  const totalNeed = queueIds.reduce((n, id) => n + needOf(id), 0) + startLoad + scopedNeed
   const weeklyHours = {
     current: Math.round((input.availableWeeklyMinutes ?? input.weeklyMinutes) / 60),
     required: toAvailHours(totalNeed / planWeeks),
@@ -848,15 +914,32 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
       horizon: input.examDate,
       forceStart: aytForceStart,
       preActive: fixed.map((id) => ({ ...simEntry(id, existingByTopic.get(id)!.remainingMinutes), prereqs: [], gate: [] })),
+      // Playlist konusu bitiş tarihinde biter (ön koşul / kapı); yükü günlere yayılır.
+      external: new Map(Array.from(scopedDates, ([id, d]) => [id, d.end])),
+      reserved: reservedByDate(
+        Array.from(scopedDates, ([id, d]) => ({ need: needOf(id), start: d.start, end: d.end })),
+        input.today,
+      ),
     },
   )
 
   // Plan sırası = başlama tarihi (eşitlikte öncelik sırası); başlayamayanlar sonda.
+  // Playlist konuları kendi tarihleriyle araya girer (günü gelmişler bugün);
+  // aynı gün içinde önce playlist konuları, playlist sırasıyla (tarih, gün).
   const rank = new Map(order.map((id, i) => [id, i]))
-  const queueOrdered = [...queueIds].sort((a, b) => {
-    const sa = sim.get(a)?.start ?? "9999"
-    const sb = sim.get(b)?.start ?? "9999"
-    return sa.localeCompare(sb) || rank.get(a)! - rank.get(b)!
+  const startOf = (id: string) => {
+    const d = scopedDates.get(id)
+    if (d) return d.reached ? input.today : d.start
+    return sim.get(id)?.start ?? "9999"
+  }
+  const queueOrdered = [...queueIds, ...Array.from(scoped.keys())].sort((a, b) => {
+    const sa = scoped.has(a)
+    const sb = scoped.has(b)
+    const within =
+      sa && sb
+        ? scopedDates.get(a)!.start.localeCompare(scopedDates.get(b)!.start) || (scoped.get(a)!.day ?? 0) - (scoped.get(b)!.day ?? 0)
+        : 0
+    return startOf(a).localeCompare(startOf(b)) || Number(sb) - Number(sa) || within || rank.get(a)! - rank.get(b)!
   })
 
   // Açıklama şablonları.
@@ -880,6 +963,38 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
   finalOrder.forEach((id, i) => {
     const t = byId.get(id)!
     const g = goal(t)
+    const pt = scoped.get(id)
+    if (pt) {
+      const d = scopedDates.get(id)!
+      const label = playlistTopicLabel(pt)
+      const reasons = [`Konu sırası playlist'ten: ${label}`, efficiencyReason(t, base.get(id) ?? 0)]
+      if (g.phase === "gerekli") reasons.push("Önce videoyu izle, sonra soru çöz")
+      items.push({
+        topic_id: id,
+        topic_name: t.topic_name,
+        subject_id: t.subject_id,
+        subject_name: t.subject_name,
+        score: round1(base.get(id) ?? 0),
+        block_type: g.bt,
+        target_questions: g.q,
+        target_accuracy: g.acc,
+        need_minutes: g.need,
+        wave: Math.floor(daysBetweenIso(input.today, d.start < input.today ? input.today : d.start) / 7) + 1,
+        plan_order: i + 1,
+        start: d.start,
+        end: d.end,
+        status: d.reached || progressedScoped.has(id) ? "aktif" : "sirada",
+        reasons,
+        prereqs: prereqsOf.get(id) ?? [],
+        existing: null,
+        learning_phase: g.phase,
+        gate: [],
+        efficiency: base.get(id) ?? 0,
+        priority: effScore.get(id) ?? 0,
+        playlist: { playlist_id: pt.playlist_id, label, day: pt.day },
+      })
+      return
+    }
     const ex = existingByTopic.get(id) ?? null
     const s = sim.get(id)
     const reasons: string[] = [efficiencyReason(t, base.get(id) ?? 0)]
@@ -902,6 +1017,7 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
       reasons.push(`Biliyorum demiştin ama denemede ${t.examWrongs} yanlış çıktı`)
     }
     if (t.gapAtom) reasons.push(`Açık haritasında "${t.gapAtom}" öne çıkıyor`)
+    if (!ex && waitOf(id)) reasons.splice(1, 0, `${ps[t.subject_id].playlist_name} playlist'i bitince başlar (bu konu playlist'te yok)`)
     if (g.phase === "gerekli") reasons.push(`Ustalığın ${Math.round(t.effective)}: önce konuyu öğren, sonra soru çöz`)
 
     // Kapasiteye seçilen konu plandadır; takvimde deneme dönemine taşarsa bitişi o güne çekilir.
@@ -949,7 +1065,15 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     const grp = practiceGroupOf(t.subject_name, t.topic_name)!
     const g = goal(t)
     const ex = existingByTopic.get(t.topic_id) ?? null
-    items.unshift({
+    // Playlist kapsamındaki pratik konusu da playlist günü gelince başlar.
+    const pp = pl[t.topic_id] && !humanGoal.has(t.topic_id) ? pl[t.topic_id] : null
+    const pd = pp ? playlistGoalDates(pp, input.today, input.examDate) : null
+    const progressed = input.existing.some((e) => e.topic_id === t.topic_id && e.progressed)
+    // Playlist'te olmayan pratik konusu, dersi playlist kapsamındaysa playlist bitince.
+    const nb = !pp && !humanGoal.has(t.topic_id) && !progressed ? coveredNotBefore(ps, t.subject_id) : null
+    const coveredWait = nb && nb > input.today ? nb : null
+    const waitStart = pd && !pd.reached && !progressed ? pd.start : coveredWait
+    const practiceItem: RoadmapItem = {
       topic_id: t.topic_id,
       topic_name: t.topic_name,
       subject_id: t.subject_id,
@@ -959,12 +1083,14 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
       target_questions: grp.blocksPerWeek * grp.questionsPerBlock,
       target_accuracy: g.acc,
       need_minutes: 0,
-      wave: 1,
+      wave: waitStart ? Math.floor(daysBetweenIso(input.today, waitStart) / 7) + 1 : 1,
       plan_order: 0,
-      start: input.today,
+      start: waitStart ?? input.today,
       end: input.examDate,
-      status: "aktif",
+      status: waitStart ? "sirada" : "aktif",
       reasons: [
+        ...(pp ? [`Konu sırası playlist'ten: ${playlistTopicLabel(pp)}`] : []),
+        ...(coveredWait ? [`${ps[t.subject_id].playlist_name} playlist'i bitince başlar (bu konu playlist'te yok)`] : []),
         `Sürekli pratik (${grp.label}): sınava kadar her hafta ${grp.blocksPerWeek} × ${grp.questionsPerBlock} soru; tamamlanıp çıkmaz`,
         ...(g.phase === "gerekli" ? [`Önce konuyu öğren, sonra haftalık pratik başlar`] : []),
       ],
@@ -974,7 +1100,13 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
       gate: [],
       efficiency: effOf(t),
       practice: true,
-    })
+      ...(pp ? { playlist: { playlist_id: pp.playlist_id, label: playlistTopicLabel(pp), day: pp.day } } : {}),
+    }
+    // Bekleyen pratik konusu sırada başlangıç tarihine göre yer alır.
+    if (waitStart) {
+      const at = items.findIndex((it) => !it.practice && (it.status === "zaman_kalirsa" || (it.status === "sirada" && it.start > waitStart)))
+      items.splice(at < 0 ? items.length : at, 0, practiceItem)
+    } else items.unshift(practiceItem)
   }
   items.forEach((it, i) => (it.plan_order = i + 1))
   // Başlayamayan (zaman kalırsa) konular en sona.

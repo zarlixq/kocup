@@ -51,7 +51,7 @@ export type PlaylistRow = {
   videos: VideoRow[]
 }
 
-export type PlaylistPlan = { mode: PlanMode; amount: number | null; start: string; weekdays: number[] }
+export type PlaylistPlan = { mode: PlanMode; amount: number | null; start: string; weekdays: number[]; orderTopics: boolean }
 
 export const TEKLI_GROUP_NAME = "Tekli videolar"
 
@@ -117,7 +117,7 @@ export async function loadPlaylists(db: Client, studentId: string): Promise<Play
   const [{ data: lists, error: le }, { data: videos, error: ve }] = await Promise.all([
     db
       .from("student_resource_playlists")
-      .select("id, kind, subject_id, teacher_name, title, source, status, youtube_playlist_id, thumbnail_url, last_synced_at, channel_title, issue, plan_mode, plan_amount, plan_start, plan_weekdays, subjects(name, color)")
+      .select("id, kind, subject_id, teacher_name, title, source, status, youtube_playlist_id, thumbnail_url, last_synced_at, channel_title, issue, plan_mode, plan_amount, plan_start, plan_weekdays, order_topics, subjects(name, color)")
       .eq("student_id", studentId)
       .order("created_at"),
     db
@@ -170,7 +170,13 @@ export async function loadPlaylists(db: Client, studentId: string): Promise<Play
     plan: (() => {
       const mode = asPlanMode(l.plan_mode)
       return mode && l.plan_start
-        ? { mode, amount: l.plan_amount, start: l.plan_start, weekdays: l.plan_weekdays?.length ? l.plan_weekdays : [...ALL_WEEKDAYS] }
+        ? {
+            mode,
+            amount: l.plan_amount,
+            start: l.plan_start,
+            weekdays: l.plan_weekdays?.length ? l.plan_weekdays : [...ALL_WEEKDAYS],
+            orderTopics: l.order_topics,
+          }
         : null
     })(),
     videos: byList.get(l.id) ?? [],

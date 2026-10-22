@@ -8,7 +8,15 @@ if (!dir) throw new Error("Klasör ver: node scripts/backup-video-tables.mjs bac
 mkdirSync(dir, { recursive: true })
 const supabase = await serviceClient()
 const counts = {}
-for (const table of ["student_resource_playlists", "student_resource_videos", "weekly_program_items", "user_ui_preferences"]) {
+for (const table of [
+  "student_resource_playlists",
+  "student_resource_videos",
+  "weekly_program_items",
+  "user_ui_preferences",
+  "topic_assignments",
+  "upplan_roadmaps",
+  "upplan_program_drafts",
+]) {
   const rows = []
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase.from(table).select("*").range(from, from + 999)

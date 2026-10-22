@@ -1647,6 +1647,7 @@ export type Database = {
           issue: string | null
           kind: string
           last_synced_at: string | null
+          order_topics: boolean
           plan_amount: number | null
           plan_mode: string | null
           plan_start: string | null
@@ -1667,6 +1668,7 @@ export type Database = {
           issue?: string | null
           kind?: string
           last_synced_at?: string | null
+          order_topics?: boolean
           plan_amount?: number | null
           plan_mode?: string | null
           plan_start?: string | null
@@ -1687,6 +1689,7 @@ export type Database = {
           issue?: string | null
           kind?: string
           last_synced_at?: string | null
+          order_topics?: boolean
           plan_amount?: number | null
           plan_mode?: string | null
           plan_start?: string | null

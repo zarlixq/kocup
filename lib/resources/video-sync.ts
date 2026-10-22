@@ -3,6 +3,7 @@ import type { Database } from "@/lib/database.types"
 import { fetchActiveTopics } from "@/lib/curriculum/active-topics"
 import { isPlaceholderTitle, matchVideoTopic } from "@/lib/resources/video-match"
 import { getPlaylist, type YoutubePlaylistMeta } from "@/lib/resources/youtube"
+import { RELATED_VIDEO_SUBJECTS } from "@/lib/upplan/config"
 
 type Client = SupabaseClient<Database>
 
@@ -11,6 +12,22 @@ type Client = SupabaseClient<Database>
 
 export type NewVideo = { videoId: string; title: string; position: number; durationSeconds: number | null; thumbnailUrl: string }
 export type VideoPatch = { title?: string; duration_seconds?: number; thumbnail_url?: string; position?: number }
+
+/** Eşleştirme adayları: playlist'in dersi + kardeş dersler (RELATED_VIDEO_SUBJECTS). */
+export async function loadMatchTopics(db: Client, subjectId: string): Promise<{ own: { id: string; name: string }[]; related: { id: string; name: string }[] }> {
+  const { data: subjects } = await db.from("subjects").select("id, name")
+  const name = subjects?.find((s) => s.id === subjectId)?.name ?? ""
+  const relatedIds = (subjects ?? []).filter((s) => (RELATED_VIDEO_SUBJECTS[name] ?? []).includes(s.name)).map((s) => s.id)
+  const [own, ...rest] = await Promise.all([subjectId, ...relatedIds].map((id) => fetchActiveTopics(db, { subjectId: id })))
+  return { own, related: rest.flat() }
+}
+
+/** Kendi dersindeki eşleşme; kardeş dersteki yalnız puanı açıkça yüksekse. */
+export function matchVideoTopicRelated(title: string, topics: Awaited<ReturnType<typeof loadMatchTopics>>): { topic_id: string; score: number } | null {
+  const own = matchVideoTopic(title, topics.own)
+  const rel = topics.related.length ? matchVideoTopic(title, topics.related) : null
+  return rel && (!own || rel.score > own.score) ? rel : own
+}
 
 /** Videoları ekler (aynı playlist'te tekrar eden atlanır) + konu eşleştirme önerisi. */
 export async function insertVideos(
@@ -21,10 +38,10 @@ export async function insertVideos(
   videos: NewVideo[],
 ): Promise<{ inserted: number; matched: number } | { error: string }> {
   if (videos.length === 0) return { inserted: 0, matched: 0 }
-  const topics = await fetchActiveTopics(db, { subjectId })
+  const topics = await loadMatchTopics(db, subjectId)
   let matched = 0
   const rows = videos.map((v) => {
-    const m = matchVideoTopic(v.title, topics)
+    const m = matchVideoTopicRelated(v.title, topics)
     if (m) matched += 1
     return {
       student_id: studentId,

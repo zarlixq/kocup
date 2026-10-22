@@ -24,6 +24,8 @@ import {
 import { isSelfAssessment, parseBreakdown } from "@/lib/upplan/mastery"
 import { loadUpplanProfile } from "@/lib/upplan/load"
 import { scopeSubjects, type UpplanProfile } from "@/lib/upplan/profile"
+import { loadPlaylistScope } from "@/lib/upplan/playlist-scope"
+import { coveredNotBefore, playlistGoalDates } from "@/lib/upplan/playlist-order"
 import {
   addDaysIso,
   blockTypeFor,
@@ -37,6 +39,7 @@ import {
   needMinutes,
   netGapFactor,
   paceStatus,
+  reservedByDate,
   simulatePlan,
   topicEdgesFromAtoms,
   weeklyCapacityMinutes,
@@ -134,7 +137,7 @@ export async function gatherRoadmapContext(
   if (!profile) return null
   const examDate = EXAM_DATES[profile.segment].date
 
-  const [{ data: student }, { data: subjects }, topics, mastery, { data: assess }, { data: gap }, { data: exams }, edges, mpq, goals] =
+  const [{ data: student }, { data: subjects }, topics, mastery, { data: assess }, { data: gap }, { data: exams }, edges, mpq, goals, playlist] =
     await Promise.all([
       db.from("students").select("coach_id").eq("id", studentId).maybeSingle(),
       db.from("subjects").select("id, name, exam_type, curriculum, order").order("order"),
@@ -151,6 +154,7 @@ export async function gatherRoadmapContext(
       loadTopicEdges(db),
       loadMinutesPerQuestion(db, studentId),
       loadAssignmentsWithProgress(db, { studentId }),
+      loadPlaylistScope(db, studentId),
     ])
 
   const scoped = scopeSubjects(profile, subjects ?? [])
@@ -271,6 +275,7 @@ export async function gatherRoadmapContext(
         source: g.created_by_role,
         remainingMinutes: needMinutes(bt === "konu_calisma" && g.cozulen_soru > 0 ? "soru_cozum" : bt, remainingQ, mpq),
         son_tarih: g.son_tarih,
+        progressed: g.cozulen_soru > 0 || !!g.learned_at,
       }
     })
   // Aynı konuda birden fazla aktif hedef varsa ilki.
@@ -300,6 +305,8 @@ export async function gatherRoadmapContext(
       edges,
       puanTuru,
       availableWeeklyMinutes: availableMinutes(profile),
+      playlistTopics: playlist.topics,
+      playlistSubjects: playlist.subjects,
     },
   }
 }
@@ -368,7 +375,8 @@ export async function applyRoadmap(admin: Client, studentId: string, approvedBy:
     const prev = upByTopic.get(it.topic_id)
     if (prev) {
       upByTopic.delete(it.topic_id)
-      const keepActive = prev.status === "aktif"
+      // Playlist konusu: durum ve tarihler playlist takviminden (aktif hedef de sıraya dönebilir).
+      const keepActive = prev.status === "aktif" && !it.playlist
       updates.push({
         id: prev.id,
         ...fields,
@@ -426,7 +434,11 @@ export async function syncRoadmapProgress(admin: Client, studentId: string, toda
   const payload = parsePayload(rm?.payload)
   if (!payload || rm?.status !== "onaylandi") return []
 
-  const [goals, mastery] = await Promise.all([loadAssignmentsWithProgress(admin, { studentId }), loadMasteryInfo(admin, studentId)])
+  const [goals, mastery, playlist] = await Promise.all([
+    loadAssignmentsWithProgress(admin, { studentId }),
+    loadMasteryInfo(admin, studentId),
+    loadPlaylistScope(admin, studentId),
+  ])
   const events: SyncEvent[] = []
 
   for (const g of goals) {
@@ -446,10 +458,21 @@ export async function syncRoadmapProgress(admin: Client, studentId: string, toda
     .in("status", ["aktif", "sirada", "tamamlandi"])
   // Sürekli pratik aktif konu sınırına sayılmaz.
   const list = (rows ?? []).filter((r) => !r.is_practice)
+  // Playlist konuları aktif sınırına sayılmaz: plan günü gelince açılır
+  // (başlangıç tarihi playlist takviminden; syncPlaylistGoals günceller).
+  const byPlaylist = new Set(payload.items.filter((i) => i.playlist).map((i) => i.topic_id))
+  for (const q of rows ?? []) {
+    if (q.status !== "sirada" || !byPlaylist.has(q.topic_id) || q.baslangic_tarihi > today) continue
+    const { error } = await admin.from("topic_assignments").update({ status: "aktif" }).eq("id", q.id).eq("status", "sirada")
+    if (!error) {
+      q.status = "aktif"
+      events.push({ kind: "acildi", topic_name: q.topics?.name ?? "Konu" })
+    }
+  }
   const done = new Set(list.filter((r) => r.status === "tamamlandi").map((r) => r.topic_id))
   const known = (topicId: string) => done.has(topicId) || (mastery.get(topicId)?.effective ?? 0) >= GATE_MASTERY
   const planned = new Set(payload.items.map((i) => i.topic_id))
-  const active = list.filter((r) => r.status === "aktif")
+  const active = list.filter((r) => r.status === "aktif" && !byPlaylist.has(r.topic_id))
   let activeCount = active.length
   let learningCount = active.filter((r) => r.learning_phase === "gerekli" && !r.learned_at).length
   const perSubject = new Map<string, number>()
@@ -458,7 +481,9 @@ export async function syncRoadmapProgress(admin: Client, studentId: string, toda
     perSubject.set(sid, (perSubject.get(sid) ?? 0) + 1)
   }
   const forceOpen = !!payload.aytForceStart && today >= payload.aytForceStart
-  const queue = list.filter((r) => r.status === "sirada").sort((a, b) => (a.plan_order ?? 1e9) - (b.plan_order ?? 1e9))
+  const queue = list
+    .filter((r) => r.status === "sirada" && !byPlaylist.has(r.topic_id))
+    .sort((a, b) => (a.plan_order ?? 1e9) - (b.plan_order ?? 1e9))
   const perSlotDaily = Math.max(payload.weeklyMinutes, 1) / Math.max(payload.activeSlots, 1) / 7
 
   for (const q of queue) {
@@ -472,6 +497,8 @@ export async function syncRoadmapProgress(admin: Client, studentId: string, toda
       (item?.prereqs ?? []).some((p) => planned.has(p) && !known(p) && !gate.includes(p)) ||
       (!forceOpen && gate.some((g) => !known(g)))
     if (blocked) continue
+    // Kapsamdaki dersin playlist'te olmayan konusu playlist bitmeden açılmaz.
+    if ((coveredNotBefore(playlist.subjects, q.topics?.subject_id ?? "") ?? "") > today) continue
     const learning = (q.learning_phase ?? item?.learning_phase) === "gerekli"
     if (learning && learningCount >= MAX_LEARNING_ACTIVE) continue
     const sid = q.topics?.subject_id ?? ""
@@ -508,20 +535,27 @@ export async function redateQueue(admin: Client, studentId: string, today = ista
   const { data: rm } = await admin.from("upplan_roadmaps").select("payload").eq("student_id", studentId).maybeSingle()
   const payload = parsePayload(rm?.payload)
   if (!payload) return { shifted: [], overflowed: [] }
-  const [{ data: rows }, goals, mastery] = await Promise.all([
+  await syncPlaylistGoals(admin, studentId, today)
+  const [{ data: rows }, goals, mastery, playlist] = await Promise.all([
     admin
       .from("topic_assignments")
-      .select("id, topic_id, status, plan_order, block_type, hedef_soru, son_tarih, learning_phase, learned_at, topics(name, subject_id)")
+      .select("id, topic_id, status, plan_order, block_type, hedef_soru, baslangic_tarihi, son_tarih, learning_phase, learned_at, topics(name, subject_id)")
       .eq("student_id", studentId)
       .eq("origin", "upplan")
       .eq("is_practice", false)
       .in("status", ["aktif", "sirada", "tamamlandi"]),
     loadAssignmentsWithProgress(admin, { studentId }),
     loadMasteryInfo(admin, studentId),
+    loadPlaylistScope(admin, studentId),
   ])
+  // Playlist konuları simülasyona girmez (tarihleri playlist'ten); yükleri günlere ayrılır.
+  const byPlaylist = new Set(payload.items.filter((i) => i.playlist).map((i) => i.topic_id))
   const all = rows ?? []
-  const active = all.filter((r) => r.status === "aktif")
-  const queue = all.filter((r) => r.status === "sirada").sort((a, b) => (a.plan_order ?? 1e9) - (b.plan_order ?? 1e9))
+  const pinned = all.filter((r) => byPlaylist.has(r.topic_id) && (r.status === "aktif" || r.status === "sirada"))
+  const active = all.filter((r) => r.status === "aktif" && !byPlaylist.has(r.topic_id))
+  const queue = all
+    .filter((r) => r.status === "sirada" && !byPlaylist.has(r.topic_id))
+    .sort((a, b) => (a.plan_order ?? 1e9) - (b.plan_order ?? 1e9))
   if (!queue.length && !active.length) return { shifted: [], overflowed: [] }
 
   // Aktif hedefler kalan ihtiyaçlarıyla yer kaplar; kuyruk gün gün simülasyonla
@@ -530,7 +564,7 @@ export async function redateQueue(admin: Client, studentId: string, today = ista
   const done = new Set(all.filter((r) => r.status === "tamamlandi").map((r) => r.topic_id))
   const known = (t: string) => done.has(t) || (mastery.get(t)?.effective ?? 0) >= GATE_MASTERY
   const itemOf = new Map(payload.items.map((i) => [i.topic_id, i]))
-  const idOfTopic = new Map([...active, ...queue].map((r) => [r.topic_id, r.id]))
+  const idOfTopic = new Map([...active, ...queue, ...pinned].map((r) => [r.topic_id, r.id]))
   const need = (r: (typeof all)[number], remainingQ: number) => {
     const bt = isBlockType(r.block_type) ? r.block_type : "soru_cozum"
     const learning = r.learning_phase === "gerekli" && !r.learned_at
@@ -548,6 +582,8 @@ export async function redateQueue(admin: Client, studentId: string, today = ista
         learnMinutes: q.learning_phase === "gerekli" ? LECTURE_MINUTES : 0,
         prereqs: (item?.prereqs ?? []).filter((p) => !known(p) && !gate.includes(p)).map((p) => idOfTopic.get(p) ?? p),
         gate: gate.map((g) => idOfTopic.get(g) ?? g),
+        // Kapsamdaki dersin playlist'te olmayan konusu playlist bitince.
+        ...(coveredNotBefore(playlist.subjects, q.topics?.subject_id ?? "") ? { notBefore: coveredNotBefore(playlist.subjects, q.topics?.subject_id ?? "")! } : {}),
       }
     }),
     {
@@ -556,6 +592,15 @@ export async function redateQueue(admin: Client, studentId: string, today = ista
       slots: payload.activeSlots,
       horizon: payload.examDate,
       forceStart: payload.aytForceStart ?? payload.examDate,
+      external: new Map(pinned.map((p) => [p.id, p.son_tarih])),
+      reserved: reservedByDate(
+        pinned.map((p) => {
+          const bt = isBlockType(p.block_type) ? p.block_type : "soru_cozum"
+          const q = p.status === "aktif" ? Math.max((p.hedef_soru ?? 0) - (solved.get(p.id) ?? 0), 0) : (p.hedef_soru ?? GOAL_TEMPLATES[bt].questions)
+          return { need: need(p, q), start: p.baslangic_tarihi, end: p.son_tarih }
+        }),
+        today,
+      ),
       preActive: active.map((a) => ({
         id: a.id,
         need: need(a, Math.max((a.hedef_soru ?? 0) - (solved.get(a.id) ?? 0), 0)),
@@ -604,7 +649,11 @@ export async function extendBehindGoals(admin: Client, studentId: string, today 
   const { data: rm } = await admin.from("upplan_roadmaps").select("payload").eq("student_id", studentId).maybeSingle()
   const payload = parsePayload(rm?.payload)
   if (!payload) return []
-  const goals = (await loadAssignmentsWithProgress(admin, { studentId })).filter((g) => g.status === "aktif" && g.created_by_role === "ai")
+  // Playlist konularının bitişi playlist takviminden gelir (syncPlaylistGoals).
+  const byPlaylist = new Set(payload.items.filter((i) => i.playlist).map((i) => i.topic_id))
+  const goals = (await loadAssignmentsWithProgress(admin, { studentId })).filter(
+    (g) => g.status === "aktif" && g.created_by_role === "ai" && !byPlaylist.has(g.topic_id),
+  )
   const perSlotDaily = Math.max(payload.weeklyMinutes, 1) / Math.max(payload.activeSlots, 1) / 7
   const out: { name: string; days: number }[] = []
   for (const g of goals) {
@@ -616,6 +665,71 @@ export async function extendBehindGoals(admin: Client, studentId: string, today 
     if (!error) out.push({ name: g.topic_name, days: daysBetweenIso(g.son_tarih, newEnd) })
   }
   return out
+}
+
+/**
+ * Playlist'e göre planlanmış UpPlan hedeflerinin (yol haritasında `playlist`
+ * işaretli) tarihlerini canlı playlist takvimine çeker: kaydırma ve plan
+ * değişikliğinden sonra çağrılır. Sıradaki hedef başlangıç ve bitişi, aktif
+ * hedef yalnız bitişi alır. (admin client)
+ */
+export async function syncPlaylistGoals(admin: Client, studentId: string, today = istanbulDateStr()): Promise<{ updated: number }> {
+  const { data: rm } = await admin.from("upplan_roadmaps").select("payload").eq("student_id", studentId).maybeSingle()
+  const payload = parsePayload(rm?.payload)
+  const planned = new Set((payload?.items ?? []).filter((i) => i.playlist).map((i) => i.topic_id))
+  if (!payload || planned.size === 0) return { updated: 0 }
+  const [scope, { data: rows }] = await Promise.all([
+    loadPlaylistScope(admin, studentId).then((c) => c.topics),
+    admin
+      .from("topic_assignments")
+      .select("id, topic_id, status, baslangic_tarihi, son_tarih")
+      .eq("student_id", studentId)
+      .eq("origin", "upplan")
+      .in("status", ["aktif", "sirada"]),
+  ])
+  const out: Record<string, unknown>[] = []
+  for (const r of rows ?? []) {
+    const pt = scope[r.topic_id]
+    if (!pt || !planned.has(r.topic_id)) continue
+    const d = playlistGoalDates(pt, today, payload.examDate)
+    // Videosu planından önce izlenen konu bugün başlar (syncRoadmapProgress açar).
+    const start = d.reached && d.start > today ? today : d.start
+    if (r.status === "sirada" && (r.baslangic_tarihi !== start || r.son_tarih !== d.end)) {
+      out.push({ id: r.id, baslangic_tarihi: start, son_tarih: d.end })
+    } else if (r.status === "aktif" && r.son_tarih !== d.end && d.end >= r.baslangic_tarihi) {
+      out.push({ id: r.id, son_tarih: d.end })
+    }
+  }
+  if (out.length === 0) return { updated: 0 }
+  const { error } = await admin.rpc("upplan_bulk_update_goals", { p_student_id: studentId, p_rows: out as Json })
+  if (error) {
+    console.error("syncPlaylistGoals", error)
+    return { updated: 0 }
+  }
+  return { updated: out.length }
+}
+
+/**
+ * Playlist değişikliği sonrası (kaydır / plan): playlist konularının tarihleri,
+ * kuyruğun yeniden tarihlenmesi (playlist bitince başlayacak konular) ve
+ * günü gelenlerin açılışı; best-effort.
+ */
+export async function syncPlaylistGoalsSafe(admin: Client, studentId: string): Promise<void> {
+  try {
+    await redateQueue(admin, studentId)
+    await syncRoadmapProgress(admin, studentId)
+  } catch (e) {
+    console.error("syncPlaylistGoals", studentId, e)
+  }
+}
+
+/** Video izlenince: erken izlenen playlist konusu açılır (hafif; kuyruk yeniden tarihlenmez). */
+export async function openWatchedPlaylistGoalsSafe(admin: Client, studentId: string): Promise<void> {
+  try {
+    if ((await syncPlaylistGoals(admin, studentId)).updated > 0) await syncRoadmapProgress(admin, studentId)
+  } catch (e) {
+    console.error("openWatchedPlaylistGoals", studentId, e)
+  }
 }
 
 /** Action'lardan çağrılır: hata akışı bozmasın (best-effort). */

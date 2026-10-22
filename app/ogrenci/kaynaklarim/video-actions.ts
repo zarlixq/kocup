@@ -19,6 +19,7 @@ import {
 import { detectDayStructure, PLAN_MODES, type DayStructure } from "@/lib/resources/playlist-plan"
 import { applyPlan, extendPlan, shiftPlans, type PlanInput } from "@/lib/resources/playlist-plan-service"
 import { istanbulDateStr } from "@/lib/tz"
+import { openWatchedPlaylistGoalsSafe, syncPlaylistGoalsSafe } from "@/lib/upplan/roadmap-service"
 import { insertVideos, linkPlaylistToYoutube, syncYoutubeVideos, writePatches, type VideoPatch } from "@/lib/resources/video-sync"
 
 type ActionResult<T = undefined> = { success: boolean; error?: string; data?: T }
@@ -203,6 +204,7 @@ const planSchema = z
     amount: z.number().int().min(1).max(600).nullable(),
     start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Başlangıç tarihi seç."),
     weekdays: z.array(z.number().int().min(1).max(7)).min(1, "En az bir gün seç.").max(7),
+    orderTopics: z.boolean().optional().default(true),
   })
   .refine((p) => p.mode === "gun_yapisi" || p.amount !== null, { message: "Günlük video / dakika miktarını gir." })
   .transform((p) => ({ ...p, weekdays: Array.from(new Set(p.weekdays)).sort((a, b) => a - b) }))
@@ -479,6 +481,8 @@ export async function setPlaylistPlan(playlistId: string, plan: unknown): Promis
     if (!auth.ok) return { success: false, error: auth.error }
     const res = await applyPlan(auth.supabase, auth.userId, playlistId, parsed.data)
     if (res.error) return { success: false, error: res.error }
+    // Yol haritasındaki playlist konularının tarihleri yeni takvime çekilir.
+    await syncPlaylistGoalsSafe(supabaseAdmin(), auth.userId)
     revalidateVideos()
     return { success: true, data: { days: res.days, end: res.end } }
   } catch (e) {
@@ -495,6 +499,8 @@ export async function shiftVideoPlan(playlistId?: string): Promise<ActionResult<
     if (!auth.ok) return { success: false, error: auth.error }
     const res = await shiftPlans(auth.supabase, auth.userId, istanbulDateStr(), playlistId)
     if (res.error) return { success: false, error: res.error }
+    // Kaydırma yol haritasındaki playlist konularının tarihlerini de kaydırır.
+    if (res.moved > 0) await syncPlaylistGoalsSafe(supabaseAdmin(), auth.userId)
     await rememberCheckin(auth.supabase, auth.userId)
     revalidateVideos()
     return { success: true, data: { moved: res.moved } }
@@ -521,6 +527,7 @@ export async function markVideosWatched(videoIds: string[]): Promise<ActionResul
     if (error) return { success: false, error: "Kaydedilemedi." }
     const topics = Array.from(new Set((data ?? []).map((d) => d.topic_id).filter((t): t is string => !!t)))
     for (const t of topics) await syncLearnedFromVideos(auth.userId, t)
+    if (topics.length) await openWatchedPlaylistGoalsSafe(supabaseAdmin(), auth.userId)
     await rememberCheckin(auth.supabase, auth.userId)
     revalidateVideos()
     return { success: true, data: { count: data?.length ?? 0 } }
@@ -645,6 +652,8 @@ export async function markVideo(videoId: string, input: unknown): Promise<Action
   const { error } = await auth.supabase.from("student_resource_videos").update(patch).eq("id", videoId).eq("student_id", auth.userId)
   if (error) return { success: false, error: "Kaydedilemedi." }
   const learned = cur.topic_id ? await syncLearnedFromVideos(auth.userId, cur.topic_id) : false
+  // Playlist konusu planından önce izlendiyse yol haritasında açılır.
+  if (cur.topic_id && patch.watch_status === "izlendi" && cur.watch_status !== "izlendi") await openWatchedPlaylistGoalsSafe(supabaseAdmin(), auth.userId)
   revalidateVideos()
   return { success: true, data: { learned } }
 }

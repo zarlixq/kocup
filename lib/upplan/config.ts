@@ -431,3 +431,28 @@ export const PRACTICE_GROUPS: readonly {
 export const VIDEO_MATCH_MIN_SCORE = 0.5
 /** Hoca etkinliği kartı: en az bu kadar sonradan çözülmüş soru yoksa "yetersiz veri". */
 export const TEACHER_STATS_MIN_QUESTIONS = 40
+
+/**
+ * Playlist konu sırası: kapsamdaki konunun hedef bitişi = son videosunun plan
+ * tarihi + bu kadar gün (soru çözümü tamponu).
+ */
+export const PLAYLIST_TOPIC_BUFFER_DAYS = 3
+
+/**
+ * Playlist'in dersi dışındaki bir ders, playlist bu dersten en az bu kadar
+ * konuyu kapsıyorsa "kapsamdaki ders" sayılır (tek yanlış eşleşme bütün dersi
+ * bekletmesin). Kapsamdaki derste eşlenmemiş konular playlist bitince başlar.
+ */
+export const PLAYLIST_SUBJECT_MIN_TOPICS = 2
+
+/**
+ * Video konu eşleştirmesinde playlist'in dersine ek olarak aranan dersler (ad
+ * bazında): TYT Matematik playlist'indeki geometri videoları Geometri konularına
+ * eşlenebilsin. Eşit puanda playlist'in kendi dersi tercih edilir.
+ */
+export const RELATED_VIDEO_SUBJECTS: Record<string, readonly string[]> = {
+  "TYT Matematik": ["TYT Geometri"],
+  "TYT Geometri": ["TYT Matematik"],
+  "AYT Matematik": ["AYT Geometri"],
+  "AYT Geometri": ["AYT Matematik"],
+}

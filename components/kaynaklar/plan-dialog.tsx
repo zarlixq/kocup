@@ -35,6 +35,7 @@ export function PlanDialog({
       // Plan yeniden kurulurken kalan videolar bugünden başlar.
       start: planContext.today,
       weekdays: p.weekdays,
+      orderTopics: p.orderTopics,
     }
   })
   const [saving, startSave] = useTransition()

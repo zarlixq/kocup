@@ -22,9 +22,11 @@ export type PlanDraft = {
   minutes: number
   start: string
   weekdays: number[]
+  /** Kapsadığı konularda UpPlan konu sırasını bu playlist belirlesin. */
+  orderTopics: boolean
 }
 
-export type PlanPayload = { mode: PlanMode; amount: number | null; start: string; weekdays: number[] } | null
+export type PlanPayload = { mode: PlanMode; amount: number | null; start: string; weekdays: number[]; orderTopics: boolean } | null
 
 export function defaultPlanDraft(opts: { today: string; weekdays: number[]; dayStructure?: DayStructure | null }): PlanDraft {
   return {
@@ -34,6 +36,7 @@ export function defaultPlanDraft(opts: { today: string; weekdays: number[]; dayS
     minutes: 60,
     start: opts.today,
     weekdays: opts.weekdays,
+    orderTopics: true,
   }
 }
 
@@ -44,6 +47,7 @@ export function planPayload(d: PlanDraft): PlanPayload {
     amount: d.mode === "video" ? d.videoCount : d.mode === "dakika" ? d.minutes : null,
     start: d.start,
     weekdays: d.weekdays,
+    orderTopics: d.orderTopics,
   }
 }
 
@@ -195,6 +199,21 @@ export function PlanSettings({
               {availability && <p className="text-[11px] text-zinc-500">Varsayılan: UpPlan müsaitlik ızgaran.</p>}
             </div>
           </div>
+
+          <label className="flex items-start gap-2 text-sm text-zinc-700">
+            <input
+              type="checkbox"
+              checked={value.orderTopics}
+              onChange={(e) => set({ orderTopics: e.target.checked })}
+              className="mt-0.5 h-4 w-4 accent-[#1B6B8A]"
+            />
+            <span>
+              Konu sırasını bu playlist belirlesin
+              <span className="block text-[11px] text-zinc-500">
+                Videoların eşlendiği konular yol haritanda ve haftalık programında playlist&apos;in gün sırasıyla gelir.
+              </span>
+            </span>
+          </label>
 
           {preview ? (
             <div className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-700">

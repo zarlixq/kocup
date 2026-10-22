@@ -8,6 +8,7 @@ import { loadPlaylists, loadTeacherStats } from "@/lib/resources/videos"
 import { loadPriorityContext } from "@/lib/resources/video-context"
 import { prioritizeVideos } from "@/lib/resources/video-priority"
 import { fetchActiveTopics } from "@/lib/curriculum/active-topics"
+import { RELATED_VIDEO_SUBJECTS } from "@/lib/upplan/config"
 import { filterProgramSubjects } from "@/lib/program/subjects"
 import { loadUpplanProfile } from "@/lib/upplan/load"
 import { availabilityMinutes, weekdaysFromAvailability } from "@/lib/resources/playlist-plan"
@@ -34,8 +35,18 @@ export default async function KaynaklarimPage() {
     subjectIds.length ? fetchActiveTopics(supabase) : Promise.resolve([]),
     loadTeacherStats(supabase, userId, playlists),
   ])
+  // Konu seçici: playlist'in dersi + kardeş ders (Matematik ↔ Geometri) konuları.
+  const subjectName = new Map((allSubjects ?? []).map((s) => [s.id, s.name]))
   const topicsBySubject: Record<string, { id: string; name: string }[]> = {}
-  for (const t of topics) if (subjectIds.includes(t.subject_id)) (topicsBySubject[t.subject_id] ??= []).push({ id: t.id, name: t.name })
+  for (const sid of subjectIds) {
+    const related = RELATED_VIDEO_SUBJECTS[subjectName.get(sid) ?? ""] ?? []
+    topicsBySubject[sid] = [
+      ...topics.filter((t) => t.subject_id === sid).map((t) => ({ id: t.id, name: t.name })),
+      ...topics
+        .filter((t) => related.includes(subjectName.get(t.subject_id) ?? ""))
+        .map((t) => ({ id: t.id, name: `${t.name} (${subjectName.get(t.subject_id)})` })),
+    ]
+  }
 
   // Ekleme dialog'u: öğrencinin sınıfına uygun dersler (LGS / YKS).
   const videoSubjects = filterProgramSubjects(allSubjects ?? [], student?.grade)

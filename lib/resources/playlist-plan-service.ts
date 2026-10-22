@@ -15,7 +15,14 @@ type Client = SupabaseClient<Database>
 // Playlist planı — DB yazımı (öğrencinin oturum client'ıyla; RLS kendi satırları).
 // Hesap saf fonksiyonlarda (playlist-plan.ts).
 
-export type PlanInput = { mode: PlanMode; amount: number | null; start: string; weekdays: number[] }
+export type PlanInput = {
+  mode: PlanMode
+  amount: number | null
+  start: string
+  weekdays: number[]
+  /** Kapsadığı konularda UpPlan konu sırasını bu playlist belirlesin (varsayılan açık). */
+  orderTopics?: boolean
+}
 
 type PlanVideoRow = { id: string; title: string; duration_seconds: number | null; watch_status: string; plan_day: number | null; planned_date: string | null }
 
@@ -68,6 +75,7 @@ export async function applyPlan(
       plan_amount: plan && plan.mode !== "gun_yapisi" ? plan.amount : null,
       plan_start: plan?.start ?? null,
       plan_weekdays: plan ? plan.weekdays : null,
+      ...(plan ? { order_topics: plan.orderTopics ?? true } : {}),
     })
     .eq("id", playlistId)
     .eq("student_id", studentId)

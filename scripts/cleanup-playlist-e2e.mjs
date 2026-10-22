@@ -16,9 +16,13 @@ const users = list.users.filter((u) => u.email === EMAIL)
 if (users.length > 1) throw new Error("Beklenmeyen hesap sayısı")
 const id = users[0]?.id
 
+// Program kalemleri öğrenci kolonu taşımaz: test öğrencisinin program kimlikleri.
+const programIds = id ? ((await db.from("weekly_programs").select("id").eq("student_id", id)).data ?? []).map((r) => r.id) : []
+
 async function count(table, col, value) {
   let q = db.from(table).select("*", { count: "exact", head: true })
-  if (col) q = q.eq(col, value)
+  if (col === "program_id") q = q.in(col, programIds.length ? programIds : ["00000000-0000-0000-0000-000000000000"])
+  else if (col) q = q.eq(col, value)
   const { count: n, error } = await q
   if (error) throw error
   return n
@@ -26,6 +30,12 @@ async function count(table, col, value) {
 
 // [tablo, kolon] — silme sırası (çocuk → ebeveyn)
 const plan = [
+  ["weekly_program_items", "program_id"],
+  ["weekly_programs", "student_id"],
+  ["upplan_program_drafts", "student_id"],
+  ["upplan_notifications", "student_id"],
+  ["topic_assignments", "student_id"],
+  ["upplan_roadmaps", "student_id"],
   ["student_resource_videos", "student_id"],
   ["student_resource_playlists", "student_id"],
   ["user_ui_preferences", "user_id"],
@@ -33,7 +43,18 @@ const plan = [
   ["students", "id"],
   ["profiles", "id"],
 ]
-const control = ["student_resource_playlists", "student_resource_videos", "user_ui_preferences", "profiles", "students"]
+const control = [
+  "student_resource_playlists",
+  "student_resource_videos",
+  "user_ui_preferences",
+  "profiles",
+  "students",
+  "topic_assignments",
+  "upplan_roadmaps",
+  "upplan_program_drafts",
+  "weekly_programs",
+  "weekly_program_items",
+]
 const before = Object.fromEntries(await Promise.all(control.map(async (t) => [t, await count(t)])))
 console.log("Toplam (önce):", before)
 
@@ -45,7 +66,8 @@ if (dry) process.exit(0)
 
 if (id) {
   for (const [t, c] of plan) {
-    const { error } = await db.from(t).delete().eq(c, id)
+    if (c === "program_id" && !programIds.length) continue
+    const { error } = c === "program_id" ? await db.from(t).delete().in(c, programIds) : await db.from(t).delete().eq(c, id)
     if (error) throw error
   }
   // profiles silinince auth kullanıcısı da gidebilir (tetikleyici) → 404 sorun değil.

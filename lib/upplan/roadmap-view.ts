@@ -6,6 +6,8 @@ import { GOAL_TEMPLATES, NO_DATA_MASTERY, type BlockType } from "@/lib/upplan/co
 import { loadMasteryInfo, isBlockType, parsePayload, type RoadmapPayload } from "@/lib/upplan/roadmap-service"
 import { paceStatus, type Edge } from "@/lib/upplan/roadmap"
 import { buildTimeline, type TimelineMonth } from "@/lib/upplan/roadmap-view-shared"
+import { loadPlaylistScope } from "@/lib/upplan/playlist-scope"
+import { playlistTopicLabel } from "@/lib/upplan/playlist-order"
 
 export type { TimelineMonth }
 
@@ -29,6 +31,8 @@ export type RoadmapRow = {
   plan_order: number | null
   pace: "zamaninda" | "geride" | null
   reasons: string[]
+  /** Konu sırasını belirleyen playlist: "Bıyıklı Matematik · 3. Gün". */
+  playlist: string | null
 }
 
 export type RoadmapView = {
@@ -40,10 +44,12 @@ export type RoadmapView = {
   timeline: TimelineMonth[]
   /** Yol haritası üretildikten sonra deneme girildi → "güncelleyelim mi?" */
   newExamSince: boolean
+  /** Playlist kapsamı yol haritasındakinden farklı (yeni plan / seçenek değişti) → "güncelleyelim mi?" */
+  playlistChanged: boolean
 }
 
 export async function loadRoadmapView(db: Client, studentId: string, today = istanbulDateStr()): Promise<RoadmapView> {
-  const [{ data: rm }, goals, mastery, { data: queued }, { data: lastExam }] = await Promise.all([
+  const [{ data: rm }, goals, mastery, { data: queued }, { data: lastExam }, scope] = await Promise.all([
     db.from("upplan_roadmaps").select("status, payload, generated_at").eq("student_id", studentId).maybeSingle(),
     loadAssignmentsWithProgress(db, { studentId }),
     loadMasteryInfo(db, studentId),
@@ -54,10 +60,14 @@ export async function loadRoadmapView(db: Client, studentId: string, today = ist
       .eq("origin", "upplan")
       .in("status", ["sirada", "zaman_kalirsa", "iptal"]),
     db.from("exams").select("created_at").eq("student_id", studentId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    loadPlaylistScope(db, studentId).then((c) => c.topics),
   ])
   const payload = parsePayload(rm?.payload)
   const reasonsByTopic = new Map((payload?.items ?? []).map((i) => [i.topic_id, i.reasons]))
   const eff = (topicId: string) => mastery.get(topicId)?.effective ?? NO_DATA_MASTERY
+  // Playlist etiketi canlı kapsamdan (gün numarası plan değişince güncel kalır).
+  const byPlaylist = new Set((payload?.items ?? []).filter((i) => i.playlist).map((i) => i.topic_id))
+  const playlistOf = (topicId: string) => (byPlaylist.has(topicId) && scope[topicId] ? playlistTopicLabel(scope[topicId]) : null)
 
   // Plan sırası: onaylı satırların plan_order'ı; yoksa taslaktaki sıra.
   const { data: orderRows } = await db
@@ -88,6 +98,7 @@ export async function loadRoadmapView(db: Client, studentId: string, today = ist
       plan_order: m?.plan_order ?? null,
       pace: g.status === "aktif" ? paceStatus({ start: g.baslangic_tarihi, end: g.son_tarih, today, solved: g.cozulen_soru, target: g.hedef_soru }) : null,
       reasons: reasonsByTopic.get(g.topic_id) ?? (g.notes ? [g.notes] : []),
+      playlist: playlistOf(g.topic_id),
     })
   }
   for (const q of queued ?? []) {
@@ -108,6 +119,7 @@ export async function loadRoadmapView(db: Client, studentId: string, today = ist
       plan_order: q.plan_order,
       pace: null,
       reasons: reasonsByTopic.get(q.topic_id) ?? [],
+      playlist: playlistOf(q.topic_id),
     })
   }
   rows.sort((a, b) => (a.plan_order ?? 1e9) - (b.plan_order ?? 1e9) || a.end.localeCompare(b.end))
@@ -128,5 +140,9 @@ export async function loadRoadmapView(db: Client, studentId: string, today = ist
         )
       : [],
     newExamSince: !!(rm?.generated_at && lastExam?.created_at && lastExam.created_at > rm.generated_at),
+    // Yol haritasındaki, tamamlanmamış bir konunun playlist durumu canlı kapsamla uyuşmuyor.
+    playlistChanged: rows.some(
+      (r) => (r.status === "aktif" || r.status === "sirada" || r.status === "zaman_kalirsa") && r.source === "upplan" && byPlaylist.has(r.topic_id) !== !!scope[r.topic_id],
+    ),
   }
 }

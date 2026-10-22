@@ -23,6 +23,9 @@ import { addDaysIso, daysBetweenIso, practiceExamsPerWeek, type Segment } from "
 // 5) Öğrenme aşamasındaki konuya ÖNCE konu çalışması (en az 90 dk, gerekirse arka
 //    arkaya bloklar); o konunun soru blokları ancak sonrasına. Günde aynı dersten
 //    en fazla 2 blok; tekrar bloğu vadesinden önce konmaz.
+// 6) Playlist konuları (konu sırasını playlist belirler): konu çalışması bloğu
+//    yok (video bloğu yerini tutar); soru blokları konunun ilk videosunun plan
+//    gününden (o gün video bloğu varsa bittiği saatten) önce konmaz.
 
 export type ProgramGoal = {
   assignment_id: string
@@ -91,6 +94,14 @@ export type VideoDay = {
   topic_ids: string[]
 }
 
+/** Konu sırasını playlist'in belirlediği konu (topic_id → bilgi). */
+export type ProgramPlaylistTopic = {
+  /** İlk videosu izlenmediyse plan tarihi; soru blokları bu günden önce yok. */
+  notBefore: string | null
+  /** Blok başlığı bağlamı: "Bıyıklı 3. Gün". */
+  label: string
+}
+
 export type ScheduleInput = {
   weekStart: string
   /** Bu tarihten önceki günlere blok konmaz (içinde bulunulan hafta). */
@@ -110,6 +121,8 @@ export type ScheduleInput = {
   practice?: PracticeGroupInput[]
   /** Playlist planının bu haftaki video günleri. */
   videoDays?: VideoDay[]
+  /** Konu sırasını playlist'in belirlediği konular. */
+  playlistTopics?: Record<string, ProgramPlaylistTopic>
 }
 
 export type ScheduleResult = {
@@ -328,8 +341,21 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
   //     tekrar (1 blok, opsiyonel).
   const lectureEnd = new Map<string, { day: number; end: number }>()
   const noLecture = new Set<string>()
+  let lectureCount = 0
+  // Playlist konuları: konu çalışması yok; soru blokları ilk videonun plan
+  // gününden (video bloğu bu haftadaysa bittiği saatten) sonra. Plan günü
+  // geçmişse (video gecikmiş olsa da) kısıt yok.
+  const pl = input.playlistTopics ?? {}
+  const firstDay = input.weekStart < input.today ? input.today : input.weekStart
+  for (const g of input.goals) {
+    const pt = pl[g.topic_id]
+    if (!pt?.notBefore || pt.notBefore < firstDay) continue
+    const day = daysBetweenIso(input.weekStart, pt.notBefore) + 1
+    const ve = videoEnd.get(g.topic_id)
+    lectureEnd.set(g.assignment_id, ve && ve.day >= day ? ve : { day, end: 0 })
+  }
   const learning = input.goals
-    .filter((g) => g.lecture_pending || g.short_review_pending)
+    .filter((g) => !pl[g.topic_id] && (g.lecture_pending || g.short_review_pending))
     .map((g) => ({ g, daysLeft: daysBetweenIso(input.weekStart < input.today ? input.today : input.weekStart, g.son_tarih) }))
     .sort((a, b) => a.daysLeft - b.daysLeft)
   for (const { g } of learning) {
@@ -338,6 +364,7 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
     const viaVideo = videoEnd.get(g.topic_id)
     if (viaVideo) {
       lectureEnd.set(g.assignment_id, viaVideo)
+      lectureCount += 1
       continue
     }
     const k = g.lecture_pending ? Math.max(1, Math.ceil(KONU_CALISMA_MIN_DK / focus)) : 1
@@ -363,6 +390,7 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
     // Öğrenme bloğu o günün ders hakkını doldurur (k ≥ 2 ise zaten dolar).
     bump(p.day, g.subject_id, Math.max(k, MAX_SUBJECT_BLOCKS_PER_DAY))
     lectureEnd.set(g.assignment_id, { day: p.day, end })
+    lectureCount += 1
     items.push({
       day_of_week: p.day,
       start_time: toHHMM(p.start),
@@ -411,7 +439,8 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
   const tickets: Ticket[] = []
   for (const r of input.reviews.slice(0, MAX_REVIEW_BLOCKS_PER_WEEK)) tickets.push({ kind: "review", review: r })
   const demand = input.goals
-    .filter((g) => !noLecture.has(g.assignment_id))
+    // Plan günü bu haftadan sonra olan playlist konusu bu hafta blok almaz.
+    .filter((g) => !noLecture.has(g.assignment_id) && (lectureEnd.get(g.assignment_id)?.day ?? 0) <= 7)
     .map((g) => {
       const remainingMin = g.remaining_questions * mpq
       const daysLeft = Math.max(daysBetweenIso(input.weekStart < input.today ? input.today : input.weekStart, g.son_tarih) + 1, 1)
@@ -519,6 +548,7 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
       const g = pick.goal
       const q = Math.max(1, Math.round(focus / mpq))
       const bt: BlockType = g.block_type === "tekrar" ? "tekrar" : "soru_cozum"
+      const ctx = pl[g.topic_id] ? ` (${pl[g.topic_id].label})` : ""
       items.push({
         day_of_week: pos.day,
         start_time: start,
@@ -527,7 +557,7 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
         topic_id: g.topic_id,
         assignment_id: g.assignment_id,
         block_type: bt,
-        baslik: `${bt === "tekrar" ? "Tekrar" : "Soru çözümü"}: ${g.topic_name}`,
+        baslik: `${bt === "tekrar" ? "Tekrar" : "Soru çözümü"}: ${g.topic_name}${ctx}`,
         hedef_soru: Math.min(q, Math.max(g.remaining_questions, 1)),
       })
     }
@@ -545,7 +575,7 @@ export function scheduleWeek(input: ScheduleInput): ScheduleResult {
       capacityBlocks,
       unplaced: remaining.length + noLecture.size,
       studyMinutes: blockMinutes,
-      lectures: lectureEnd.size,
+      lectures: lectureCount,
       videoMinutes,
       videoOverflowMinutes: videoOverflow,
     },

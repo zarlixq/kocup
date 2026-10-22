@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react"
 import { toast } from "sonner"
-import { ArrowDown, ArrowUp, CalendarRange, GripVertical, Loader2, Map as MapIcon, RefreshCw, RotateCcw, Undo2, X } from "lucide-react"
+import { ArrowDown, ArrowUp, CalendarRange, GripVertical, Loader2, Map as MapIcon, PlayCircle, RefreshCw, RotateCcw, Undo2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -237,6 +237,7 @@ export function DraftList({ items, selectable }: { items: RoadmapItem[]; selecta
                   <div className="text-xs text-zinc-600">
                     {BLOCK_LABEL[i.block_type]} · {i.target_questions} soru · %{i.target_accuracy} doğruluk
                   </div>
+                  {i.playlist && <PlaylistTag label={i.playlist.label} />}
                   {i.reasons[0] && <div className="mt-0.5 text-xs text-zinc-500">{i.reasons.slice(0, 2).join(" · ")}</div>}
                 </div>
               </li>
@@ -255,9 +256,11 @@ function ApprovedRoadmap({ view, onRegenerate, regenerating }: { view: RoadmapVi
 
   return (
     <div className="space-y-4">
-      {view.newExamSince && (
+      {(view.newExamSince || view.playlistChanged) && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2.5 text-sm text-orange-900">
-          <span>Yeni deneme girdin. Yol haritanı güncelleyelim mi?</span>
+          <span>
+            {view.newExamSince ? "Yeni deneme girdin." : "Playlist planın değişti."} Yol haritanı güncelleyelim mi?
+          </span>
           <Button size="sm" variant="accent" onClick={onRegenerate} disabled={regenerating}>
             {regenerating && <Loader2 className="h-4 w-4 animate-spin" />} Güncelle
           </Button>
@@ -314,6 +317,16 @@ function ApprovedRoadmap({ view, onRegenerate, regenerating }: { view: RoadmapVi
   )
 }
 
+/** Konu sırasını belirleyen playlist: "Bıyıklı Matematik · 3. Gün". */
+function PlaylistTag({ label }: { label: string }) {
+  return (
+    <span className="mt-1 inline-flex max-w-full items-center gap-1 truncate rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">
+      <PlayCircle className="h-3 w-3 shrink-0" aria-hidden />
+      {label}
+    </span>
+  )
+}
+
 function ActiveList({ rows }: { rows: RoadmapRow[] }) {
   if (rows.length === 0) return <Empty text="Aktif konu yok." />
   return (
@@ -352,6 +365,7 @@ function ActiveList({ rows }: { rows: RoadmapRow[] }) {
               <span>Bitiş {dd(r.end)}</span>
               <span>{BLOCK_LABEL[r.block_type]}</span>
             </div>
+            {r.playlist && <PlaylistTag label={r.playlist} />}
             {r.reasons[0] && <p className="mt-1 text-xs text-zinc-500">{r.reasons.slice(0, 2).join(" · ")}</p>}
           </li>
         )
@@ -432,6 +446,7 @@ function QueueList({ rows, edges, allRows }: { rows: RoadmapRow[]; edges: Roadma
                 <div className="text-[11px] text-zinc-500 tabular-nums">
                   {BLOCK_LABEL[r.block_type]} · {dd(r.start)} – {dd(r.end)}
                 </div>
+                {r.playlist && <PlaylistTag label={r.playlist} />}
               </div>
               <TargetEditor row={r} />
               <div className="flex flex-col">

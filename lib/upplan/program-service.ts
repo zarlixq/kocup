@@ -24,10 +24,13 @@ import {
   type DraftItem,
   type PracticeGroupInput,
   type ProgramGoal,
+  type ProgramPlaylistTopic,
   type ProgramReview,
   type VideoDay,
 } from "@/lib/upplan/scheduler"
 import { isoWeekday, UNKNOWN_VIDEO_MINUTES } from "@/lib/resources/playlist-plan"
+import { loadPlaylistScope } from "@/lib/upplan/playlist-scope"
+import { coveredNotBefore, playlistReached, playlistShortLabel } from "@/lib/upplan/playlist-order"
 
 type Client = SupabaseClient<Database>
 
@@ -135,7 +138,8 @@ export async function generateProgramDraft(
   if (roadmap?.status !== "onaylandi" || !payload) return { error: ROADMAP_REQUIRED_ERROR }
   const roadmapTopics = new Set(payload.items.map((i) => i.topic_id))
 
-  const [{ data: student }, goals, mastery, mpq, { data: program }] = await Promise.all([
+  const weekEnd = addDaysIso(weekStart, 6)
+  const [{ data: student }, goals, mastery, mpq, { data: program }, playlist, { data: queued }] = await Promise.all([
     admin.from("students").select("coach_id").eq("id", studentId).maybeSingle(),
     loadAssignmentsWithProgress(admin, { studentId }),
     loadMasteryInfo(admin, studentId),
@@ -146,14 +150,29 @@ export async function generateProgramDraft(
       .eq("student_id", studentId)
       .eq("week_start", weekStart)
       .maybeSingle(),
+    loadPlaylistScope(admin, studentId),
+    // Playlist konusu bu hafta içinde plan gününe geliyorsa sıradaki hedefi de programa girer.
+    admin
+      .from("topic_assignments")
+      .select("id, topic_id, hedef_soru, son_tarih, block_type, learning_phase, learned_at, topics(name, subject_id, subjects(name))")
+      .eq("student_id", studentId)
+      .eq("origin", "upplan")
+      .eq("status", "sirada")
+      .lte("baslangic_tarihi", weekEnd),
   ])
   const existingItems = program?.weekly_program_items ?? []
+  const scope = playlist.topics
+  // Kapsamdaki derste (playlist bu hafta sürüyor) UpPlan yalnız playlist konularını
+  // programlar; playlist'te olmayan konular playlist bitince (öğrenci/koç hedefi korunur).
+  const firstDay = weekStart < today ? today : weekStart
+  const waitsForPlaylist = (topicId: string, subjectId: string) => !scope[topicId] && (coveredNotBefore(playlist.subjects, subjectId) ?? "") > firstDay
   const linked = new Map<string, number>()
   for (const i of existingItems) if (i.assignment_id) linked.set(i.assignment_id, (linked.get(i.assignment_id) ?? 0) + 1)
   const lectureDone = new Set(existingItems.filter((i) => i.block_type === "konu_calisma" && i.assignment_id).map((i) => i.assignment_id!))
 
   const programGoals: ProgramGoal[] = goals
     .filter((g) => g.status === "aktif" && roadmapTopics.has(g.topic_id) && g.hedef_soru !== null && g.cozulen_soru < g.hedef_soru)
+    .filter((g) => !(g.created_by_role === "ai" && waitsForPlaylist(g.topic_id, g.subject_id)))
     .map((g) => {
       const eff = mastery.get(g.topic_id)?.effective ?? NO_DATA_MASTERY
       const bt = blockTypeFor(eff)
@@ -170,6 +189,24 @@ export async function generateProgramDraft(
         scheduled_blocks: linked.get(g.id) ?? 0,
       }
     })
+  for (const q of queued ?? []) {
+    const pt = scope[q.topic_id]
+    if (!pt || !playlistReached(pt, weekEnd) || !roadmapTopics.has(q.topic_id) || !q.topics || !q.hedef_soru) continue
+    if (programGoals.some((g) => g.topic_id === q.topic_id)) continue
+    const bt = blockTypeFor(mastery.get(q.topic_id)?.effective ?? NO_DATA_MASTERY)
+    programGoals.push({
+      assignment_id: q.id,
+      topic_id: q.topic_id,
+      topic_name: q.topics.name,
+      subject_id: q.topics.subject_id,
+      subject_name: q.topics.subjects?.name ?? "",
+      block_type: bt,
+      remaining_questions: q.hedef_soru,
+      ...learningFlags({ ...q, cozulen_soru: 0 }, q.block_type ?? bt, lectureDone),
+      son_tarih: q.son_tarih < weekStart ? weekEnd : q.son_tarih,
+      scheduled_blocks: linked.get(q.id) ?? 0,
+    })
+  }
 
   // Sürekli pratik: öğrenme aşaması bekleyen konuya önce konu çalışması (soru
   // hedefi yok), öğrenilmiş konular grup bazında haftalık pratik bloğu alır.
@@ -180,6 +217,9 @@ export async function generateProgramDraft(
   // zorunlu konu çalışması grup başına haftada bir konuya (konular sırayla öğrenilir).
   const lectureGroup = new Set<string>()
   for (const g of practiceGoals) {
+    // Playlist günü bu haftadan sonra gelen pratik konusu bu hafta yok.
+    if (scope[g.topic_id] && !playlistReached(scope[g.topic_id], weekEnd)) continue
+    if (g.created_by_role === "ai" && waitsForPlaylist(g.topic_id, g.subject_id)) continue
     const flags = { ...learningFlags(g, g.block_type ?? "soru_cozum", lectureDone), short_review_pending: false }
     const groupKey = practiceGroupOf(g.subject_name, g.topic_name)?.key ?? g.id
     if (flags.lecture_pending) {
@@ -249,6 +289,12 @@ export async function generateProgramDraft(
     for (const t of ts ?? []) reviews.push({ topic_id: t.id, topic_name: t.name, subject_id: t.subject_id, subject_name: t.subjects?.name ?? "", due: weekStart, reason: "unutma" })
   }
 
+  // Playlist kapsamı: soru blokları ilk videonun plan gününden sonra, başlıkta bağlam.
+  const playlistTopics: Record<string, ProgramPlaylistTopic> = {}
+  for (const g of programGoals) {
+    const pt = scope[g.topic_id]
+    if (pt) playlistTopics[g.topic_id] = { notBefore: pt.notBefore, label: playlistShortLabel(pt) }
+  }
   const videoDays = await loadVideoDays(admin, studentId, weekStart, existingItems)
   const res = scheduleWeek({
     weekStart,
@@ -268,6 +314,7 @@ export async function generateProgramDraft(
     existingExams: existingItems.filter((i) => i.block_type === "deneme").length,
     practice: Array.from(practiceGroups.values()),
     videoDays,
+    playlistTopics,
   })
   const items = res.items
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { matchVideoTopicRelated } from "@/lib/resources/video-sync"
 import {
   formatClock,
   formatSpan,
@@ -135,5 +136,18 @@ describe("link tipi", () => {
     expect(formatSpan(22800)).toBe("6s 20dk")
     expect(formatSpan(1500)).toBe("25dk")
     expect(formatSpan(7200)).toBe("2s")
+  })
+})
+
+describe("kardeş ders eşleştirmesi (Matematik ↔ Geometri)", () => {
+  const topics = {
+    own: [{ id: "m-olasilik", name: "Olasılık" }, { id: "m-temel", name: "Temel Kavramlar" }],
+    related: [{ id: "g-ucgen", name: "Üçgenler" }, { id: "g-temel", name: "Temel Kavramlar" }],
+  }
+  it("playlist'in dersinde yoksa geometri konusuna eşlenir", () => {
+    expect(matchVideoTopicRelated("55 Günde TYT Matematik Kampı | 40. Gün | Üçgenler 1 | Konu Anlatımı", topics)?.topic_id).toBe("g-ucgen")
+  })
+  it("eşit puanda kendi dersi önde", () => {
+    expect(matchVideoTopicRelated("2. Gün | Temel Kavramlar 1", topics)?.topic_id).toBe("m-temel")
   })
 })
