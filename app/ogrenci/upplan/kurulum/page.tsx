@@ -6,6 +6,7 @@ import { istanbulDateStr } from "@/lib/tz"
 import { DEFAULT_FOCUS } from "@/lib/upplan/config"
 import { ALANLAR, defaultsFromGrade } from "@/lib/upplan/profile"
 import { loadScanData, loadUpplanProfile } from "@/lib/upplan/load"
+import { loadExamCalendar } from "@/lib/upplan/calendar"
 import { ProfileStep } from "@/components/upplan/setup/profile-step"
 import { ScanStep } from "@/components/upplan/setup/scan-step"
 import { ExamStep } from "@/components/upplan/setup/exam-step"
@@ -90,17 +91,19 @@ export default async function UpplanSetupPage({ searchParams }: { searchParams: 
 type Supabase = Awaited<ReturnType<typeof createClient>>
 
 async function ProfileStepLoader({ studentId, supabase, done }: { studentId: string; supabase: Supabase; done: boolean }) {
-  const [profile, { data: student }, { data: acquisition }] = await Promise.all([
+  const [profile, { data: student }, { data: acquisition }, exams] = await Promise.all([
     loadUpplanProfile(supabase, studentId),
     supabase.from("students").select("grade, target_department, target_ranking").eq("id", studentId).maybeSingle(),
     // Ücretsiz kayıt/davette seçilen alan kurulumu ön doldurur.
     supabase.from("student_acquisition").select("alan").eq("student_id", studentId).maybeSingle(),
+    loadExamCalendar(supabase),
   ])
   const alan = ALANLAR.find((a) => a === acquisition?.alan) ?? null
   const fromGrade = defaultsFromGrade(student?.grade ?? null)
   return (
     <ProfileStep
       today={istanbulDateStr()}
+      exams={exams}
       nextHref={done ? "/ogrenci/upplan" : "/ogrenci/upplan/kurulum?adim=tarama"}
       initial={
         profile ?? {
@@ -110,6 +113,8 @@ async function ProfileStepLoader({ studentId, supabase, done }: { studentId: str
           focus_minutes: DEFAULT_FOCUS,
           target_department: student?.target_department ?? null,
           target_ranking: student?.target_ranking ?? null,
+          target_exam_year: null,
+          alan_egilimi: null,
         }
       }
     />

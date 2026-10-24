@@ -1,0 +1,28 @@
+-- seed_maarif_11_kimya.sql — ÜRETİLDİ (scripts/maarif/build-seed.mjs), elle düzenleme:
+-- supabase/seed/maarif/curriculum-2026.mjs'i değiştirip yeniden üret.
+--
+-- Ders     : 11. Sınıf Kimya  (müfredat tymm-2026, Anadolu lisesi)
+-- Kaynak   : https://tymm.meb.gov.tr/assets/file/kimya-dersi-taslak-yillik-planlar_20260827_083820_533.zip
+-- Konu     : 18
+--
+-- Hafta | Ünite / Tema | Konu | TYT/AYT eşlemesi (güç; < 0.5 = emin değilim)
+--     1 | Etkileşim | Tepkimelerde Enerji Değişimi | AYT Kimya › Kimya ve Enerji (0.9)
+--     2 | Etkileşim | Maddelerin Enerji Kaynağı Olma Potansiyeli | AYT Kimya › Kimya ve Enerji (0.6)
+--     4 | Etkileşim | Bağ Enerjileri ve Oluşum Entalpileriyle Tepkime Entalpisi | AYT Kimya › Kimya ve Enerji (0.9)
+--     7 | Etkileşim | Kimyasal Tepkimelerin Gerçekleşme Şartları | AYT Kimya › Kimyasal Kinetik (0.8)
+--     8 | Etkileşim | Ortalama Tepkime Hızı | AYT Kimya › Kimyasal Kinetik (0.9)
+--     9 | Etkileşim | Tepkime Hızına Etki Eden Faktörler | AYT Kimya › Kimyasal Kinetik (0.9)
+--    11 | Etkileşim | Hız Denkleminin Deneysel Verilerle Belirlenmesi | AYT Kimya › Kimyasal Kinetik (0.9)
+--    13 | Çeşitlilik | Tersinir Tepkimeler ve Denge | AYT Kimya › Kimyasal Denge (0.9)
+--    15 | Çeşitlilik | Denge Sabiti ve Tepkime Oranı | AYT Kimya › Kimyasal Denge (0.9)
+--    17 | Çeşitlilik | Dengeyi Etkileyen Faktörler | AYT Kimya › Kimyasal Denge (0.9)
+--    20 | Çeşitlilik | Suyun Otoiyonizasyonu ve Asit-Baz Teorileri | AYT Kimya › Asit - Baz Dengesi (0.8); TYT Kimya › Asitler, Bazlar ve Tuzlar (0.6)
+--    21 | Çeşitlilik | Asitlerin ve Bazların Kuvveti ve pH Hesaplamaları | AYT Kimya › Asit - Baz Dengesi (0.9)
+--    24 | Çeşitlilik | Nötralleşme ve Titrasyon | AYT Kimya › Asit - Baz Dengesi (0.8); TYT Kimya › Asitler, Bazlar ve Tuzlar (0.6)
+--    27 | Çeşitlilik | Asidik ve Bazik Ürünlerin Seçimi | TYT Kimya › Asitler, Bazlar ve Tuzlar (0.5)
+--    28 | Çeşitlilik | Çözünürlük Dengesi | AYT Kimya › Çözünürlük Dengesi (0.9)
+--    31 | Sürdürülebilirlik | Yeşil Hidrojen ve Fermantasyon | TYT Kimya › Endüstride ve Çevrede Kimya (0.3 ?)
+--    33 | Sürdürülebilirlik | Nanoteknolojik Ürünler | TYT Kimya › Endüstride ve Çevrede Kimya (0.3 ?)
+--    34 | Sürdürülebilirlik | Mikroplastik ve Nanoplastikler | TYT Kimya › Doğa ve Kimya (0.3 ?)
+
+select public.maarif_apply_curriculum('{"version":"tymm-2026","subjects":[{"name":"11. Sınıf Kimya","ders_key":"kimya","grade":11,"color":"#059669","order":1103,"source":"https://tymm.meb.gov.tr/assets/file/kimya-dersi-taslak-yillik-planlar_20260827_083820_533.zip","topics":[{"name":"Tepkimelerde Enerji Değişimi","order":1,"week":1,"unit":"Etkileşim","yks":[{"subject":"AYT Kimya","topic":"Kimya ve Enerji","strength":0.9}]},{"name":"Maddelerin Enerji Kaynağı Olma Potansiyeli","order":2,"week":2,"unit":"Etkileşim","yks":[{"subject":"AYT Kimya","topic":"Kimya ve Enerji","strength":0.6}]},{"name":"Bağ Enerjileri ve Oluşum Entalpileriyle Tepkime Entalpisi","order":3,"week":4,"unit":"Etkileşim","yks":[{"subject":"AYT Kimya","topic":"Kimya ve Enerji","strength":0.9}]},{"name":"Kimyasal Tepkimelerin Gerçekleşme Şartları","order":4,"week":7,"unit":"Etkileşim","yks":[{"subject":"AYT Kimya","topic":"Kimyasal Kinetik","strength":0.8}]},{"name":"Ortalama Tepkime Hızı","order":5,"week":8,"unit":"Etkileşim","yks":[{"subject":"AYT Kimya","topic":"Kimyasal Kinetik","strength":0.9}]},{"name":"Tepkime Hızına Etki Eden Faktörler","order":6,"week":9,"unit":"Etkileşim","yks":[{"subject":"AYT Kimya","topic":"Kimyasal Kinetik","strength":0.9}]},{"name":"Hız Denkleminin Deneysel Verilerle Belirlenmesi","order":7,"week":11,"unit":"Etkileşim","yks":[{"subject":"AYT Kimya","topic":"Kimyasal Kinetik","strength":0.9}]},{"name":"Tersinir Tepkimeler ve Denge","order":8,"week":13,"unit":"Çeşitlilik","yks":[{"subject":"AYT Kimya","topic":"Kimyasal Denge","strength":0.9}]},{"name":"Denge Sabiti ve Tepkime Oranı","order":9,"week":15,"unit":"Çeşitlilik","yks":[{"subject":"AYT Kimya","topic":"Kimyasal Denge","strength":0.9}]},{"name":"Dengeyi Etkileyen Faktörler","order":10,"week":17,"unit":"Çeşitlilik","yks":[{"subject":"AYT Kimya","topic":"Kimyasal Denge","strength":0.9}]},{"name":"Suyun Otoiyonizasyonu ve Asit-Baz Teorileri","order":11,"week":20,"unit":"Çeşitlilik","yks":[{"subject":"AYT Kimya","topic":"Asit - Baz Dengesi","strength":0.8},{"subject":"TYT Kimya","topic":"Asitler, Bazlar ve Tuzlar","strength":0.6}]},{"name":"Asitlerin ve Bazların Kuvveti ve pH Hesaplamaları","order":12,"week":21,"unit":"Çeşitlilik","yks":[{"subject":"AYT Kimya","topic":"Asit - Baz Dengesi","strength":0.9}]},{"name":"Nötralleşme ve Titrasyon","order":13,"week":24,"unit":"Çeşitlilik","yks":[{"subject":"AYT Kimya","topic":"Asit - Baz Dengesi","strength":0.8},{"subject":"TYT Kimya","topic":"Asitler, Bazlar ve Tuzlar","strength":0.6}]},{"name":"Asidik ve Bazik Ürünlerin Seçimi","order":14,"week":27,"unit":"Çeşitlilik","yks":[{"subject":"TYT Kimya","topic":"Asitler, Bazlar ve Tuzlar","strength":0.5}]},{"name":"Çözünürlük Dengesi","order":15,"week":28,"unit":"Çeşitlilik","yks":[{"subject":"AYT Kimya","topic":"Çözünürlük Dengesi","strength":0.9}]},{"name":"Yeşil Hidrojen ve Fermantasyon","order":16,"week":31,"unit":"Sürdürülebilirlik","yks":[{"subject":"TYT Kimya","topic":"Endüstride ve Çevrede Kimya","strength":0.3}]},{"name":"Nanoteknolojik Ürünler","order":17,"week":33,"unit":"Sürdürülebilirlik","yks":[{"subject":"TYT Kimya","topic":"Endüstride ve Çevrede Kimya","strength":0.3}]},{"name":"Mikroplastik ve Nanoplastikler","order":18,"week":34,"unit":"Sürdürülebilirlik","yks":[{"subject":"TYT Kimya","topic":"Doğa ve Kimya","strength":0.3}]}],"retire":[]}]}'::jsonb);

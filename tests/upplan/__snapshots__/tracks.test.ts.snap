@@ -1,0 +1,223 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden: track başına iki öğrenci (sıfırdan + ustalıklı) > eski_12 sıfırdan 1`] = `
+{
+  "counts": {
+    "aktif": 6,
+    "sirada": 58,
+    "zaman_kalirsa": 0,
+  },
+  "examDate": "2027-06-19",
+  "first": [
+    "TYT Matematik › TYT Matematik 1 [aktif] Saat başına yaklaşık 0,5 puan: sınavda ortalama 2 soru çıkıyor ve eksiklerin var",
+    "AYT Matematik › AYT Matematik 1 [aktif] Saat başına yaklaşık 1,2 puan: sınavda ortalama 2,5 soru çıkıyor ve eksiklerin var",
+    "AYT Matematik › AYT Matematik 2 [aktif] Saat başına yaklaşık 1,2 puan: sınavda ortalama 2,5 soru çıkıyor ve eksiklerin var",
+    "TYT Türkçe › TYT Türkçe 1 [aktif] Saat başına yaklaşık 0,8 puan: sınavda ortalama 4 soru çıkıyor ve eksiklerin var",
+    "TYT Türkçe › TYT Türkçe 2 [aktif] Saat başına yaklaşık 0,8 puan: sınavda ortalama 4 soru çıkıyor ve eksiklerin var",
+    "AYT Fizik › AYT Fizik 1 [aktif] Saat başına yaklaşık 0,6 puan: sınavda ortalama 1,4 soru çıkıyor ve eksiklerin var",
+  ],
+  "notes": [],
+  "overflow": null,
+}
+`;
+
+exports[`golden: track başına iki öğrenci (sıfırdan + ustalıklı) > eski_12 ustalıklı 1`] = `
+{
+  "counts": {
+    "aktif": 6,
+    "sirada": 58,
+    "zaman_kalirsa": 0,
+  },
+  "examDate": "2027-06-19",
+  "first": [
+    "TYT Matematik › TYT Matematik 1 [aktif] Saat başına yaklaşık 0,3 puan: sınavda ortalama 2 soru çıkıyor ve pekiştirmen yeterli",
+    "AYT Matematik › AYT Matematik 2 [aktif] Saat başına yaklaşık 1,2 puan: sınavda ortalama 2,5 soru çıkıyor ve eksiklerin var",
+    "AYT Matematik › AYT Matematik 11 [aktif] Saat başına yaklaşık 1,2 puan: sınavda ortalama 2,5 soru çıkıyor ve eksiklerin var",
+    "TYT Türkçe › TYT Türkçe 2 [aktif] Saat başına yaklaşık 0,8 puan: sınavda ortalama 4 soru çıkıyor ve eksiklerin var",
+    "TYT Türkçe › TYT Türkçe 3 [aktif] Saat başına yaklaşık 0,8 puan: sınavda ortalama 4 soru çıkıyor ve eksiklerin var",
+    "AYT Fizik › AYT Fizik 2 [aktif] Saat başına yaklaşık 0,6 puan: sınavda ortalama 1,4 soru çıkıyor ve eksiklerin var",
+  ],
+  "notes": [],
+  "overflow": null,
+}
+`;
+
+exports[`golden: track başına iki öğrenci (sıfırdan + ustalıklı) > maarif_9 sıfırdan 1`] = `
+{
+  "counts": {
+    "aktif": 4,
+    "sirada": 66,
+    "zaman_kalirsa": 0,
+  },
+  "examDate": "2027-06-25",
+  "first": [
+    "9. Sınıf Edebiyat › 9. Sınıf Edebiyat konu 4 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "9. Sınıf Edebiyat › 9. Sınıf Edebiyat konu 5 [aktif] Okulda 2 hafta sonra işlenecek: önden git",
+    "9. Sınıf Fizik › 9. Sınıf Fizik konu 4 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "9. Sınıf Fizik › 9. Sınıf Fizik konu 5 [aktif] Okulda 2 hafta sonra işlenecek: önden git",
+    "9. Sınıf Matematik › 9. Sınıf Matematik konu 4 [sirada] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "9. Sınıf Matematik › 9. Sınıf Matematik konu 5 [sirada] Okulda 2 hafta sonra işlenecek: önden git",
+  ],
+  "notes": [
+    "Program okul müfredatını takip eder: işlenen konuları pekiştirir, bir iki hafta önden gider.",
+  ],
+  "overflow": null,
+}
+`;
+
+exports[`golden: track başına iki öğrenci (sıfırdan + ustalıklı) > maarif_9 ustalıklı 1`] = `
+{
+  "counts": {
+    "aktif": 4,
+    "sirada": 66,
+    "zaman_kalirsa": 0,
+  },
+  "examDate": "2027-06-25",
+  "first": [
+    "9. Sınıf Edebiyat › 9. Sınıf Edebiyat konu 4 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "9. Sınıf Fizik › 9. Sınıf Fizik konu 4 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "9. Sınıf Matematik › 9. Sınıf Matematik konu 4 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "9. Sınıf Tarih › 9. Sınıf Tarih konu 3 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "9. Sınıf Edebiyat › 9. Sınıf Edebiyat konu 5 [sirada] Okulda 2 hafta sonra işlenecek: önden git",
+    "9. Sınıf Fizik › 9. Sınıf Fizik konu 5 [sirada] Okulda 2 hafta sonra işlenecek: önden git",
+  ],
+  "notes": [
+    "Program okul müfredatını takip eder: işlenen konuları pekiştirir, bir iki hafta önden gider.",
+  ],
+  "overflow": null,
+}
+`;
+
+exports[`golden: track başına iki öğrenci (sıfırdan + ustalıklı) > maarif_10 sıfırdan 1`] = `
+{
+  "counts": {
+    "aktif": 4,
+    "sirada": 66,
+    "zaman_kalirsa": 0,
+  },
+  "examDate": "2027-06-25",
+  "first": [
+    "10. Sınıf Kimya › 10. Sınıf Kimya konu 4 [aktif] Okulda 1 hafta sonra işlenecek: önden git",
+    "10. Sınıf Matematik › 10. Sınıf Matematik konu 4 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "10. Sınıf Matematik › 10. Sınıf Matematik konu 5 [aktif] Okulda 1 hafta sonra işlenecek: önden git",
+    "10. Sınıf Tarih › 10. Sınıf Tarih konu 3 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "10. Sınıf Tarih › 10. Sınıf Tarih konu 4 [sirada] Okulda 2 hafta sonra işlenecek: önden git",
+    "10. Sınıf Kimya › 10. Sınıf Kimya konu 3 [sirada] Okulda 1 hafta önce işlendi; ustalığın 40, pekiştir",
+  ],
+  "notes": [
+    "Program okul müfredatını takip eder: işlenen konuları pekiştirir, bir iki hafta önden gider.",
+  ],
+  "overflow": null,
+}
+`;
+
+exports[`golden: track başına iki öğrenci (sıfırdan + ustalıklı) > maarif_10 ustalıklı 1`] = `
+{
+  "counts": {
+    "aktif": 4,
+    "sirada": 63,
+    "zaman_kalirsa": 0,
+  },
+  "examDate": "2027-06-25",
+  "first": [
+    "10. Sınıf Kimya › 10. Sınıf Kimya konu 4 [aktif] Okulda 1 hafta sonra işlenecek: önden git",
+    "10. Sınıf Matematik › 10. Sınıf Matematik konu 4 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "10. Sınıf Tarih › 10. Sınıf Tarih konu 3 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "10. Sınıf Tarih › 10. Sınıf Tarih konu 4 [aktif] Okulda 2 hafta sonra işlenecek: önden git",
+    "10. Sınıf Matematik › 10. Sınıf Matematik konu 5 [sirada] Okulda 1 hafta sonra işlenecek: önden git",
+    "10. Sınıf Kimya › 10. Sınıf Kimya konu 3 [sirada] Okulda 1 hafta önce işlendi; ustalığın 85, pekiştir",
+  ],
+  "notes": [
+    "Program okul müfredatını takip eder: işlenen konuları pekiştirir, bir iki hafta önden gider.",
+  ],
+  "overflow": null,
+}
+`;
+
+exports[`golden: track başına iki öğrenci (sıfırdan + ustalıklı) > maarif_11 sıfırdan 1`] = `
+{
+  "counts": {
+    "aktif": 4,
+    "sirada": 81,
+    "zaman_kalirsa": 0,
+  },
+  "examDate": "2027-06-25",
+  "first": [
+    "11. Sınıf Matematik › 11. Sınıf Matematik konu 4 [aktif] Okulda 2 hafta sonra işlenecek: önden git",
+    "11. Sınıf Fizik › 11. Sınıf Fizik konu 4 [aktif] Okulda 1 hafta sonra işlenecek: önden git",
+    "11. Sınıf Matematik › 11. Sınıf Matematik konu 3 [aktif] Okulda 1 hafta önce işlendi; ustalığın 40, pekiştir",
+    "11. Sınıf Edebiyat › 11. Sınıf Edebiyat konu 3 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "11. Sınıf Edebiyat › 11. Sınıf Edebiyat konu 4 [sirada] Okulda 2 hafta sonra işlenecek: önden git",
+    "11. Sınıf Fizik › 11. Sınıf Fizik konu 3 [sirada] Okulda 1 hafta önce işlendi; ustalığın 40, pekiştir",
+  ],
+  "notes": [
+    "Haftada bir bağlam temelli soru bloğu planlanır (YKS 2028 soru tipi).",
+  ],
+  "overflow": null,
+}
+`;
+
+exports[`golden: track başına iki öğrenci (sıfırdan + ustalıklı) > maarif_11 ustalıklı 1`] = `
+{
+  "counts": {
+    "aktif": 4,
+    "sirada": 75,
+    "zaman_kalirsa": 0,
+  },
+  "examDate": "2027-06-25",
+  "first": [
+    "11. Sınıf Matematik › 11. Sınıf Matematik konu 4 [aktif] Okulda 2 hafta sonra işlenecek: önden git",
+    "11. Sınıf Fizik › 11. Sınıf Fizik konu 4 [aktif] Okulda 1 hafta sonra işlenecek: önden git",
+    "11. Sınıf Edebiyat › 11. Sınıf Edebiyat konu 3 [aktif] Bu hafta okulda işleniyor; pekiştir (ustalığın 40)",
+    "11. Sınıf Edebiyat › 11. Sınıf Edebiyat konu 4 [aktif] Okulda 2 hafta sonra işlenecek: önden git",
+    "9. Sınıf Matematik › 9. Sınıf Matematik konu 4 [sirada] 9. sınıftan eksik konu (ustalığın 40): kapat",
+    "9. Sınıf Matematik › 9. Sınıf Matematik konu 6 [sirada] 9. sınıftan eksik konu (ustalığın 40): kapat",
+  ],
+  "notes": [
+    "Haftada bir bağlam temelli soru bloğu planlanır (YKS 2028 soru tipi).",
+  ],
+  "overflow": null,
+}
+`;
+
+exports[`golden: track başına iki öğrenci (sıfırdan + ustalıklı) > mezun sıfırdan 1`] = `
+{
+  "counts": {
+    "aktif": 6,
+    "sirada": 58,
+    "zaman_kalirsa": 0,
+  },
+  "examDate": "2027-06-19",
+  "first": [
+    "TYT Matematik › TYT Matematik 1 [aktif] Saat başına yaklaşık 0,5 puan: sınavda ortalama 2 soru çıkıyor ve eksiklerin var",
+    "AYT Matematik › AYT Matematik 1 [aktif] Saat başına yaklaşık 1,2 puan: sınavda ortalama 2,5 soru çıkıyor ve eksiklerin var",
+    "AYT Matematik › AYT Matematik 2 [aktif] Saat başına yaklaşık 1,2 puan: sınavda ortalama 2,5 soru çıkıyor ve eksiklerin var",
+    "TYT Türkçe › TYT Türkçe 1 [aktif] Saat başına yaklaşık 0,8 puan: sınavda ortalama 4 soru çıkıyor ve eksiklerin var",
+    "TYT Türkçe › TYT Türkçe 2 [aktif] Saat başına yaklaşık 0,8 puan: sınavda ortalama 4 soru çıkıyor ve eksiklerin var",
+    "AYT Fizik › AYT Fizik 1 [aktif] Saat başına yaklaşık 0,6 puan: sınavda ortalama 1,4 soru çıkıyor ve eksiklerin var",
+  ],
+  "notes": [],
+  "overflow": null,
+}
+`;
+
+exports[`golden: track başına iki öğrenci (sıfırdan + ustalıklı) > mezun ustalıklı 1`] = `
+{
+  "counts": {
+    "aktif": 6,
+    "sirada": 58,
+    "zaman_kalirsa": 0,
+  },
+  "examDate": "2027-06-19",
+  "first": [
+    "TYT Matematik › TYT Matematik 1 [aktif] Saat başına yaklaşık 0,3 puan: sınavda ortalama 2 soru çıkıyor ve pekiştirmen yeterli",
+    "AYT Matematik › AYT Matematik 2 [aktif] Saat başına yaklaşık 1,2 puan: sınavda ortalama 2,5 soru çıkıyor ve eksiklerin var",
+    "AYT Matematik › AYT Matematik 11 [aktif] Saat başına yaklaşık 1,2 puan: sınavda ortalama 2,5 soru çıkıyor ve eksiklerin var",
+    "TYT Türkçe › TYT Türkçe 2 [aktif] Saat başına yaklaşık 0,8 puan: sınavda ortalama 4 soru çıkıyor ve eksiklerin var",
+    "TYT Türkçe › TYT Türkçe 3 [aktif] Saat başına yaklaşık 0,8 puan: sınavda ortalama 4 soru çıkıyor ve eksiklerin var",
+    "AYT Fizik › AYT Fizik 2 [aktif] Saat başına yaklaşık 0,6 puan: sınavda ortalama 1,4 soru çıkıyor ve eksiklerin var",
+  ],
+  "notes": [],
+  "overflow": null,
+}
+`;

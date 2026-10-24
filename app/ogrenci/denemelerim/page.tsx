@@ -43,7 +43,7 @@ export default async function DenemelerimPage() {
         <div className="bg-white border border-zinc-200 rounded-2xl p-12 text-center">
           <FileText className="h-6 w-6 text-zinc-400 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-zinc-900 mb-1">Henüz deneme yok</h3>
-          <p className="text-sm text-zinc-500 mb-5">İlk deneme sonucunu kaydet.</p>
+          <p className="text-sm text-zinc-500 mb-5">İlk deneme sonucunu kaydet: ertesi gün programına deneme analizi bloğu eklenir, zayıf çıkan konular önceliğe girer.</p>
           <Link href="/ogrenci/denemelerim/yeni">
             <Button variant="accent">
               <Plus className="h-4 w-4" /> Yeni Deneme

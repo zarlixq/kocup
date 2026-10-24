@@ -1,0 +1,26 @@
+-- seed_maarif_10_edebiyat.sql — ÜRETİLDİ (scripts/maarif/build-seed.mjs), elle düzenleme:
+-- supabase/seed/maarif/curriculum-2026.mjs'i değiştirip yeniden üret.
+--
+-- Ders     : 10. Sınıf Edebiyat  (müfredat tymm-2026, Anadolu lisesi)
+-- Kaynak   : https://tymm.meb.gov.tr/assets/file/turk-dili-ve-edebiyati-dersi-taslak-yillik-planlar_20260827_142401_066.zip
+-- Konu     : 15
+-- NOT      : Eski 4 satır tema adlarıydı (Sözün Ezgisi vb.); temalar 'unit' alanına, okuma türleri konuya dönüştü.
+--
+-- Hafta | Ünite / Tema | Konu | TYT/AYT eşlemesi (güç; < 0.5 = emin değilim)
+--     1 | Sözün Ezgisi | Koşuk ve Koşma  [eski ad: Sözün Ezgisi] | AYT Edebiyat › İslamiyet Öncesi Türk Edebiyatı (0.7); AYT Edebiyat › Halk Edebiyatı (0.6)
+--     1 | Sözün Ezgisi | Türkü ve Ninni | AYT Edebiyat › Halk Edebiyatı (0.6)
+--     4 | Sözün Ezgisi | Şiir Dinletisi Hazırlama | AYT Edebiyat › Şiir Bilgisi (Biçim ve İçerik) (0.4 ?)
+--     6 | Sözün Ezgisi | Masal | AYT Edebiyat › Halk Edebiyatı (0.4 ?)
+--    10 | Kelimelerin Ritmi | Gazel ve Kaside  [eski ad: Kelimelerin Ritmi] | AYT Edebiyat › Divan Edebiyatı (0.9)
+--    10 | Kelimelerin Ritmi | Saf Şiir | AYT Edebiyat › Cumhuriyet Dönemi Türk Edebiyatı (1923-1950) (0.6)
+--    13 | Kelimelerin Ritmi | Bilgilendirici Metni Edebî Metne Dönüştürme | TYT Türkçe › Metin Türleri ve Anlatım (0.4 ?)
+--    15 | Kelimelerin Ritmi | Söyleşi ve Podcast | —
+--    19 | Dünden Bugüne | Destan  [eski ad: Dünden Bugüne] | AYT Edebiyat › İslamiyet Öncesi Türk Edebiyatı (0.8)
+--    19 | Dünden Bugüne | Halk Hikâyesi ve Mesnevi | AYT Edebiyat › Halk Edebiyatı (0.6); AYT Edebiyat › Divan Edebiyatı (0.6)
+--    24 | Dünden Bugüne | Fabl | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.3 ?)
+--    28 | Nesillerin Mirası | Dede Korkut Hikâyeleri  [eski ad: Nesillerin Mirası] | AYT Edebiyat › İslamiyet'e Geçiş Dönemi Türk Edebiyatı (0.8)
+--    28 | Nesillerin Mirası | Tanzimat Dönemi Şiiri | AYT Edebiyat › Tanzimat Edebiyatı (1. Dönem) (0.8)
+--    28 | Nesillerin Mirası | Servetifünun Romanı ve Fecriati Şiiri | AYT Edebiyat › Servet-i Fünun Edebiyatı (0.8); AYT Edebiyat › Fecr-i Ati Edebiyatı (0.7)
+--    33 | Nesillerin Mirası | Millî Edebiyat Dönemi Hikâyesi | AYT Edebiyat › Milli Edebiyat Dönemi (0.8)
+
+select public.maarif_apply_curriculum('{"version":"tymm-2026","subjects":[{"name":"10. Sınıf Edebiyat","ders_key":"edebiyat","grade":10,"color":"#DC2626","order":1005,"source":"https://tymm.meb.gov.tr/assets/file/turk-dili-ve-edebiyati-dersi-taslak-yillik-planlar_20260827_142401_066.zip","topics":[{"name":"Koşuk ve Koşma","keep":"Sözün Ezgisi","order":1,"week":1,"unit":"Sözün Ezgisi","yks":[{"subject":"AYT Edebiyat","topic":"İslamiyet Öncesi Türk Edebiyatı","strength":0.7},{"subject":"AYT Edebiyat","topic":"Halk Edebiyatı","strength":0.6}]},{"name":"Türkü ve Ninni","order":2,"week":1,"unit":"Sözün Ezgisi","yks":[{"subject":"AYT Edebiyat","topic":"Halk Edebiyatı","strength":0.6}]},{"name":"Şiir Dinletisi Hazırlama","order":3,"week":4,"unit":"Sözün Ezgisi","yks":[{"subject":"AYT Edebiyat","topic":"Şiir Bilgisi (Biçim ve İçerik)","strength":0.4}]},{"name":"Masal","order":4,"week":6,"unit":"Sözün Ezgisi","yks":[{"subject":"AYT Edebiyat","topic":"Halk Edebiyatı","strength":0.4}]},{"name":"Gazel ve Kaside","keep":"Kelimelerin Ritmi","order":5,"week":10,"unit":"Kelimelerin Ritmi","yks":[{"subject":"AYT Edebiyat","topic":"Divan Edebiyatı","strength":0.9}]},{"name":"Saf Şiir","order":6,"week":10,"unit":"Kelimelerin Ritmi","yks":[{"subject":"AYT Edebiyat","topic":"Cumhuriyet Dönemi Türk Edebiyatı (1923-1950)","strength":0.6}]},{"name":"Bilgilendirici Metni Edebî Metne Dönüştürme","order":7,"week":13,"unit":"Kelimelerin Ritmi","yks":[{"subject":"TYT Türkçe","topic":"Metin Türleri ve Anlatım","strength":0.4}]},{"name":"Söyleşi ve Podcast","order":8,"week":15,"unit":"Kelimelerin Ritmi","yks":[]},{"name":"Destan","keep":"Dünden Bugüne","order":9,"week":19,"unit":"Dünden Bugüne","yks":[{"subject":"AYT Edebiyat","topic":"İslamiyet Öncesi Türk Edebiyatı","strength":0.8}]},{"name":"Halk Hikâyesi ve Mesnevi","order":10,"week":19,"unit":"Dünden Bugüne","yks":[{"subject":"AYT Edebiyat","topic":"Halk Edebiyatı","strength":0.6},{"subject":"AYT Edebiyat","topic":"Divan Edebiyatı","strength":0.6}]},{"name":"Fabl","order":11,"week":24,"unit":"Dünden Bugüne","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.3}]},{"name":"Dede Korkut Hikâyeleri","keep":"Nesillerin Mirası","order":12,"week":28,"unit":"Nesillerin Mirası","yks":[{"subject":"AYT Edebiyat","topic":"İslamiyet''e Geçiş Dönemi Türk Edebiyatı","strength":0.8}]},{"name":"Tanzimat Dönemi Şiiri","order":13,"week":28,"unit":"Nesillerin Mirası","yks":[{"subject":"AYT Edebiyat","topic":"Tanzimat Edebiyatı (1. Dönem)","strength":0.8}]},{"name":"Servetifünun Romanı ve Fecriati Şiiri","order":14,"week":28,"unit":"Nesillerin Mirası","yks":[{"subject":"AYT Edebiyat","topic":"Servet-i Fünun Edebiyatı","strength":0.8},{"subject":"AYT Edebiyat","topic":"Fecr-i Ati Edebiyatı","strength":0.7}]},{"name":"Millî Edebiyat Dönemi Hikâyesi","order":15,"week":33,"unit":"Nesillerin Mirası","yks":[{"subject":"AYT Edebiyat","topic":"Milli Edebiyat Dönemi","strength":0.8}]}],"retire":[]}]}'::jsonb);

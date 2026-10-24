@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
-import { CheckCircle2, Loader2, RefreshCw, Sparkles, X } from "lucide-react"
+import { CheckCircle2, Info, Loader2, RefreshCw, Shuffle, Sparkles, Star, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,12 +15,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Textarea } from "@/components/ui/textarea"
 import { DAYS } from "@/lib/days"
 import type { DraftItem } from "@/lib/upplan/scheduler"
-import { decideMyProgramDraft, generateMyProgramDraft, previewRebuildMyWeek, rebuildMyProgramWeek } from "@/app/ogrenci/upplan/roadmap-actions"
+import { FEEDBACK_LABEL, FEEDBACK_REASONS, type FeedbackReason } from "@/lib/upplan/feedback"
+import {
+  changeDraftBlock,
+  decideMyProgramDraft,
+  generateMyProgramDraft,
+  previewRebuildMyWeek,
+  rateMyWeek,
+  rebuildMyProgramWeek,
+} from "@/app/ogrenci/upplan/roadmap-actions"
 
 export type ProgramDraftView = {
-  status: "taslak" | "onaylandi" | "reddedildi" | "koca_onerildi"
+  status: "taslak" | "onaylandi" | "reddedildi" | "koca_onerildi" | "superseded"
   items: DraftItem[]
   studyMinutes: number
   examCount: number
@@ -31,6 +41,8 @@ export type ProgramDraftView = {
   /** "Bu haftayı yeniden oluştur" taslağı: onayda yerini bu taslağa bırakacak UpPlan bloğu sayısı. */
   replaceCount?: number
 }
+
+export type WeekRating = { rating: number; comment: string | null }
 
 const TYPE_TONE: Record<DraftItem["block_type"], string> = {
   konu_calisma: "border-l-[#1B6B8A]",
@@ -43,9 +55,14 @@ const TYPE_TONE: Record<DraftItem["block_type"], string> = {
 export function DraftDays({
   items,
   selectable,
+  onChange,
+  busy,
 }: {
   items: DraftItem[]
   selectable?: { selected: Set<number>; toggle: (i: number) => void }
+  /** "Değiştir": neden koduyla bloğu değiştir (yalnız öğrencinin kendi taslağı). */
+  onChange?: (index: number, reason: FeedbackReason) => void
+  busy?: boolean
 }) {
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -67,13 +84,38 @@ export function DraftDays({
                       aria-label={`${it.baslik} seç`}
                     />
                   )}
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="text-[11px] tabular-nums text-zinc-500">
                       {it.start_time}–{it.end_time}
                     </div>
                     <div className="truncate text-xs font-medium text-zinc-900">{it.baslik}</div>
                     {it.hedef_soru && <div className="text-[11px] text-zinc-500">{it.hedef_soru} soru</div>}
+                    {it.neden && (
+                      <div className="mt-0.5 flex gap-1 text-[11px] leading-snug text-zinc-500">
+                        <Info className="mt-px h-3 w-3 shrink-0" aria-hidden />
+                        <span className="line-clamp-2" title={it.neden}>
+                          {it.neden}
+                        </span>
+                      </div>
+                    )}
                   </div>
+                  {onChange && it.block_type !== "deneme" && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" disabled={busy} aria-label={`${it.baslik} bloğunu değiştir`}>
+                          <Shuffle className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Neden değiştiriyorsun?</DropdownMenuLabel>
+                        {FEEDBACK_REASONS.map((r) => (
+                          <DropdownMenuItem key={r} onSelect={() => onChange(idx, r)}>
+                            {FEEDBACK_LABEL[r]}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </li>
               ))}
             </ul>
@@ -89,11 +131,13 @@ export function ProgramDraftPanel({
   weekLabel,
   draft,
   coached,
+  rating,
 }: {
   weekStart: string
   weekLabel: string
   draft: ProgramDraftView | null
   coached: boolean
+  rating?: WeekRating | null
 }) {
   const [pending, start] = useTransition()
   const [open, setOpen] = useState(draft?.status === "taslak")
@@ -138,6 +182,14 @@ export function ProgramDraftPanel({
       if (!approve) return void toast.success("Taslak reddedildi.")
       const replaced = res.data?.replaced ?? 0
       toast.success(`${res.data?.count ?? 0} blok programına eklendi${replaced ? `, ${replaced} eski UpPlan bloğu kaldırıldı` : ""}.`)
+    })
+  }
+
+  function change(index: number, reason: FeedbackReason) {
+    start(async () => {
+      const res = await changeDraftBlock(weekStart, index, reason)
+      if (!res.success) return void toast.error(res.error ?? "Blok değiştirilemedi.")
+      toast.success(res.data?.replaced ? "Blok değişti; geri bildirimin önceliklere işlendi." : "Blok kaldırıldı; geri bildirimin kaydedildi.")
     })
   }
 
@@ -217,7 +269,7 @@ export function ProgramDraftPanel({
           {draft.items.length === 0 && !draft.replaceCount ? (
             <p className="text-sm text-zinc-600">Eklenecek blok yok: aktif hedeflerin bu hafta için zaten yerleşmiş ya da hedefin yok.</p>
           ) : (
-            <DraftDays items={draft.items} />
+            <DraftDays items={draft.items} onChange={draft.status === "taslak" && !coached ? change : undefined} busy={pending} />
           )}
           {draft.status === "taslak" && !coached && (draft.items.length > 0 || !!draft.replaceCount) && (
             <div className="flex flex-wrap justify-end gap-2">
@@ -231,6 +283,63 @@ export function ProgramDraftPanel({
           )}
         </>
       )}
+      {draft && draft.status !== "superseded" && <WeekRatingForm weekStart={weekStart} initial={rating ?? null} />}
     </section>
+  )
+}
+
+/** "Bu hafta nasıl?" — 1-5 puan + serbest metin. */
+function WeekRatingForm({ weekStart, initial }: { weekStart: string; initial: WeekRating | null }) {
+  const [rating, setRating] = useState(initial?.rating ?? 0)
+  const [comment, setComment] = useState(initial?.comment ?? "")
+  const [pending, start] = useTransition()
+  function save(next = rating) {
+    if (!next) return
+    start(async () => {
+      const res = await rateMyWeek({ weekStart, rating: next, comment: comment.trim() || null })
+      if (!res.success) return void toast.error(res.error ?? "Kaydedilemedi.")
+      toast.success("Teşekkürler, programın buna göre ayarlanacak.")
+    })
+  }
+  return (
+    <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium text-zinc-800">Bu hafta nasıl?</span>
+        <div role="radiogroup" aria-label="Haftanı puanla" className="flex">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={rating === n}
+              aria-label={`${n} puan`}
+              disabled={pending}
+              onClick={() => {
+                setRating(n)
+                save(n)
+              }}
+              className="p-1"
+            >
+              <Star className={cn("h-5 w-5", n <= rating ? "fill-[#F97316] text-[#F97316]" : "text-zinc-300")} />
+            </button>
+          ))}
+        </div>
+      </div>
+      {rating > 0 && (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            maxLength={1000}
+            rows={2}
+            placeholder="İstersen kısaca yaz: ne iyi gitti, ne zorladı?"
+            className="text-sm"
+          />
+          <Button size="sm" variant="outline" onClick={() => save()} disabled={pending} className="self-end">
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} Kaydet
+          </Button>
+        </div>
+      )}
+    </div>
   )
 }

@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { formatDate } from "@/lib/format"
-import { EXAM_DATES, FOCUS_OPTIONS, type FocusMinutes } from "@/lib/upplan/config"
+import { FOCUS_OPTIONS, type FocusMinutes } from "@/lib/upplan/config"
+import { examFor, type ExamCalendar } from "@/lib/upplan/calendar"
+import { eduEndYear, graduationYearForGrade, isContextBasedExamYear } from "@/lib/upplan/track"
 import {
   ALANLAR,
   ALAN_LABEL,
@@ -34,11 +36,23 @@ export type ProfileStepInitial = {
   focus_minutes: FocusMinutes
   target_department: string | null
   target_ranking: number | null
+  target_exam_year: number | null
+  alan_egilimi: Alan | null
 }
 
 const GRADES = [5, 6, 7, 8, 9, 10, 11, 12] as const
 
-export function ProfileStep({ initial, today, nextHref }: { initial: ProfileStepInitial; today: string; nextHref: string }) {
+export function ProfileStep({
+  initial,
+  today,
+  nextHref,
+  exams,
+}: {
+  initial: ProfileStepInitial
+  today: string
+  nextHref: string
+  exams: ExamCalendar
+}) {
   const router = useRouter()
   const [status, setStatus] = useState(initial.status)
   const [grade, setGrade] = useState<number | null>(initial.grade)
@@ -48,13 +62,22 @@ export function ProfileStep({ initial, today, nextHref }: { initial: ProfileStep
   const [focus, setFocus] = useState<FocusMinutes>(initial.focus_minutes)
   const [department, setDepartment] = useState(initial.target_department ?? "")
   const [ranking, setRanking] = useState(initial.target_ranking != null ? String(initial.target_ranking) : "")
+  const [examYear, setExamYear] = useState<number | null>(initial.target_exam_year)
+  const [egilim, setEgilim] = useState<Alan | null>(initial.alan_egilimi)
   const [pending, start] = useTransition()
 
-  const exam = EXAM_DATES[segment]
-  const daysLeft = Math.max(
-    Math.round((Date.parse(`${exam.date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000),
-    0,
-  )
+  // Sınav yılı = mezuniyet yılı (lise); mezunda seçim, yoksa bu eğitim yılının YKS'si.
+  const thisYear = eduEndYear(today)
+  const earlyHigh = status === "lise" && grade !== null && grade <= 10
+  const year =
+    status === "lise" && grade !== null
+      ? graduationYearForGrade(grade, today) - (segment === "lgs" ? 4 : 0)
+      : (examYear ?? thisYear)
+  const exam = examFor(exams, segment, year)
+  const daysLeft = exam
+    ? Math.max(Math.round((Date.parse(`${exam.exam_date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000), 0)
+    : null
+  const examLabel = `${segment === "lgs" ? "LGS" : "YKS"} ${year}`
 
   function submit() {
     start(async () => {
@@ -62,7 +85,9 @@ export function ProfileStep({ initial, today, nextHref }: { initial: ProfileStep
         status,
         grade: status === "lise" ? grade : null,
         segment,
-        alan: segment === "lgs" ? null : alan,
+        alan: segment === "lgs" || earlyHigh ? null : alan,
+        alan_egilimi: earlyHigh && grade === 10 ? egilim : null,
+        target_exam_year: status === "mezun" ? examYear : null,
         availability,
         focus_minutes: focus,
         target_department: department.trim() || null,
@@ -117,12 +142,47 @@ export function ProfileStep({ initial, today, nextHref }: { initial: ProfileStep
           onChange={setSegment}
         />
         <p className="mt-1.5 text-xs text-zinc-500">
-          {exam.label}: {formatDate(exam.date, "dd.MM.yyyy")}
-          {exam.estimated && " (tahmini)"} · {daysLeft} gün kaldı
+          {examLabel}
+          {exam ? `: ${formatDate(exam.exam_date, "dd.MM.yyyy")}${exam.tahmini ? " (tahmini)" : ""} · ${daysLeft} gün kaldı` : ""}
         </p>
+        {status === "mezun" && segment === "yks" && (
+          <div className="mt-2 space-y-1.5">
+            <Segmented
+              label="Hedef sınav yılı"
+              options={[thisYear, thisYear + 1, thisYear + 2].map((y) => ({ value: y, label: `YKS ${y}` }))}
+              value={year}
+              onChange={setExamYear}
+              size="sm"
+            />
+            {isContextBasedExamYear(year) && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                YKS {year}: TYT/AYT yapısı aynı kalıyor ama sorular beceri ve bağlam temelli olacak (Maarif modeli). Programına
+                bağlam temelli soru blokları eklenir.
+              </p>
+            )}
+          </div>
+        )}
+        {earlyHigh && (
+          <p className="mt-1.5 text-xs text-zinc-500">
+            {grade}. sınıfta programın okul müfredatına göre kurulur: okulda işlediğin konuları pekiştirir, bir iki hafta önden gidersin.
+          </p>
+        )}
       </Field>
 
-      {segment === "yks" && (
+      {earlyHigh && grade === 10 && (
+        <Field label="Alan eğilimin (opsiyonel)" hint="2. dönemde düşünmeye başladığın alanı seçebilirsin; programı değiştirmez, ders ağırlığını hafifçe kaydırır.">
+          <Segmented
+            label="Alan eğilimi"
+            options={ALANLAR.map((a) => ({ value: a, label: ALAN_LABEL[a] }))}
+            value={egilim}
+            onChange={setEgilim}
+            className="w-full sm:w-auto"
+            size="sm"
+          />
+        </Field>
+      )}
+
+      {segment === "yks" && !earlyHigh && (
         <Field label="Alanın">
           <Segmented
             label="Alan"

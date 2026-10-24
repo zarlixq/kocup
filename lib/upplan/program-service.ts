@@ -4,23 +4,30 @@ import { loadAssignmentsWithProgress } from "@/lib/assignments/load"
 import { ensureProgram } from "@/lib/program/ensure-program"
 import { istanbulDateStr } from "@/lib/tz"
 import {
-  EXAM_DATES,
+  ALAN_PUAN_TURU,
   FORGETTING_REVIEW_RATIO,
   NO_DATA_MASTERY,
   SPACED_REVIEW_DAYS,
 } from "@/lib/upplan/config"
+import { isBreakDay, loadExamCalendar, loadSchoolCalendar, schoolPosition, examFor } from "@/lib/upplan/calendar"
+import { examYearFor, isContextBasedExamYear, isYksPoolTrack } from "@/lib/upplan/track"
+import { schoolYearEnd } from "@/lib/upplan/roadmap-maarif"
+import { coreSubjectId, heavySubjectIds, lowValueSubjectIds, skeletonFor, subjectWeightsFor } from "@/lib/upplan/week-skeleton"
 import { loadUpplanProfile } from "@/lib/upplan/load"
 import { addDaysIso, blockTypeFor, daysBetweenIso, practiceGroupOf } from "@/lib/upplan/roadmap"
 import {
   availableMinutes,
+  type RoadmapPayload,
   loadMasteryInfo,
   loadMinutesPerQuestion,
   parsePayload,
+  readiness,
   weeksUntil,
 } from "@/lib/upplan/roadmap-service"
 import {
   scheduleWeek,
   spacedReviewsDue,
+  weekRulesFor,
   type DraftItem,
   type PracticeGroupInput,
   type ProgramGoal,
@@ -62,6 +69,10 @@ export type ProgramDraftMeta = {
   focusMinutes: number
   videoMinutes?: number
   videoOverflowMinutes?: number
+  /** Süre dağılımı (konu / soru / tekrar / analiz / video, dk). */
+  composition?: { konu: number; soru: number; tekrar: number; analiz: number; video: number }
+  track?: string
+  warnings?: string[]
   /** "Bu haftayı yeniden oluştur": onayda yerini yeni taslağa bırakacak UpPlan kalemleri. */
   replaceItemIds?: string[]
 }
@@ -157,35 +168,79 @@ export function parseDraftItems(v: Json | null | undefined): DraftItem[] {
   return Array.isArray(v) ? v.filter(isDraftItem) : []
 }
 
+export type ProgramBuildOptions = {
+  /** true: değişecek UpPlan kalemleri yokmuş gibi yerleştir; onayda silinip yerine bu taslak yazılır. */
+  replace?: boolean
+  /**
+   * Önizleme (debug / önce-sonra karşılaştırması): kayıtlı onaylı yol haritası yerine
+   * bu yol haritası; hedefler topic_assignments yerine onun "aktif" kalemlerinden. Yazma yok.
+   */
+  previewRoadmap?: RoadmapPayload
+}
+
+/** Taslak üretir ve kaydeder (koçlu öğrencide koca_onerildi). */
 export async function generateProgramDraft(
   admin: Client,
   studentId: string,
   weekStart: string,
   today = istanbulDateStr(),
-  /** true: değişecek UpPlan kalemleri yokmuş gibi yerleştir; onayda silinip yerine bu taslak yazılır. */
   opts: { replace?: boolean } = {},
+): Promise<{ items: DraftItem[]; meta: ProgramDraftMeta; coached: boolean } | { error: string }> {
+  const built = await buildProgramDraft(admin, studentId, weekStart, today, opts)
+  if ("error" in built) return built
+  const { items, meta, coached } = built
+  const { error } = await admin.from("upplan_program_drafts").upsert({
+    student_id: studentId,
+    week_start: weekStart,
+    status: coached ? "koca_onerildi" : "taslak",
+    items: items as unknown as Json,
+    meta: meta as unknown as Json,
+    generated_at: new Date().toISOString(),
+    decided_at: null,
+    decided_by: null,
+  })
+  if (error) {
+    console.error("generateProgramDraft", error)
+    return { error: "Program taslağı kaydedilemedi." }
+  }
+  return built
+}
+
+/** Haftalık program taslağını hesaplar (yazma yok). */
+export async function buildProgramDraft(
+  admin: Client,
+  studentId: string,
+  weekStart: string,
+  today = istanbulDateStr(),
+  opts: ProgramBuildOptions = {},
 ): Promise<{ items: DraftItem[]; meta: ProgramDraftMeta; coached: boolean } | { error: string }> {
   const profile = await loadUpplanProfile(admin, studentId)
   if (!profile) return { error: "Önce UpPlan kurulumunu tamamla." }
+  // Fail-loud: track ya da müsaitlik yoksa program üretilmez.
+  const ready = readiness(profile, today)
+  if ("error" in ready) return { error: ready.error }
+  const track = ready.track
   if (availableMinutes(profile) === 0) return { error: "Müsaitlik ızgaran boş; önce çalışabileceğin saatleri işaretle." }
 
-  const { data: roadmap } = await admin.from("upplan_roadmaps").select("status, payload").eq("student_id", studentId).maybeSingle()
-  const payload = parsePayload(roadmap?.payload)
-  if (roadmap?.status !== "onaylandi" || !payload) return { error: ROADMAP_REQUIRED_ERROR }
+  const preview = opts.previewRoadmap
+  const { data: roadmap } = preview ? { data: null } : await admin.from("upplan_roadmaps").select("status, payload").eq("student_id", studentId).maybeSingle()
+  const payload = preview ?? parsePayload(roadmap?.payload)
+  if (!payload || (!preview && roadmap?.status !== "onaylandi")) return { error: ROADMAP_REQUIRED_ERROR }
   const roadmapTopics = new Set(payload.items.map((i) => i.topic_id))
+  const roadmapItem = new Map(payload.items.map((i) => [i.topic_id, i]))
 
   const weekEnd = addDaysIso(weekStart, 6)
-  const [{ data: student }, goals, mastery, mpq, { data: program }, playlist, { data: queued }] = await Promise.all([
+  const [{ data: student }, assignmentGoals, mastery, mpq, { data: program }, playlist, { data: queued }, school, examCal, { data: subjectRows }] = await Promise.all([
     admin.from("students").select("coach_id").eq("id", studentId).maybeSingle(),
     loadAssignmentsWithProgress(admin, { studentId }),
     loadMasteryInfo(admin, studentId),
     loadMinutesPerQuestion(admin, studentId),
-    admin
+    (preview ? { data: null } : admin
       .from("weekly_programs")
       .select("id, weekly_program_items(id, day_of_week, start_time, end_time, assignment_id, block_type, topic_id, baslik, created_by_role, is_completed)")
       .eq("student_id", studentId)
       .eq("week_start", weekStart)
-      .maybeSingle(),
+      .maybeSingle()),
     loadPlaylistScope(admin, studentId),
     // Playlist konusu bu hafta içinde plan gününe geliyorsa sıradaki hedefi de programa girer.
     admin
@@ -195,7 +250,11 @@ export async function generateProgramDraft(
       .eq("origin", "upplan")
       .eq("status", "sirada")
       .lte("baslangic_tarihi", weekEnd),
+    loadSchoolCalendar(admin, weekStart),
+    loadExamCalendar(admin),
+    admin.from("subjects").select("id, name, ders_key, exam_type"),
   ])
+  const goals = preview ? previewGoals(preview, assignmentGoals, weekStart) : assignmentGoals
   const programItems = program?.weekly_program_items ?? []
   const replaced = opts.replace ? replaceableItems(programItems, weekStart, today) : []
   const replacedIds = new Set(replaced.map((i) => i.id))
@@ -226,6 +285,9 @@ export async function generateProgramDraft(
         ...learningFlags(g, g.block_type ?? bt, lectureDone),
         son_tarih: g.son_tarih < weekStart ? addDaysIso(weekStart, 6) : g.son_tarih,
         scheduled_blocks: linked.get(g.id) ?? 0,
+        priority: roadmapItem.get(g.topic_id)?.priority ?? roadmapItem.get(g.topic_id)?.efficiency ?? 0,
+        reason: roadmapItem.get(g.topic_id)?.reasons[0],
+        user_goal: g.created_by_role !== "ai",
       }
     })
   for (const q of queued ?? []) {
@@ -244,6 +306,8 @@ export async function generateProgramDraft(
       ...learningFlags({ ...q, cozulen_soru: 0 }, q.block_type ?? bt, lectureDone),
       son_tarih: q.son_tarih < weekStart ? weekEnd : q.son_tarih,
       scheduled_blocks: linked.get(q.id) ?? 0,
+      priority: roadmapItem.get(q.topic_id)?.priority ?? 0,
+      reason: roadmapItem.get(q.topic_id)?.reasons[0],
     })
   }
 
@@ -335,6 +399,41 @@ export async function generateProgramDraft(
     if (pt) playlistTopics[g.topic_id] = { notBefore: pt.notBefore, label: playlistShortLabel(pt) }
   }
   const videoDays = await loadVideoDays(admin, studentId, weekStart, existingItems)
+
+  // Track kuralları: okul günleri (tatil hariç), tatil haftası, iskelet, ders payları.
+  const pos = schoolPosition(school, weekStart)
+  const yearEnd = schoolYearEnd(school.weeks, weekStart)
+  const inSchoolYear = (date: string) => school.weeks.length > 0 && date >= school.weeks[0].starts_on && date <= yearEnd && !isBreakDay(school, date)
+  const weekdays = [1, 2, 3, 4, 5].filter((d) => inSchoolYear(addDaysIso(weekStart, d - 1)))
+  const schoolDays = track === "mezun" ? [] : weekdays
+  const holiday = track !== "mezun" && weekdays.length === 0
+  const subjects = (subjectRows ?? []).filter((x) => programGoals.some((g) => g.subject_id === x.id) || reviews.some((r) => r.subject_id === x.id))
+  const subjectByName = new Map((subjectRows ?? []).map((x) => [x.name, x.id]))
+  const examYear = examYearFor({ track, graduation_year: profile.graduation_year, target_exam_year: profile.target_exam_year }, today)
+  const contextExam = isYksPoolTrack(track) && isContextBasedExamYear(examYear) && examFor(examCal, "yks", examYear)?.question_style === "baglam_temelli"
+  const rules = weekRulesFor({
+    track,
+    schoolDays,
+    holiday,
+    skeleton: skeletonFor({
+      track,
+      alan: profile.alan,
+      schoolWeek: pos.week,
+      contextExam,
+      practice: Array.from(practiceGroups.values()),
+      paragrafSubjectId: subjectByName.get("TYT Türkçe") ?? null,
+      problemSubjectId: subjectByName.get("TYT Matematik") ?? null,
+    }),
+    lowValueSubjects: lowValueSubjectIds(subjects, profile.alan, track),
+    heavySubjects: heavySubjectIds(subjects),
+    coreSubjectId: coreSubjectId(subjectRows ?? [], profile.alan, track),
+  })
+  const avgEff = new Map<string, number>()
+  for (const sub of subjects) {
+    const effs = programGoals.filter((g) => g.subject_id === sub.id).map((g) => mastery.get(g.topic_id)?.effective ?? NO_DATA_MASTERY)
+    if (effs.length) avgEff.set(sub.id, effs.reduce((a, b) => a + b, 0) / effs.length)
+  }
+  const puanTuru = profile.alan ? (ALAN_PUAN_TURU[profile.alan] ?? null) : null
   const res = scheduleWeek({
     weekStart,
     today,
@@ -342,16 +441,18 @@ export async function generateProgramDraft(
     focusMinutes: profile.focus_minutes,
     loadFactor: profile.load_factor,
     segment: profile.segment,
-    weeksLeft: weeksUntil(today, EXAM_DATES[profile.segment].date),
+    weeksLeft: weeksUntil(today, payload.examDate),
     minutesPerQuestion: mpq,
     goals: programGoals,
     reviews,
+    rules,
+    // 12 / mezun: ders payı = puan ağırlığı × açık × sıralama baskısı. Maarif: hedef öncelikleri.
+    ...(isYksPoolTrack(track) ? { subjectWeights: subjectWeightsFor(subjects, avgEff, puanTuru, profile.target_ranking) } : {}),
     fixed: existingItems
       .filter((i): i is typeof i & { start_time: string; end_time: string } => !!i.start_time && !!i.end_time)
       .map((i) => ({ day_of_week: i.day_of_week, start_time: i.start_time.slice(0, 5), end_time: i.end_time.slice(0, 5) })),
     // Haftada zaten deneme varsa eksik kalanı eklenir; sayaç mevcut + yeni (program sayfasıyla tutarlı).
     existingExams: existingItems.filter((i) => i.block_type === "deneme").length,
-    practice: Array.from(practiceGroups.values()),
     videoDays,
     playlistTopics,
   })
@@ -360,24 +461,53 @@ export async function generateProgramDraft(
   const coached = !!student?.coach_id
   const meta: ProgramDraftMeta = {
     ...res.meta,
+    track,
     focusMinutes: profile.focus_minutes,
     ...(opts.replace ? { replaceItemIds: Array.from(replacedIds) } : {}),
   }
-  const { error } = await admin.from("upplan_program_drafts").upsert({
-    student_id: studentId,
-    week_start: weekStart,
-    status: coached ? "koca_onerildi" : "taslak",
-    items: items as unknown as Json,
-    meta: meta as unknown as Json,
-    generated_at: new Date().toISOString(),
-    decided_at: null,
-    decided_by: null,
-  })
-  if (error) {
-    console.error("generateProgramDraft", error)
-    return { error: "Program taslağı kaydedilemedi." }
-  }
   return { items, meta, coached }
+}
+
+type AssignmentGoal = Awaited<ReturnType<typeof loadAssignmentsWithProgress>>[number]
+
+/**
+ * Önizleme hedefleri: yol haritasının "aktif" kalemleri onaylanmış gibi (UpPlan
+ * hedefi), mevcut öğrenci/koç hedefleri korunur.
+ */
+export function previewGoals(payload: RoadmapPayload, current: AssignmentGoal[], weekStart: string): AssignmentGoal[] {
+  const studentId = current[0]?.student_id ?? ""
+  const human = current.filter((g) => g.status === "aktif" && g.created_by_role !== "ai")
+  const humanTopics = new Set(human.map((g) => g.topic_id))
+  const fromRoadmap = payload.items
+    .filter((i) => i.status === "aktif" && !humanTopics.has(i.topic_id))
+    .map(
+      (i): AssignmentGoal => ({
+        id: `onizleme:${i.topic_id}`,
+        student_id: studentId,
+        coach_id: null,
+        hedef_dogruluk: i.target_accuracy,
+        hedef_sure_dk: null,
+        baslangic_tarihi: i.start,
+        notes: i.reasons[0] ?? null,
+        plan_order: i.plan_order,
+        dogru_sayisi: 0,
+        toplam_sure_dk: 0,
+        topic_id: i.topic_id,
+        topic_name: i.topic_name,
+        subject_id: i.subject_id,
+        subject_name: i.subject_name,
+        status: "aktif",
+        created_by_role: "ai",
+        hedef_soru: i.practice ? null : i.target_questions,
+        cozulen_soru: 0,
+        son_tarih: i.end < weekStart ? addDaysIso(weekStart, 6) : i.end,
+        block_type: i.block_type,
+        learning_phase: i.learning_phase ?? null,
+        learned_at: null,
+        is_practice: !!i.practice,
+      }),
+    )
+  return [...human, ...fromRoadmap]
 }
 
 /**
@@ -428,7 +558,8 @@ export async function applyProgramDraft(
         block_type: i.block_type,
         baslik: i.baslik.slice(0, 120),
         hedef_soru: i.hedef_soru,
-        aciklama: "UpPlan",
+        // "Neden bu blok?" programda açıklama olarak görünür.
+        aciklama: i.neden ? i.neden.slice(0, 300) : "UpPlan",
         order_index: order++,
         ...(writerIsAdmin ? { created_by_role: "ai" } : {}),
       })),

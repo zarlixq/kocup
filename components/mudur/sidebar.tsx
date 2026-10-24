@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Building2,
   BookOpen,
+  Gauge,
   BookText,
   Library,
   Wallet,
@@ -32,6 +33,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { TourRestartButton } from "@/components/onboarding/tour-restart-button"
 import { BrandLogo } from "@/components/brand/logo"
 import { signOut } from "@/app/mudur/actions"
 
@@ -58,6 +60,7 @@ const NAV: NavItem[] = [
   { href: "/mudur/randevular", label: "Randevular", icon: Calendar },
   { href: "/mudur/finans", label: "Finans", icon: Wallet },
   { href: "/mudur/mufredat", label: "Müfredat", icon: BookOpen },
+  { href: "/mudur/upplan", label: "UpPlan izleme", icon: Gauge },
   { href: "/mudur/kaynaklar", label: "Kaynaklar", icon: Library },
   { href: "/mudur/blog", label: "Blog", icon: BookText },
   { href: "/mudur/ziyaretler", label: "Ziyaretler", icon: BarChart3 },
@@ -107,6 +110,7 @@ function NavList({ pathname, pendingCount, talepYeniCount, onClick }: {
           <Link
             key={item.href}
             href={item.href}
+            data-tour={`nav:${item.href}`}
             onClick={onClick}
             className={cn(
               "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative",
@@ -185,6 +189,7 @@ function SidebarBody({ user, pendingCount, talepYeniCount, onNavigate }: Sidebar
             <span className="text-xs text-zinc-500 truncate">{user.email}</span>
           </div>
         </div>
+        <TourRestartButton onClick={onNavigate} />
         <form action={signOut}>
           <Button
             type="submit"

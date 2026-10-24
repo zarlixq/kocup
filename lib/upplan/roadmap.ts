@@ -32,6 +32,7 @@ import {
   SUBJECT_TOPIC_SIZE,
   TOPIC_SIZE_RANGE,
   UPPLAN_SQL_CONFIG,
+  UPPLAN_TRACK_SQL_CONFIG,
   type BlockType,
 } from "@/lib/upplan/config"
 import {
@@ -51,8 +52,12 @@ import {
 //          Ders önceliği elle verilmez: farkı katsayılar ve soru sayıları yaratır.
 // SIRA   = ön koşul grafı (topolojik) + puan; ön koşul, kendisine bağlı konuların
 //          en yüksek puanını devralır (önce açılsın diye)
-// KAPI   = AYT dersi, ilgili TYT dersinin temel konuları bitmeden açılmaz; sınava
-//          AYT_FORCE_START_WEEKS kala kapı kapalı olsa da TYT ile paralel başlar
+// KAPI   = gateMode "subject": AYT dersi, ilgili TYT dersinin temel konuları bitmeden
+//          açılmaz; sınava AYT_FORCE_START_WEEKS kala paralel başlar. gateMode "topic"
+//          (12 ve mezun): ders kilidi yok, AYT konusu yalnız kendi ön koşullarını bekler
+// HEDEF  = öğrencinin/koçun hedefi önceliğe user_goal_bonus çarpanı alır (override
+//          değil); UpPlan'ın ilerlemesiz eski hedefi yeniden sıralanır
+// FEDA   = sığmayan konular en düşük getiriden listelenir; öğrenci geri alabilir (keptTopicIds)
 // TAKVİM = gün gün simülasyon (simulatePlan): aynı anda K aktif konu (4-6), en çok
 //          4'ü öğrenme aşamasında, dersten en çok 2; günlük kapasite aktif konulara
 //          eşit bölünür, biten konunun yerine sıradaki (ön koşulu/kapısı açık) girer
@@ -352,6 +357,8 @@ export type RoadmapTopicInput = {
   netGap: number
   /** Açık haritasında güveni yeterli, yanlışı olan en büyük atom. */
   gapAtom: string | null
+  /** Öncelik çarpanı: deneme analizi bonusu × öğrenci geri bildirimi cezası (loadPriorityFactors). */
+  priorityFactor?: number
 }
 
 export type ExistingGoal = {
@@ -421,7 +428,15 @@ export type Roadmap = {
    * bitirmek için gereken, ve hangi saatte hangi derslerin tamamen plana gireceği.
    */
   weeklyHours?: { current: number; required: number; steps: { hours: number; subjects: string[] }[] }
+  /** Öğrencinin track'i (lib/upplan/track.ts); eski taslaklarda yok. */
+  track?: string
+  /** Maarif: üretim anındaki okul haftası. */
+  schoolWeek?: number
+  /** Süre yetmediği için sona bırakılan konular, en düşük getiriden (geri alınabilir). */
+  sacrificed?: SacrificedTopic[]
 }
+
+export type SacrificedTopic = { topic_id: string; topic_name: string; subject_name: string; efficiency: number }
 
 export type RoadmapInput = {
   today: string
@@ -441,10 +456,28 @@ export type RoadmapInput = {
   playlistTopics?: PlaylistScope
   /** Kapsamdaki dersler: playlist'te olmayan konuları playlist bitince başlar. */
   playlistSubjects?: PlaylistSubjects
+  /** "subject" (varsayılan): ders bazlı TYT→AYT kapısı. "topic": yalnız konu ön koşulları. */
+  gateMode?: "subject" | "topic"
+  /** Hedef sıralama (feda listesi mesajı). */
+  targetRanking?: number | null
+  /** Feda listesinden geri alınan konular: kapasiteye bakılmadan plana girer. */
+  keptTopicIds?: string[]
+  track?: string
 }
 
-export function overflowMessage(n: number): string {
-  return `Bu tempoyla ${n} konuya yetişemiyorsun; haftalık saatini artır ya da bunları sona bırak.`
+/** Feda listesi önizlemesinde adı yazılan konu sayısı. */
+export const SACRIFICE_PREVIEW = 5
+
+/**
+ * Sığmayan konular için mesaj: hedef sıralama ve en düşük getirili konular.
+ * "Hedefin 25.000. sıralama. Bu süreyle şu 118 konuyu sona bırakıyoruz: a, b, c ve 115 konu daha."
+ */
+export function sacrificeMessage(sacrificed: SacrificedTopic[], targetRanking: number | null | undefined): string {
+  const names = sacrificed.slice(0, SACRIFICE_PREVIEW).map((t) => t.topic_name)
+  const rest = sacrificed.length - names.length
+  const list = `${names.join(", ")}${rest > 0 ? ` ve ${rest} konu daha` : ""}`
+  const goal = targetRanking ? `Hedefin ${targetRanking.toLocaleString("tr-TR")}. sıralama. ` : ""
+  return `${goal}Bu süreyle şu ${sacrificed.length} konuyu sona bırakıyoruz (getirisi en düşük olanlar): ${list}. İstediğini geri alabilirsin.`
 }
 
 /** "Saat başına yaklaşık X puan: sınavda ortalama N soru çıkıyor ve henüz bilmiyorsun." */
@@ -696,7 +729,8 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     return nb && nb > input.today ? nb : null
   }
   // UpPlan'ın önceki hedefi, ilerleme yoksa ve bekleyen konuysa yeniden planlanır.
-  const existingList = input.existing.filter((e) => !scoped.has(e.topic_id) && !(e.source === "ai" && !e.progressed && waitOf(e.topic_id)))
+  // UpPlan'ın ilerlemesiz önceki hedefi sabit değildir: verimliliğiyle yeniden sıralanır.
+  const existingList = input.existing.filter((e) => !scoped.has(e.topic_id) && !(e.source === "ai" && !e.progressed))
   const existingByTopic = new Map(existingList.map((e) => [e.topic_id, e]))
   const { edges, broken } = acyclicEdges(input.edges, nodes)
   if (broken.length) notes.push(`${broken.length} ön koşul döngüsü kırıldı.`)
@@ -708,7 +742,9 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     ;(dependentsOf.get(e.prereq) ?? dependentsOf.set(e.prereq, []).get(e.prereq)!).push(e.topic)
   }
 
-  const gates = computeGates(input.topics, input.edges, completed)
+  const gates = input.gateMode === "topic" ? new Map<string, string[]>() : computeGates(input.topics, input.edges, completed)
+  const keptTopics = new Set(input.keptTopicIds ?? [])
+  const prereqBlockBelow = input.gateMode === "topic" ? UPPLAN_SQL_CONFIG.label_gelisiyor : GATE_MASTERY
 
   const hoursOf = (t: RoadmapTopicInput) =>
     t.hours ?? Math.round(hoursNeeded(t.assessment, t.effective, input.minutesPerQuestion) * (t.sizeFactor ?? 1) * 100) / 100
@@ -722,8 +758,10 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
       hours: hoursOf(t),
       crossValue: t.crossValue,
     })
+  // Öğrenci/koç hedefi ve geri alınan konu: öncelik çarpanı (sıralamayı ezmez).
+  const bonusOf = (id: string) => (humanGoal.has(id) || keptTopics.has(id) ? UPPLAN_TRACK_SQL_CONFIG.user_goal_bonus : 1)
   const base = new Map<string, number>()
-  for (const t of topics) base.set(t.topic_id, effOf(t))
+  for (const t of topics) base.set(t.topic_id, Math.round(effOf(t) * bonusOf(t.topic_id) * (t.priorityFactor ?? 1) * 1000) / 1000)
 
   // Kapı konusu (TYT), kapısını beklediği AYT dersinin konularını "bağlı" sayar.
   const gateDependents = new Map<string, string[]>()
@@ -789,7 +827,9 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     subject: byId.get(id)!.subject_id,
     learnMinutes: goal(byId.get(id)!).phase === "gerekli" ? LECTURE_MINUTES : 0,
     // Kapı konusu olan ön koşulu kapı yönetir (son tarihte zorla açılabilsin).
-    prereqs: (prereqsOf.get(id) ?? []).filter((p) => (byId.get(p)?.effective ?? 0) < GATE_MASTERY && !gateOf(id).includes(p)),
+    // Konu kilidi modunda (12 / mezun) ön koşul yalnız gerçekten zayıfsa (< label_gelisiyor) bekletir:
+    // okulda görülmüş, verisi olmayan (40) ön koşul AYT konusunu durdurmaz.
+    prereqs: (prereqsOf.get(id) ?? []).filter((p) => (byId.get(p)?.effective ?? 0) < prereqBlockBelow && !gateOf(id).includes(p)),
     gate: gateOf(id),
     ...(waitOf(id) ? { notBefore: waitOf(id)! } : {}),
   })
@@ -834,6 +874,12 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     const out = new Set<string>()
     const inQueue = new Set(queueIds)
     let used = 0
+    // Geri alınan konular kapasiteye bakılmadan girer.
+    for (const id of queueIds) {
+      if (!keptTopics.has(id) || skip(id)) continue
+      out.add(id)
+      used += needOf(id)
+    }
     const take = (id: string) => {
       const extra = (gates.get(byId.get(id)!.subject_id) ?? []).filter((g) => inQueue.has(g) && !out.has(g))
       const cost = needOf(id) + extra.reduce((n, g) => n + needOf(g), 0)
@@ -959,7 +1005,12 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
 
   const items: RoadmapItem[] = []
   let overflowCount = 0
-  const finalOrder = [...fixed, ...queueOrdered]
+  // Sabit (zaten çalışılan) hedefler bugün başlayanlarla birlikte önceliğe göre sıralanır:
+  // kullanıcı hedefi listenin başına kendiliğinden çıkmaz.
+  const todayGroup = [...fixed, ...queueOrdered.filter((id) => startOf(id) <= input.today)].sort(
+    (a, b) => (effScore.get(b) ?? 0) - (effScore.get(a) ?? 0),
+  )
+  const finalOrder = [...todayGroup, ...queueOrdered.filter((id) => startOf(id) > input.today)]
   finalOrder.forEach((id, i) => {
     const t = byId.get(id)!
     const g = goal(t)
@@ -1099,6 +1150,7 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
       learning_phase: g.phase,
       gate: [],
       efficiency: effOf(t),
+      priority: effOf(t),
       practice: true,
       ...(pp ? { playlist: { playlist_id: pp.playlist_id, label: playlistTopicLabel(pp), day: pp.day } } : {}),
     }
@@ -1115,11 +1167,17 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
 
   if (inExamPeriod) notes.push("Deneme dönemindesin: yeni konu açılmıyor; deneme, tekrar ve açık kapatma öncelikli.")
   const gated = Array.from(gates.entries()).some(([sid, g]) => g.length > 0 && topics.some((t) => t.subject_id === sid))
-  if (gated && !inExamPeriod) {
+  if (gated && !inExamPeriod && input.gateMode !== "topic") {
     notes.push(
       `AYT konuları, ilgili TYT dersinin temel konularını bitirince açılır; en geç ${aytForceStart.split("-").reverse().join(".")} tarihinde (sınava ${AYT_FORCE_START_WEEKS} hafta kala) TYT ile paralel başlar.`,
     )
   }
+
+  // Feda listesi: sona bırakılan konular, en düşük getiriden.
+  const sacrificed: SacrificedTopic[] = items
+    .filter((i) => i.status === "zaman_kalirsa" && !i.practice)
+    .map((i) => ({ topic_id: i.topic_id, topic_name: i.topic_name, subject_name: i.subject_name, efficiency: i.efficiency ?? 0 }))
+    .sort((a, b) => a.efficiency - b.efficiency)
 
   // Ders bazlı saat: plana giren konuların ihtiyacı + sürekli pratik (deneme dönemine kadar).
   const hoursBySubject = new Map<string, { subject_id: string; subject_name: string; minutes: number }>()
@@ -1147,10 +1205,12 @@ export function buildRoadmap(input: RoadmapInput): Roadmap {
     activeSlots: slots,
     minutesPerQuestion: input.minutesPerQuestion,
     items,
-    overflow: overflowCount > 0 && !inExamPeriod ? { count: overflowCount, message: overflowMessage(overflowCount) } : null,
+    overflow: overflowCount > 0 && !inExamPeriod ? { count: overflowCount, message: sacrificeMessage(sacrificed, input.targetRanking) } : null,
     brokenCycles: broken,
     notes,
-    aytForceStart,
+    ...(input.gateMode === "topic" ? {} : { aytForceStart }),
+    sacrificed,
+    ...(input.track ? { track: input.track } : {}),
     subjectHours,
     weeklyHours: inExamPeriod ? undefined : weeklyHours,
   }

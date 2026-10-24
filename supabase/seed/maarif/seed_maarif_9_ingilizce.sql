@@ -1,0 +1,21 @@
+-- seed_maarif_9_ingilizce.sql — ÜRETİLDİ (scripts/maarif/build-seed.mjs), elle düzenleme:
+-- supabase/seed/maarif/curriculum-2026.mjs'i değiştirip yeniden üret.
+--
+-- Ders     : 9. Sınıf İngilizce  (müfredat tymm-2026, Anadolu lisesi)
+-- Kaynak   : https://tymm.meb.gov.tr/assets/file/ingilizce-dersi-taslak-yillik-planlar_20260827_111530_896.rar
+-- Konu     : 10
+-- NOT      : Hazırlık sınıfı bulunmayan lise planı esas alındı. Temalar konu olarak eklendi; YKS eşlemesi yok (YDT dili alanı için ileride).
+--
+-- Hafta | Ünite / Tema | Konu | TYT/AYT eşlemesi (güç; < 0.5 = emin değilim)
+--     2 | Revision | Revision: School Events and Celebrations | —
+--     4 | Revision | Revision: Sports Events in the City and Rural Areas | —
+--     6 | Theme 1 | School Life | —
+--     9 | Theme 2 | Classroom Life | —
+--    13 | Theme 3 | Personal Life: Physical Appearance & Personality | —
+--    17 | Theme 4 | Family Life | —
+--    21 | Theme 5 | Life in the House & Neighbourhood | —
+--    25 | Theme 6 | Life in the City & Country | —
+--    28 | Theme 7 | Life in the World & Nature | —
+--    32 | Theme 8 | Life in the Universe & Future | —
+
+select public.maarif_apply_curriculum('{"version":"tymm-2026","subjects":[{"name":"9. Sınıf İngilizce","ders_key":"ingilizce","grade":9,"color":"#0EA5E9","order":910,"source":"https://tymm.meb.gov.tr/assets/file/ingilizce-dersi-taslak-yillik-planlar_20260827_111530_896.rar","topics":[{"name":"Revision: School Events and Celebrations","order":1,"week":2,"unit":"Revision","yks":[]},{"name":"Revision: Sports Events in the City and Rural Areas","order":2,"week":4,"unit":"Revision","yks":[]},{"name":"School Life","order":3,"week":6,"unit":"Theme 1","yks":[]},{"name":"Classroom Life","order":4,"week":9,"unit":"Theme 2","yks":[]},{"name":"Personal Life: Physical Appearance & Personality","order":5,"week":13,"unit":"Theme 3","yks":[]},{"name":"Family Life","order":6,"week":17,"unit":"Theme 4","yks":[]},{"name":"Life in the House & Neighbourhood","order":7,"week":21,"unit":"Theme 5","yks":[]},{"name":"Life in the City & Country","order":8,"week":25,"unit":"Theme 6","yks":[]},{"name":"Life in the World & Nature","order":9,"week":28,"unit":"Theme 7","yks":[]},{"name":"Life in the Universe & Future","order":10,"week":32,"unit":"Theme 8","yks":[]}],"retire":[]}]}'::jsonb);

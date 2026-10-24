@@ -1,0 +1,26 @@
+-- seed_maarif_11_fizik.sql — ÜRETİLDİ (scripts/maarif/build-seed.mjs), elle düzenleme:
+-- supabase/seed/maarif/curriculum-2026.mjs'i değiştirip yeniden üret.
+--
+-- Ders     : 11. Sınıf Fizik  (müfredat tymm-2026, Anadolu lisesi)
+-- Kaynak   : https://tymm.meb.gov.tr/assets/file/fizik-dersi-taslak-yillik-planlar_20260827_083757_124.zip
+-- Konu     : 16
+--
+-- Hafta | Ünite / Tema | Konu | TYT/AYT eşlemesi (güç; < 0.5 = emin değilim)
+--     1 | Kuvvet ve Hareket | Serbest Düşme | AYT Fizik › Doğrusal Hareket (0.8); AYT Fizik › Atışlar (0.5)
+--     3 | Kuvvet ve Hareket | İki Boyutta Sabit İvmeli Hareket | AYT Fizik › Atışlar (0.9)
+--     5 | Kuvvet ve Hareket | Newton'ın Hareket Yasaları | AYT Fizik › Newton'un Hareket Yasaları (0.9); TYT Fizik › Kuvvet ve Hareket (0.8)
+--    10 | Kuvvet ve Hareket | Sürtünme Kuvveti | TYT Fizik › Kuvvet ve Hareket (0.7); AYT Fizik › Newton'un Hareket Yasaları (0.6)
+--    11 | Kuvvet ve Hareket | Limit Hız | AYT Fizik › Newton'un Hareket Yasaları (0.4 ?)
+--    12 | Kuvvet ve Hareket | Düzgün Çembersel Hareket | AYT Fizik › Düzgün Çembersel Hareket (0.9)
+--    14 | Elektrik ve Manyetizma | Elektriksel Kuvvet ve Elektriksel Alan | AYT Fizik › Elektrik Alan ve Potansiyel (0.9); TYT Fizik › Elektrostatik (0.7)
+--    17 | Elektrik ve Manyetizma | Manyetik Alan ve Manyetik Kuvvet | AYT Fizik › Manyetik Alan (0.9); TYT Fizik › Manyetizma (0.7)
+--    25 | Elektrik ve Manyetizma | İndüksiyon Akımı | AYT Fizik › İndüksiyon (0.9)
+--    27 | Elektrik ve Manyetizma | Transformatörler | AYT Fizik › Transformatörler (0.9)
+--    27 | Optik | Işık Şiddeti, Işık Akısı ve Aydınlanma | TYT Fizik › Optik (0.8)
+--    28 | Optik | Düzlem Aynalar | TYT Fizik › Optik (0.9)
+--    29 | Optik | Küresel Aynalar | TYT Fizik › Optik (0.9)
+--    31 | Optik | Kırılma ve Görünür Derinlik | TYT Fizik › Optik (0.9)
+--    33 | Optik | Fiber Optik ve Prizmalar | TYT Fizik › Optik (0.7)
+--    35 | Optik | Mercekler | TYT Fizik › Optik (0.9)
+
+select public.maarif_apply_curriculum('{"version":"tymm-2026","subjects":[{"name":"11. Sınıf Fizik","ders_key":"fizik","grade":11,"color":"#7C3AED","order":1102,"source":"https://tymm.meb.gov.tr/assets/file/fizik-dersi-taslak-yillik-planlar_20260827_083757_124.zip","topics":[{"name":"Serbest Düşme","order":1,"week":1,"unit":"Kuvvet ve Hareket","yks":[{"subject":"AYT Fizik","topic":"Doğrusal Hareket","strength":0.8},{"subject":"AYT Fizik","topic":"Atışlar","strength":0.5}]},{"name":"İki Boyutta Sabit İvmeli Hareket","order":2,"week":3,"unit":"Kuvvet ve Hareket","yks":[{"subject":"AYT Fizik","topic":"Atışlar","strength":0.9}]},{"name":"Newton''ın Hareket Yasaları","order":3,"week":5,"unit":"Kuvvet ve Hareket","yks":[{"subject":"AYT Fizik","topic":"Newton''un Hareket Yasaları","strength":0.9},{"subject":"TYT Fizik","topic":"Kuvvet ve Hareket","strength":0.8}]},{"name":"Sürtünme Kuvveti","order":4,"week":10,"unit":"Kuvvet ve Hareket","yks":[{"subject":"TYT Fizik","topic":"Kuvvet ve Hareket","strength":0.7},{"subject":"AYT Fizik","topic":"Newton''un Hareket Yasaları","strength":0.6}]},{"name":"Limit Hız","order":5,"week":11,"unit":"Kuvvet ve Hareket","yks":[{"subject":"AYT Fizik","topic":"Newton''un Hareket Yasaları","strength":0.4}]},{"name":"Düzgün Çembersel Hareket","order":6,"week":12,"unit":"Kuvvet ve Hareket","yks":[{"subject":"AYT Fizik","topic":"Düzgün Çembersel Hareket","strength":0.9}]},{"name":"Elektriksel Kuvvet ve Elektriksel Alan","order":7,"week":14,"unit":"Elektrik ve Manyetizma","yks":[{"subject":"AYT Fizik","topic":"Elektrik Alan ve Potansiyel","strength":0.9},{"subject":"TYT Fizik","topic":"Elektrostatik","strength":0.7}]},{"name":"Manyetik Alan ve Manyetik Kuvvet","order":8,"week":17,"unit":"Elektrik ve Manyetizma","yks":[{"subject":"AYT Fizik","topic":"Manyetik Alan","strength":0.9},{"subject":"TYT Fizik","topic":"Manyetizma","strength":0.7}]},{"name":"İndüksiyon Akımı","order":9,"week":25,"unit":"Elektrik ve Manyetizma","yks":[{"subject":"AYT Fizik","topic":"İndüksiyon","strength":0.9}]},{"name":"Transformatörler","order":10,"week":27,"unit":"Elektrik ve Manyetizma","yks":[{"subject":"AYT Fizik","topic":"Transformatörler","strength":0.9}]},{"name":"Işık Şiddeti, Işık Akısı ve Aydınlanma","order":11,"week":27,"unit":"Optik","yks":[{"subject":"TYT Fizik","topic":"Optik","strength":0.8}]},{"name":"Düzlem Aynalar","order":12,"week":28,"unit":"Optik","yks":[{"subject":"TYT Fizik","topic":"Optik","strength":0.9}]},{"name":"Küresel Aynalar","order":13,"week":29,"unit":"Optik","yks":[{"subject":"TYT Fizik","topic":"Optik","strength":0.9}]},{"name":"Kırılma ve Görünür Derinlik","order":14,"week":31,"unit":"Optik","yks":[{"subject":"TYT Fizik","topic":"Optik","strength":0.9}]},{"name":"Fiber Optik ve Prizmalar","order":15,"week":33,"unit":"Optik","yks":[{"subject":"TYT Fizik","topic":"Optik","strength":0.7}]},{"name":"Mercekler","order":16,"week":35,"unit":"Optik","yks":[{"subject":"TYT Fizik","topic":"Optik","strength":0.9}]}],"retire":[]}]}'::jsonb);

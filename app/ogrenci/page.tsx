@@ -24,6 +24,7 @@ import { loadToday } from "@/lib/upplan/load"
 import { TodaySection } from "@/components/upplan/today-section"
 import { TodayVideosCard } from "@/components/kaynaklar/today-videos-card"
 import { loadVideoAgenda } from "@/lib/resources/playlist-plan-service"
+import { SetupChecklist } from "@/components/onboarding/setup-checklist"
 
 function initials(name: string) {
   return name
@@ -172,6 +173,7 @@ export default async function OgrenciDashboard() {
 
   return (
     <div className="space-y-6">
+      <SetupChecklist supabase={supabase} studentId={studentId} />
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Merhaba, {profile?.full_name} 👋</h1>

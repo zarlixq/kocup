@@ -1,0 +1,21 @@
+-- seed_maarif_11_ingilizce.sql — ÜRETİLDİ (scripts/maarif/build-seed.mjs), elle düzenleme:
+-- supabase/seed/maarif/curriculum-2026.mjs'i değiştirip yeniden üret.
+--
+-- Ders     : 11. Sınıf İngilizce  (müfredat tymm-2026, Anadolu lisesi)
+-- Kaynak   : https://tymm.meb.gov.tr/assets/file/ingilizce-dersi-taslak-yillik-planlar_20260827_111530_896.rar
+-- Konu     : 10
+-- NOT      : 2026-27 planında 11. sınıf İngilizce hâlâ eski program formatında (E11 kazanımları, 10 tema).
+--
+-- Hafta | Ünite / Tema | Konu | TYT/AYT eşlemesi (güç; < 0.5 = emin değilim)
+--     1 | Theme 1 | Future Jobs | —
+--     5 | Theme 2 | Hobbies and Skills | —
+--     8 | Theme 3 | Hard Times | —
+--    11 | Theme 4 | What a Life | —
+--    15 | Theme 5 | Back to the Past | —
+--    18 | Theme 6 | Open Your Heart | —
+--    22 | Theme 7 | Facts About Turkey | —
+--    25 | Theme 8 | Sports | —
+--    29 | Theme 9 | My Friends | —
+--    33 | Theme 10 | Values and Norms | —
+
+select public.maarif_apply_curriculum('{"version":"tymm-2026","subjects":[{"name":"11. Sınıf İngilizce","ders_key":"ingilizce","grade":11,"color":"#0EA5E9","order":1110,"source":"https://tymm.meb.gov.tr/assets/file/ingilizce-dersi-taslak-yillik-planlar_20260827_111530_896.rar","topics":[{"name":"Future Jobs","order":1,"week":1,"unit":"Theme 1","yks":[]},{"name":"Hobbies and Skills","order":2,"week":5,"unit":"Theme 2","yks":[]},{"name":"Hard Times","order":3,"week":8,"unit":"Theme 3","yks":[]},{"name":"What a Life","order":4,"week":11,"unit":"Theme 4","yks":[]},{"name":"Back to the Past","order":5,"week":15,"unit":"Theme 5","yks":[]},{"name":"Open Your Heart","order":6,"week":18,"unit":"Theme 6","yks":[]},{"name":"Facts About Turkey","order":7,"week":22,"unit":"Theme 7","yks":[]},{"name":"Sports","order":8,"week":25,"unit":"Theme 8","yks":[]},{"name":"My Friends","order":9,"week":29,"unit":"Theme 9","yks":[]},{"name":"Values and Norms","order":10,"week":33,"unit":"Theme 10","yks":[]}],"retire":[]}]}'::jsonb);

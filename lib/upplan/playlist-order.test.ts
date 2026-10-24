@@ -10,7 +10,7 @@ import {
   type ScopeVideo,
 } from "@/lib/upplan/playlist-order"
 import { addDaysIso, buildRoadmap, type RoadmapTopicInput } from "@/lib/upplan/roadmap"
-import { scheduleWeek, type ProgramGoal, type ScheduleInput } from "@/lib/upplan/scheduler"
+import { scheduleWeek, weekRulesFor, type ProgramGoal, type ScheduleInput } from "@/lib/upplan/scheduler"
 
 // "55 Günde" benzeri playlist: günde 2 video, dün başladı. Konular 3'er günlük
 // bloklar (k1: 1-3. gün, k2: 4-6. gün, …); 40. gün Üçgenler.
@@ -218,6 +218,7 @@ describe("haftalık program: playlist sırası", () => {
     goals: campTopics.map((t) => goal(t)),
     reviews: [],
     fixed: [],
+    rules: weekRulesFor({ track: null, schoolDays: [], holiday: false, skeleton: [] }),
     playlistTopics: Object.fromEntries(campTopics.map((t) => [t, { notBefore: scope[t].notBefore, label: playlistShortLabel(scope[t]) }])),
   }
 

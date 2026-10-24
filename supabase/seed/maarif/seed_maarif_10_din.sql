@@ -1,0 +1,22 @@
+-- seed_maarif_10_din.sql — ÜRETİLDİ (scripts/maarif/build-seed.mjs), elle düzenleme:
+-- supabase/seed/maarif/curriculum-2026.mjs'i değiştirip yeniden üret.
+--
+-- Ders     : 10. Sınıf Din Kültürü  (müfredat tymm-2026, Anadolu lisesi)
+-- Kaynak   : https://dogm.meb.gov.tr/Programlar/CerceveYillikPlan/DKAB/2026-2027dkab10_TYMM.xlsx
+-- Konu     : 12
+--
+-- Hafta | Ünite / Tema | Konu | TYT/AYT eşlemesi (güç; < 0.5 = emin değilim)
+--     1 | İslam'da Varlık ve Bilgi | İslam'da Bilgi ve Bilginin Kaynakları | TYT Din Kültürü › İslam'ın Temel Kaynakları (0.6)
+--     3 | İslam'da Varlık ve Bilgi | Allah-Âlem İlişkisi  [eski ad: İslamda Varlık ve Birlik] | TYT Din Kültürü › İslam'ın Temel İnanç Esasları (0.5)
+--     8 | Allah'ı Tanımak | Allah'ın Varlığının Delilleri | TYT Din Kültürü › İslam'ın Temel İnanç Esasları (0.6); TYT Felsefe › Din Felsefesi (0.3 ?)
+--    11 | Allah'ı Tanımak | Allah'ı İsim ve Sıfatlarıyla Tanımak | TYT Din Kültürü › İslam'ın Temel İnanç Esasları (0.7)
+--    16 | İslam'ın Evrensel Mesajları | İslam'ın Tevhit İlkesi | TYT Din Kültürü › İslam'ın Temel İnanç Esasları (0.6)
+--    19 | İslam'ın Evrensel Mesajları | İslam'da Adalet ve Eşitlik | TYT Din Kültürü › İslam'da Ahlak (0.5)
+--    21 | İslam'ın Evrensel Mesajları | İslam ve Barış | TYT Din Kültürü › İslam'da Ahlak (0.4 ?)
+--    24 | Din, Çevre ve Teknoloji | İnsan, Çevre ve Ahlak | TYT Din Kültürü › İslam'da Ahlak (0.4 ?)
+--    26 | Din, Çevre ve Teknoloji | Teknoloji, Çevre ve Ahlak | AYT Din Kültürü › Güncel Dini Meseleler (0.4 ?)
+--    30 | İslam Düşüncesinde Yorumlar | Dinî Yorum Farklılıklarının Sebepleri | TYT Din Kültürü › İslam Düşünce Akımları (0.8)
+--    32 | İslam Düşüncesinde Yorumlar | İtikadi-Siyasi ve Fıkhi Yorumlar | TYT Din Kültürü › İslam Düşünce Akımları (0.9)
+--     6 | Kur'an'dan Mesajlar | Kur'an'dan Mesajlar (Ünite Sonu Sure ve Ayet İncelemeleri) | TYT Din Kültürü › Kur'an ve Yorumu (0.6)
+
+select public.maarif_apply_curriculum('{"version":"tymm-2026","subjects":[{"name":"10. Sınıf Din Kültürü","ders_key":"din","grade":10,"color":"#4B5563","order":1008,"source":"https://dogm.meb.gov.tr/Programlar/CerceveYillikPlan/DKAB/2026-2027dkab10_TYMM.xlsx","topics":[{"name":"İslam''da Bilgi ve Bilginin Kaynakları","order":1,"week":1,"unit":"İslam''da Varlık ve Bilgi","yks":[{"subject":"TYT Din Kültürü","topic":"İslam''ın Temel Kaynakları","strength":0.6}]},{"name":"Allah-Âlem İlişkisi","keep":"İslamda Varlık ve Birlik","order":2,"week":3,"unit":"İslam''da Varlık ve Bilgi","yks":[{"subject":"TYT Din Kültürü","topic":"İslam''ın Temel İnanç Esasları","strength":0.5}]},{"name":"Allah''ın Varlığının Delilleri","order":3,"week":8,"unit":"Allah''ı Tanımak","yks":[{"subject":"TYT Din Kültürü","topic":"İslam''ın Temel İnanç Esasları","strength":0.6},{"subject":"TYT Felsefe","topic":"Din Felsefesi","strength":0.3}]},{"name":"Allah''ı İsim ve Sıfatlarıyla Tanımak","order":4,"week":11,"unit":"Allah''ı Tanımak","yks":[{"subject":"TYT Din Kültürü","topic":"İslam''ın Temel İnanç Esasları","strength":0.7}]},{"name":"İslam''ın Tevhit İlkesi","order":5,"week":16,"unit":"İslam''ın Evrensel Mesajları","yks":[{"subject":"TYT Din Kültürü","topic":"İslam''ın Temel İnanç Esasları","strength":0.6}]},{"name":"İslam''da Adalet ve Eşitlik","order":6,"week":19,"unit":"İslam''ın Evrensel Mesajları","yks":[{"subject":"TYT Din Kültürü","topic":"İslam''da Ahlak","strength":0.5}]},{"name":"İslam ve Barış","order":7,"week":21,"unit":"İslam''ın Evrensel Mesajları","yks":[{"subject":"TYT Din Kültürü","topic":"İslam''da Ahlak","strength":0.4}]},{"name":"İnsan, Çevre ve Ahlak","order":8,"week":24,"unit":"Din, Çevre ve Teknoloji","yks":[{"subject":"TYT Din Kültürü","topic":"İslam''da Ahlak","strength":0.4}]},{"name":"Teknoloji, Çevre ve Ahlak","order":9,"week":26,"unit":"Din, Çevre ve Teknoloji","yks":[{"subject":"AYT Din Kültürü","topic":"Güncel Dini Meseleler","strength":0.4}]},{"name":"Dinî Yorum Farklılıklarının Sebepleri","order":10,"week":30,"unit":"İslam Düşüncesinde Yorumlar","yks":[{"subject":"TYT Din Kültürü","topic":"İslam Düşünce Akımları","strength":0.8}]},{"name":"İtikadi-Siyasi ve Fıkhi Yorumlar","order":11,"week":32,"unit":"İslam Düşüncesinde Yorumlar","yks":[{"subject":"TYT Din Kültürü","topic":"İslam Düşünce Akımları","strength":0.9}]},{"name":"Kur''an''dan Mesajlar (Ünite Sonu Sure ve Ayet İncelemeleri)","order":12,"week":6,"unit":"Kur''an''dan Mesajlar","yks":[{"subject":"TYT Din Kültürü","topic":"Kur''an ve Yorumu","strength":0.6}]}],"retire":[]}]}'::jsonb);

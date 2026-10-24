@@ -1,5 +1,6 @@
 import { z } from "zod"
-import { ALAN_AYT_SUBJECTS, FOCUS_OPTIONS, SLOTS_PER_DAY, type FocusMinutes } from "@/lib/upplan/config"
+import { ALAN_AYT_SUBJECTS, FOCUS_OPTIONS, MAARIF_11_DERS, SLOTS_PER_DAY, type FocusMinutes } from "@/lib/upplan/config"
+import { isTrack, type Track } from "@/lib/upplan/track"
 
 // UpPlan profili — tipler, etiketler, doğrulama, ders kapsamı (saf; client'ta da kullanılır).
 
@@ -43,6 +44,16 @@ export type UpplanProfile = {
   completed_at: string | null
   /** Haftalık yük çarpanı (uyum düşükse haftalık güncelleme azaltır), 0..1. */
   load_factor: number
+  /** Mezuniyet yılı (track'in kaynağı; lib/upplan/track.ts). */
+  graduation_year: number | null
+  /** DB önbelleği (trigger + haftalık yenileme); hesap için trackFor(graduation_year, bugün). */
+  track: Track | null
+  /** Mezunun hedeflediği YKS yılı (null → bu eğitim yılının YKS'si). */
+  target_exam_year: number | null
+  /** 10. sınıf 2. dönem opsiyonel alan eğilimi: programı değiştirmez, ders ağırlığını hafif kaydırır. */
+  alan_egilimi: Alan | null
+  /** Feda listesinden "geri al" ile plana zorla alınan konular. */
+  kept_topic_ids: string[]
 }
 
 function oneOf<T extends string>(list: readonly T[], v: unknown): v is T {
@@ -73,6 +84,11 @@ export function toUpplanProfile(row: {
   setup_step: string
   completed_at: string | null
   load_factor?: number | null
+  graduation_year?: number | null
+  track?: string | null
+  target_exam_year?: number | null
+  alan_egilimi?: string | null
+  kept_topic_ids?: string[] | null
 }): UpplanProfile {
   return {
     status: oneOf(STATUSES, row.status) ? row.status : "lise",
@@ -88,6 +104,11 @@ export function toUpplanProfile(row: {
     setup_step: oneOf(SETUP_STEPS, row.setup_step) ? row.setup_step : "profil",
     completed_at: row.completed_at,
     load_factor: typeof row.load_factor === "number" && row.load_factor > 0 && row.load_factor <= 1 ? row.load_factor : 1,
+    graduation_year: row.graduation_year ?? null,
+    track: isTrack(row.track) ? row.track : null,
+    target_exam_year: row.target_exam_year ?? null,
+    alan_egilimi: oneOf(ALANLAR, row.alan_egilimi) ? row.alan_egilimi : null,
+    kept_topic_ids: row.kept_topic_ids ?? [],
   }
 }
 
@@ -106,8 +127,14 @@ export const profileSchema = z
       .nullable()
       .transform((v) => (v ? v : null)),
     target_ranking: z.number().int().positive("Sıralama pozitif olmalı.").nullable(),
+    target_exam_year: z.number().int().min(2026).max(2040).nullable().optional(),
+    alan_egilimi: z.enum(ALANLAR).nullable().optional(),
   })
-  .refine((p) => p.segment === "lgs" || p.alan !== null, { message: "Alanını seç.", path: ["alan"] })
+  // 9-10'da alan yok (alan eğilimi opsiyonel); 11, 12 ve mezunda alan zorunlu.
+  .refine((p) => p.segment === "lgs" || (p.status === "lise" && p.grade !== null && p.grade <= 10) || p.alan !== null, {
+    message: "Alanını seç.",
+    path: ["alan"],
+  })
   .refine((p) => p.status !== "lise" || p.grade !== null, { message: "Sınıfını seç.", path: ["grade"] })
 
 export type ProfileInput = z.input<typeof profileSchema>
@@ -120,13 +147,36 @@ export function defaultsFromGrade(grade: string | null): Pick<UpplanProfile, "st
   return { status: "lise", grade: null, segment: "yks" }
 }
 
-export type ScopeSubject = { id: string; name: string; exam_type: string | null; curriculum: string | null; order: number | null }
+export type ScopeSubject = {
+  id: string
+  name: string
+  exam_type: string | null
+  curriculum: string | null
+  order: number | null
+  grade?: number | null
+  ders_key?: string | null
+}
+
+/**
+ * Maarif track'inin ders havuzu: 9 → 9. sınıf; 10 → 9 (eksik kapatma) + 10;
+ * 11 → 9 + 10 (tekrar) + 11 (alana göre seçmeli dersler, MAARIF_11_DERS).
+ */
+export function maarifScope<T extends ScopeSubject>(track: "maarif_9" | "maarif_10" | "maarif_11", alan: Alan | null, subjects: T[]): T[] {
+  const top = track === "maarif_9" ? 9 : track === "maarif_10" ? 10 : 11
+  const ders11 = new Set<string>([...MAARIF_11_DERS.ortak, ...(alan ? MAARIF_11_DERS[alan] : [])])
+  return subjects
+    .filter((s) => s.curriculum === "maarif" && s.grade != null && s.grade >= 9 && s.grade <= top)
+    .filter((s) => s.grade !== 11 || ders11.has(s.ders_key ?? ""))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+}
 
 /** Profilin ilgilendiği dersler (tarama ve harita kapsamı). Sıra: TYT → AYT, kendi sırasıyla. */
 export function scopeSubjects<T extends ScopeSubject>(
-  profile: Pick<UpplanProfile, "segment" | "alan">,
+  profile: Pick<UpplanProfile, "segment" | "alan"> & { track?: Track | null },
   subjects: T[],
 ): T[] {
+  const t = profile.track
+  if (t === "maarif_9" || t === "maarif_10" || t === "maarif_11") return maarifScope(t, profile.alan, subjects)
   const normal = subjects.filter((s) => s.curriculum !== "maarif")
   if (profile.segment === "lgs") return normal.filter((s) => s.exam_type === "lgs")
   const ayt = new Set<string>(profile.alan ? ALAN_AYT_SUBJECTS[profile.alan] : [])

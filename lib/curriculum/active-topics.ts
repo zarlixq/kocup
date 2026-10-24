@@ -11,6 +11,7 @@ export type ActiveTopic = { id: string; subject_id: string; name: string; order:
 // - includeIds: düzenlenen kaydın mevcut konusu pasif olsa bile listede kalsın.
 // Müdürün müfredat yönetimi ve geçmiş kayıt gösterimleri bu helper'ı KULLANMAZ.
 let columnMissing = false
+const PAGE = 1000
 
 function isUndefinedColumn(err: { code?: string; message?: string } | null) {
   return !!err && (err.code === "42703" || /is_active/.test(err.message ?? ""))
@@ -22,19 +23,24 @@ export async function fetchActiveTopics(
 ): Promise<ActiveTopic[]> {
   let rows: ActiveTopic[] = []
 
-  if (!columnMissing) {
-    let q = supabase.from("topics").select("id, subject_id, name, order").eq("is_active", true).order("order")
+  // PostgREST bir istekte en fazla PAGE satır döner (konu sayısı bunu aşabilir): sayfalı oku.
+  for (let from = 0; ; from += PAGE) {
+    let q = supabase.from("topics").select("id, subject_id, name, order")
+    if (!columnMissing) q = q.eq("is_active", true)
     if (opts.subjectId) q = q.eq("subject_id", opts.subjectId)
-    const { data, error } = await q
-    if (error && isUndefinedColumn(error)) columnMissing = true
-    else if (error) console.error("fetchActiveTopics", error)
-    else rows = data ?? []
-  }
-  if (columnMissing) {
-    let q = supabase.from("topics").select("id, subject_id, name, order").order("order")
-    if (opts.subjectId) q = q.eq("subject_id", opts.subjectId)
-    const { data } = await q
-    rows = data ?? []
+    const { data, error } = await q.order("order").order("id").range(from, from + PAGE - 1)
+    if (error && !columnMissing && isUndefinedColumn(error)) {
+      columnMissing = true
+      rows = []
+      from = -PAGE
+      continue
+    }
+    if (error) {
+      console.error("fetchActiveTopics", error)
+      break
+    }
+    rows.push(...(data ?? []))
+    if ((data ?? []).length < PAGE) break
   }
 
   const extra = (opts.includeIds ?? []).filter((v): v is string => !!v && !rows.some((r) => r.id === v))

@@ -3,7 +3,9 @@ import type { Database } from "@/lib/database.types"
 import { loadAssignmentsWithProgress } from "@/lib/assignments/load"
 import { istanbulDateStr } from "@/lib/tz"
 import { GOAL_TEMPLATES, NO_DATA_MASTERY, type BlockType } from "@/lib/upplan/config"
-import { loadMasteryInfo, isBlockType, parsePayload, type RoadmapPayload } from "@/lib/upplan/roadmap-service"
+import { loadMasteryInfo, isBlockType, parsePayload, readiness, type ContextError, type RoadmapPayload } from "@/lib/upplan/roadmap-service"
+import { loadUpplanProfile } from "@/lib/upplan/load"
+import type { Track } from "@/lib/upplan/track"
 import { paceStatus, type Edge } from "@/lib/upplan/roadmap"
 import { buildTimeline, type TimelineMonth } from "@/lib/upplan/roadmap-view-shared"
 import { loadPlaylistScope } from "@/lib/upplan/playlist-scope"
@@ -46,10 +48,14 @@ export type RoadmapView = {
   newExamSince: boolean
   /** Playlist kapsamı yol haritasındakinden farklı (yeni plan / seçenek değişti) → "güncelleyelim mi?" */
   playlistChanged: boolean
+  /** Track (sınıf bazlı segment); sınıf seçilmediyse null. */
+  track: Track | null
+  /** Üretim engeli (sınıf / müsaitlik eksik): program üretilmez, öğrenci eksik adımı görür. */
+  blocker: Pick<ContextError, "code" | "error"> | null
 }
 
 export async function loadRoadmapView(db: Client, studentId: string, today = istanbulDateStr()): Promise<RoadmapView> {
-  const [{ data: rm }, goals, mastery, { data: queued }, { data: lastExam }, scope] = await Promise.all([
+  const [{ data: rm }, goals, mastery, { data: queued }, { data: lastExam }, scope, profile] = await Promise.all([
     db.from("upplan_roadmaps").select("status, payload, generated_at").eq("student_id", studentId).maybeSingle(),
     loadAssignmentsWithProgress(db, { studentId }),
     loadMasteryInfo(db, studentId),
@@ -61,8 +67,12 @@ export async function loadRoadmapView(db: Client, studentId: string, today = ist
       .in("status", ["sirada", "zaman_kalirsa", "iptal"]),
     db.from("exams").select("created_at").eq("student_id", studentId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     loadPlaylistScope(db, studentId).then((c) => c.topics),
+    loadUpplanProfile(db, studentId),
   ])
-  const payload = parsePayload(rm?.payload)
+  // Track geçişinde değiştirilen (superseded) yol haritası yok sayılır.
+  const live = rm?.status === "superseded" ? null : rm
+  const payload = parsePayload(live?.payload)
+  const ready = profile ? readiness(profile, today) : null
   const reasonsByTopic = new Map((payload?.items ?? []).map((i) => [i.topic_id, i.reasons]))
   const eff = (topicId: string) => mastery.get(topicId)?.effective ?? NO_DATA_MASTERY
   // Playlist etiketi canlı kapsamdan (gün numarası plan değişince güncel kalır).
@@ -124,11 +134,11 @@ export async function loadRoadmapView(db: Client, studentId: string, today = ist
   }
   rows.sort((a, b) => (a.plan_order ?? 1e9) - (b.plan_order ?? 1e9) || a.end.localeCompare(b.end))
 
-  const status = (rm?.status as RoadmapView["status"] | undefined) ?? "yok"
+  const status = (live?.status as RoadmapView["status"] | undefined) ?? "yok"
   const topicIds = new Set(rows.map((r) => r.topic_id))
   return {
     status,
-    generatedAt: rm?.generated_at ?? null,
+    generatedAt: live?.generated_at ?? null,
     payload,
     rows,
     edges: (payload?.edges ?? []).filter((e) => topicIds.has(e.prereq) && topicIds.has(e.topic)),
@@ -139,10 +149,12 @@ export async function loadRoadmapView(db: Client, studentId: string, today = ist
           payload.examPeriodStart,
         )
       : [],
-    newExamSince: !!(rm?.generated_at && lastExam?.created_at && lastExam.created_at > rm.generated_at),
+    newExamSince: !!(live?.generated_at && lastExam?.created_at && lastExam.created_at > live.generated_at),
     // Yol haritasındaki, tamamlanmamış bir konunun playlist durumu canlı kapsamla uyuşmuyor.
     playlistChanged: rows.some(
       (r) => (r.status === "aktif" || r.status === "sirada" || r.status === "zaman_kalirsa") && r.source === "upplan" && byPlaylist.has(r.topic_id) !== !!scope[r.topic_id],
     ),
+    track: ready && "track" in ready ? ready.track : (profile?.track ?? null),
+    blocker: ready && "error" in ready ? { code: ready.code, error: ready.error } : null,
   }
 }

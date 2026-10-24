@@ -171,7 +171,7 @@ describe("buildRoadmap", () => {
     const topics = Array.from({ length: 60 }, (_, i) => topic(`t${i}`, { effective: 10, weight: 60 - i }))
     const r = buildRoadmap({ ...base, weeklyMinutes: 240, topics, edges: [] })
     expect(r.overflow?.count).toBeGreaterThan(0)
-    expect(r.overflow?.message).toContain("konuya yetişemiyorsun")
+    expect(r.overflow?.message).toContain("konuyu sona bırakıyoruz")
     const last = r.items[r.items.length - 1]
     expect(last.status).toBe("zaman_kalirsa")
     // En yüksek puanlı ilk dalgada aktif

@@ -16,6 +16,7 @@ export type UiScope =
   | "mudur_individual_list"
   | "analiz_filter"
   | "video_checkin"
+  | "onboarding"
 
 // ── Müdür dashboard: leaderboard görünürlük/sıralama tercihleri ──────────
 export type DashboardColumns = {

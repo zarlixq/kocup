@@ -1,0 +1,79 @@
+-- seed_maarif_9_edebiyat.sql — ÜRETİLDİ (scripts/maarif/build-seed.mjs), elle düzenleme:
+-- supabase/seed/maarif/curriculum-2026.mjs'i değiştirip yeniden üret.
+--
+-- Ders     : 9. Sınıf Edebiyat  (müfredat tymm-2026, Anadolu lisesi)
+-- Kaynak   : https://tymm.meb.gov.tr/assets/file/turk-dili-ve-edebiyati-dersi-taslak-yillik-planlar_20260827_142401_066.zip
+-- Konu     : 18
+-- NOT      : 2026 TDE programı tema/beceri temelli. Eski 49 konu (tür + dil bilgisi) pasife alındı; konular tema içindeki okuma türleri + yazma/konuşma uygulamaları. Dil bilgisi (sözcük türleri, yazım-noktalama) planda ayrı hafta olarak yok, 'kural uygulayabilme' süreç bileşenlerinde geçiyor — öğretmene sorulmalı.
+--
+-- Hafta | Ünite / Tema | Konu | TYT/AYT eşlemesi (güç; < 0.5 = emin değilim)
+--     1 | Sözün İnceliği | Şiir (Sözün İnceliği) | AYT Edebiyat › Şiir Bilgisi (Biçim ve İçerik) (0.5); TYT Türkçe › Sözcükte Anlam (0.4 ?)
+--     1 | Sözün İnceliği | Deneme | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.5); TYT Türkçe › Paragraf (0.5)
+--     4 | Sözün İnceliği | Betimleyici Paragraf Yazma | TYT Türkçe › Paragraf (0.6); TYT Türkçe › Metin Türleri ve Anlatım (0.5)
+--     6 | Sözün İnceliği | Mülakat (Çok Modlu Metin) | TYT Türkçe › Metin Türleri ve Anlatım (0.4 ?)
+--     7 | Sözün İnceliği | Fikir Geliştirme Teknikleriyle Konuşma | TYT Türkçe › Paragraf (0.5)
+--    10 | Anlam Arayışı | Hikâye | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.5); TYT Türkçe › Paragraf (0.4 ?)
+--    10 | Anlam Arayışı | Anı | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.5)
+--    13 | Anlam Arayışı | Karakter Tanıtma Sunumu | —
+--    15 | Anlam Arayışı | Şiir Yazma | AYT Edebiyat › Şiir Bilgisi (Biçim ve İçerik) (0.4 ?)
+--    19 | Anlamın Yapı Taşları | Gezi Yazısı | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.5)
+--    22 | Anlamın Yapı Taşları | Mekân Karşılaştırmalı Konuşma | —
+--    24 | Anlamın Yapı Taşları | Belgesel ve İnfografik | TYT Türkçe › Metin Türleri ve Anlatım (0.3 ?)
+--    28 | Dilin Zenginliği | Roman | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.5)
+--    28 | Dilin Zenginliği | Tiyatro | AYT Edebiyat › Tiyatro Türleri (0.6)
+--    28 | Dilin Zenginliği | Eleştiri | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.5)
+--    31 | Dilin Zenginliği | Sosyal Medya Dili ve Edebî Dil | TYT Türkçe › Anlatım Bozuklukları (0.3 ?)
+--    33 | Dilin Zenginliği | Otobiyografi | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.5)
+--     1 | Dil Bilgisi Uygulamaları | Yazım ve Noktalama Uygulamaları | TYT Türkçe › Yazım Kuralları (0.6); TYT Türkçe › Noktalama İşaretleri (0.6)
+--
+-- Pasife alınan eski konular → referanslarının taşındığı yeni konu:
+--   Edebiyat Nedir? → Deneme
+--   Edebiyatın Güzel Sanatlarla İlişkisi → Deneme
+--   Edebiyatın Diğer Bilimlerle İlişkisi → Deneme
+--   Metinlerin Sınıflandırılması → Deneme
+--   İletişim Nedir? → Mülakat (Çok Modlu Metin)
+--   İletişim Öğeleri → Mülakat (Çok Modlu Metin)
+--   Gösterge Çeşitleri → Mülakat (Çok Modlu Metin)
+--   Düşünceyi Geliştirme Yolları → Fikir Geliştirme Teknikleriyle Konuşma
+--   Dil Nedir? → Sosyal Medya Dili ve Edebî Dil
+--   Dilin İşlevleri → Sosyal Medya Dili ve Edebî Dil
+--   Dil-Kültür İlişkisi → Sosyal Medya Dili ve Edebî Dil
+--   Dilin Kullanımından Doğan Türler → Sosyal Medya Dili ve Edebî Dil
+--   Hikaye Nedir? → Hikâye
+--   Hikaye Türleri → Hikâye
+--   Hikayenin Tarihsel Gelişimi → Hikâye
+--   Yazım Kuralları → Yazım ve Noktalama Uygulamaları
+--   Noktalama İşaretleri → Yazım ve Noktalama Uygulamaları
+--   İsimler → Yazım ve Noktalama Uygulamaları
+--   Şiir Nedir? → Şiir (Sözün İnceliği)
+--   Şiir Bilgisi → Şiir (Sözün İnceliği)
+--   Şiir Türleri → Şiir (Sözün İnceliği)
+--   Sıfatlar → Yazım ve Noktalama Uygulamaları
+--   Masal Nedir? → Hikâye
+--   Fabl Nedir? → Hikâye
+--   Dinleme Türleri ve Etkili Dinlemenin İlkeleri → Mülakat (Çok Modlu Metin)
+--   Edatlar → Yazım ve Noktalama Uygulamaları
+--   Bağlaçlar → Yazım ve Noktalama Uygulamaları
+--   Ünlemler → Yazım ve Noktalama Uygulamaları
+--   Roman Nedir? → Roman
+--   Roman Türleri → Roman
+--   Romanda Bakış Açıları → Roman
+--   Romanın Yapı Unsurları → Roman
+--   Zamirler → Yazım ve Noktalama Uygulamaları
+--   Tiyatro Nedir? → Tiyatro
+--   Tiyatronun Yapı Unsurları → Tiyatro
+--   Tiyatro Terimleri → Tiyatro
+--   Geleneksel Türk Tiyatrosu → Tiyatro
+--   Zarflar → Yazım ve Noktalama Uygulamaları
+--   Biyografi → Otobiyografi
+--   CV / Öz Geçmiş → Otobiyografi
+--   Dilekçe Nedir? → Betimleyici Paragraf Yazma
+--   Tutanak Nedir? → Betimleyici Paragraf Yazma
+--   Fiil → Yazım ve Noktalama Uygulamaları
+--   Mektup Nedir? → Anı
+--   Mektup Türleri → Anı
+--   E-Posta Nedir? → Anı
+--   Günlük Nedir? → Anı
+--   Blog Nedir? → Sosyal Medya Dili ve Edebî Dil
+
+select public.maarif_apply_curriculum('{"version":"tymm-2026","subjects":[{"name":"9. Sınıf Edebiyat","ders_key":"edebiyat","grade":9,"color":"#DC2626","order":905,"source":"https://tymm.meb.gov.tr/assets/file/turk-dili-ve-edebiyati-dersi-taslak-yillik-planlar_20260827_142401_066.zip","topics":[{"name":"Şiir (Sözün İnceliği)","order":1,"week":1,"unit":"Sözün İnceliği","yks":[{"subject":"AYT Edebiyat","topic":"Şiir Bilgisi (Biçim ve İçerik)","strength":0.5},{"subject":"TYT Türkçe","topic":"Sözcükte Anlam","strength":0.4}]},{"name":"Deneme","order":2,"week":1,"unit":"Sözün İnceliği","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.5},{"subject":"TYT Türkçe","topic":"Paragraf","strength":0.5}]},{"name":"Betimleyici Paragraf Yazma","order":3,"week":4,"unit":"Sözün İnceliği","yks":[{"subject":"TYT Türkçe","topic":"Paragraf","strength":0.6},{"subject":"TYT Türkçe","topic":"Metin Türleri ve Anlatım","strength":0.5}]},{"name":"Mülakat (Çok Modlu Metin)","order":4,"week":6,"unit":"Sözün İnceliği","yks":[{"subject":"TYT Türkçe","topic":"Metin Türleri ve Anlatım","strength":0.4}]},{"name":"Fikir Geliştirme Teknikleriyle Konuşma","order":5,"week":7,"unit":"Sözün İnceliği","yks":[{"subject":"TYT Türkçe","topic":"Paragraf","strength":0.5}]},{"name":"Hikâye","order":6,"week":10,"unit":"Anlam Arayışı","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.5},{"subject":"TYT Türkçe","topic":"Paragraf","strength":0.4}]},{"name":"Anı","order":7,"week":10,"unit":"Anlam Arayışı","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.5}]},{"name":"Karakter Tanıtma Sunumu","order":8,"week":13,"unit":"Anlam Arayışı","yks":[]},{"name":"Şiir Yazma","order":9,"week":15,"unit":"Anlam Arayışı","yks":[{"subject":"AYT Edebiyat","topic":"Şiir Bilgisi (Biçim ve İçerik)","strength":0.4}]},{"name":"Gezi Yazısı","order":10,"week":19,"unit":"Anlamın Yapı Taşları","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.5}]},{"name":"Mekân Karşılaştırmalı Konuşma","order":11,"week":22,"unit":"Anlamın Yapı Taşları","yks":[]},{"name":"Belgesel ve İnfografik","order":12,"week":24,"unit":"Anlamın Yapı Taşları","yks":[{"subject":"TYT Türkçe","topic":"Metin Türleri ve Anlatım","strength":0.3}]},{"name":"Roman","order":13,"week":28,"unit":"Dilin Zenginliği","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.5}]},{"name":"Tiyatro","order":14,"week":28,"unit":"Dilin Zenginliği","yks":[{"subject":"AYT Edebiyat","topic":"Tiyatro Türleri","strength":0.6}]},{"name":"Eleştiri","order":15,"week":28,"unit":"Dilin Zenginliği","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.5}]},{"name":"Sosyal Medya Dili ve Edebî Dil","order":16,"week":31,"unit":"Dilin Zenginliği","yks":[{"subject":"TYT Türkçe","topic":"Anlatım Bozuklukları","strength":0.3}]},{"name":"Otobiyografi","order":17,"week":33,"unit":"Dilin Zenginliği","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.5}]},{"name":"Yazım ve Noktalama Uygulamaları","order":18,"week":1,"unit":"Dil Bilgisi Uygulamaları","yks":[{"subject":"TYT Türkçe","topic":"Yazım Kuralları","strength":0.6},{"subject":"TYT Türkçe","topic":"Noktalama İşaretleri","strength":0.6}]}],"retire":[{"old":"Edebiyat Nedir?","new":"Deneme"},{"old":"Edebiyatın Güzel Sanatlarla İlişkisi","new":"Deneme"},{"old":"Edebiyatın Diğer Bilimlerle İlişkisi","new":"Deneme"},{"old":"Metinlerin Sınıflandırılması","new":"Deneme"},{"old":"İletişim Nedir?","new":"Mülakat (Çok Modlu Metin)"},{"old":"İletişim Öğeleri","new":"Mülakat (Çok Modlu Metin)"},{"old":"Gösterge Çeşitleri","new":"Mülakat (Çok Modlu Metin)"},{"old":"Düşünceyi Geliştirme Yolları","new":"Fikir Geliştirme Teknikleriyle Konuşma"},{"old":"Dil Nedir?","new":"Sosyal Medya Dili ve Edebî Dil"},{"old":"Dilin İşlevleri","new":"Sosyal Medya Dili ve Edebî Dil"},{"old":"Dil-Kültür İlişkisi","new":"Sosyal Medya Dili ve Edebî Dil"},{"old":"Dilin Kullanımından Doğan Türler","new":"Sosyal Medya Dili ve Edebî Dil"},{"old":"Hikaye Nedir?","new":"Hikâye"},{"old":"Hikaye Türleri","new":"Hikâye"},{"old":"Hikayenin Tarihsel Gelişimi","new":"Hikâye"},{"old":"Yazım Kuralları","new":"Yazım ve Noktalama Uygulamaları"},{"old":"Noktalama İşaretleri","new":"Yazım ve Noktalama Uygulamaları"},{"old":"İsimler","new":"Yazım ve Noktalama Uygulamaları"},{"old":"Şiir Nedir?","new":"Şiir (Sözün İnceliği)"},{"old":"Şiir Bilgisi","new":"Şiir (Sözün İnceliği)"},{"old":"Şiir Türleri","new":"Şiir (Sözün İnceliği)"},{"old":"Sıfatlar","new":"Yazım ve Noktalama Uygulamaları"},{"old":"Masal Nedir?","new":"Hikâye"},{"old":"Fabl Nedir?","new":"Hikâye"},{"old":"Dinleme Türleri ve Etkili Dinlemenin İlkeleri","new":"Mülakat (Çok Modlu Metin)"},{"old":"Edatlar","new":"Yazım ve Noktalama Uygulamaları"},{"old":"Bağlaçlar","new":"Yazım ve Noktalama Uygulamaları"},{"old":"Ünlemler","new":"Yazım ve Noktalama Uygulamaları"},{"old":"Roman Nedir?","new":"Roman"},{"old":"Roman Türleri","new":"Roman"},{"old":"Romanda Bakış Açıları","new":"Roman"},{"old":"Romanın Yapı Unsurları","new":"Roman"},{"old":"Zamirler","new":"Yazım ve Noktalama Uygulamaları"},{"old":"Tiyatro Nedir?","new":"Tiyatro"},{"old":"Tiyatronun Yapı Unsurları","new":"Tiyatro"},{"old":"Tiyatro Terimleri","new":"Tiyatro"},{"old":"Geleneksel Türk Tiyatrosu","new":"Tiyatro"},{"old":"Zarflar","new":"Yazım ve Noktalama Uygulamaları"},{"old":"Biyografi","new":"Otobiyografi"},{"old":"CV / Öz Geçmiş","new":"Otobiyografi"},{"old":"Dilekçe Nedir?","new":"Betimleyici Paragraf Yazma"},{"old":"Tutanak Nedir?","new":"Betimleyici Paragraf Yazma"},{"old":"Fiil","new":"Yazım ve Noktalama Uygulamaları"},{"old":"Mektup Nedir?","new":"Anı"},{"old":"Mektup Türleri","new":"Anı"},{"old":"E-Posta Nedir?","new":"Anı"},{"old":"Günlük Nedir?","new":"Anı"},{"old":"Blog Nedir?","new":"Sosyal Medya Dili ve Edebî Dil"}]}]}'::jsonb);

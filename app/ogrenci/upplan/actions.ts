@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { profileSchema, type SetupStep } from "@/lib/upplan/profile"
+import { eduEndYear, graduationYearForGrade } from "@/lib/upplan/track"
+import { istanbulDateStr } from "@/lib/tz"
 import { SELF_ASSESSMENTS, type SelfAssessment } from "@/lib/upplan/mastery"
 
 type ActionResult<T = undefined> = { success: boolean; error?: string; data?: T }
@@ -39,17 +41,30 @@ export async function saveUpplanProfile(input: unknown): Promise<ActionResult> {
     const p = parsed.data
     const { data: existing } = await auth.supabase
       .from("student_upplan_profile")
-      .select("setup_step")
+      .select("setup_step, graduation_year")
       .eq("student_id", auth.userId)
       .maybeSingle()
     const step = existing?.setup_step && existing.setup_step !== "profil" ? existing.setup_step : "tarama"
+    // Track'in kaynağı mezuniyet yılı (trigger track/sınıf/alanı türetir). Mezun:
+    // kayıtlı mezuniyet yılı geçmişteyse korunur, yoksa geçen yıl mezun sayılır.
+    const today = istanbulDateStr()
+    const graduationYear =
+      p.status === "mezun" || p.grade === null
+        ? existing?.graduation_year != null && existing.graduation_year < eduEndYear(today)
+          ? existing.graduation_year
+          : eduEndYear(today) - 1
+        : graduationYearForGrade(p.grade, today)
+    const earlyHigh = p.status === "lise" && p.grade !== null && p.grade <= 10
 
     const { error } = await auth.supabase.from("student_upplan_profile").upsert({
       student_id: auth.userId,
       status: p.status,
       grade: p.status === "lise" ? p.grade : null,
+      graduation_year: graduationYear,
       segment: p.segment,
-      alan: p.segment === "lgs" ? null : p.alan,
+      alan: p.segment === "lgs" || earlyHigh ? null : p.alan,
+      alan_egilimi: earlyHigh && p.grade === 10 ? (p.alan_egilimi ?? null) : null,
+      target_exam_year: p.status === "mezun" ? (p.target_exam_year ?? null) : null,
       availability: p.availability,
       focus_minutes: p.focus_minutes,
       target_department: p.target_department,

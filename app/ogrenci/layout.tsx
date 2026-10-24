@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/ogrenci/sidebar"
 import { PomodoroProvider } from "@/components/pomodoro/pomodoro-provider"
 import { FeedbackButton } from "@/components/ogrenci/feedback-button"
 import { getCurrentProfile } from "@/lib/auth/current-user"
+import { TourMount } from "@/components/onboarding/tour-mount"
 import { createClient } from "@/lib/supabase/server"
 import { requireEmailVerification } from "@/lib/auth/verification"
 import { VerifyEmailBanner } from "@/components/ogrenci/verify-email-banner"
@@ -36,6 +37,7 @@ export default async function OgrenciLayout({ children }: { children: React.Reac
       </main>
       <PomodoroProvider />
       <FeedbackButton />
+      <TourMount role="student" userId={profile.id} />
       <Toaster />
     </div>
   )

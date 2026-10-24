@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { TourRestartButton } from "@/components/onboarding/tour-restart-button"
 import { BrandLogo } from "@/components/brand/logo"
 import { PomodoroWidget } from "@/components/pomodoro/pomodoro-widget"
 import { signOut } from "@/app/ogrenci/actions"
@@ -85,6 +86,7 @@ function NavList({ pathname, onClick, hasOrganization }: { pathname: string; onC
           <Link
             key={item.href}
             href={item.href}
+            data-tour={`nav:${item.href}`}
             onClick={onClick}
             className={cn(
               "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
@@ -155,6 +157,7 @@ function SidebarBody({ user, hasOrganization, onNavigate }: SidebarProps & { onN
             <span className="text-xs text-zinc-500 truncate">{user.email}</span>
           </div>
         </div>
+        <TourRestartButton onClick={onNavigate} />
         <form action={signOut}>
           <Button
             type="submit"

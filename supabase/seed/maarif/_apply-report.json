@@ -1,0 +1,290 @@
+[
+  {
+    "moved": 2,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 10,
+    "subject": "9. Sınıf Matematik",
+    "inserted": 10,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "9. Sınıf Fizik",
+    "inserted": 0,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "9. Sınıf Kimya",
+    "inserted": 0,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 2,
+    "subject": "9. Sınıf Biyoloji",
+    "inserted": 0,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 48,
+    "subject": "9. Sınıf Edebiyat",
+    "inserted": 17,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "9. Sınıf Tarih",
+    "inserted": 0,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "9. Sınıf Coğrafya",
+    "inserted": 0,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "9. Sınıf Din Kültürü",
+    "inserted": 1,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "9. Sınıf İngilizce",
+    "inserted": 10,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 8,
+    "retired": 1,
+    "subject": "10. Sınıf Matematik",
+    "inserted": 11,
+    "missing_yks": []
+  },
+  {
+    "moved": 1,
+    "orphans": [],
+    "renamed": 4,
+    "retired": 2,
+    "subject": "10. Sınıf Fizik",
+    "inserted": 11,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "10. Sınıf Kimya",
+    "inserted": 3,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "10. Sınıf Biyoloji",
+    "inserted": 14,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 4,
+    "retired": 0,
+    "subject": "10. Sınıf Edebiyat",
+    "inserted": 11,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 3,
+    "retired": 0,
+    "subject": "10. Sınıf Tarih",
+    "inserted": 11,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 7,
+    "retired": 0,
+    "subject": "10. Sınıf Coğrafya",
+    "inserted": 7,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "10. Sınıf Felsefe",
+    "inserted": 0,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 1,
+    "retired": 0,
+    "subject": "10. Sınıf Din Kültürü",
+    "inserted": 11,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "10. Sınıf İngilizce",
+    "inserted": 10,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Matematik",
+    "inserted": 15,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Fizik",
+    "inserted": 16,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Kimya",
+    "inserted": 18,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Biyoloji",
+    "inserted": 16,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Edebiyat",
+    "inserted": 14,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Tarih",
+    "inserted": 11,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Coğrafya",
+    "inserted": 16,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Felsefe",
+    "inserted": 6,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Sosyoloji",
+    "inserted": 9,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Mantık",
+    "inserted": 7,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Psikoloji",
+    "inserted": 7,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf Din Kültürü",
+    "inserted": 11,
+    "missing_yks": []
+  },
+  {
+    "moved": 0,
+    "orphans": [],
+    "renamed": 0,
+    "retired": 0,
+    "subject": "11. Sınıf İngilizce",
+    "inserted": 10,
+    "missing_yks": []
+  }
+]

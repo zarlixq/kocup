@@ -1,0 +1,32 @@
+-- seed_maarif_10_fizik.sql — ÜRETİLDİ (scripts/maarif/build-seed.mjs), elle düzenleme:
+-- supabase/seed/maarif/curriculum-2026.mjs'i değiştirip yeniden üret.
+--
+-- Ders     : 10. Sınıf Fizik  (müfredat tymm-2026, Anadolu lisesi)
+-- Kaynak   : https://tymm.meb.gov.tr/assets/file/fizik-dersi-taslak-yillik-planlar_20260827_083757_124.zip
+-- Konu     : 17
+-- NOT      : Serbest düşme ve iki boyutta hareket 2026 planında 11. sınıfa taşınmış (11. Sınıf Fizik).
+--
+-- Hafta | Ünite / Tema | Konu | TYT/AYT eşlemesi (güç; < 0.5 = emin değilim)
+--     1 | Kuvvet ve Hareket | Sabit Hızlı Hareket | TYT Fizik › Hareket (0.9); AYT Fizik › Doğrusal Hareket (0.6)
+--     3 | Kuvvet ve Hareket | Bir Boyutta Sabit İvmeli Hareket  [eski ad: Sabit İvmeli Hareket] | AYT Fizik › Doğrusal Hareket (0.9); TYT Fizik › Hareket (0.7)
+--     8 | Enerji | İş, Enerji ve Güç | TYT Fizik › Enerji (0.9); AYT Fizik › İş, Güç ve Enerji (0.7)
+--    11 | Enerji | Enerji Biçimleri  [eski ad: Enerji Çeşitleri ve Mekanik Enerji] | TYT Fizik › Enerji (0.8)
+--    13 | Enerji | Mekanik Enerji | TYT Fizik › Enerji (0.9); AYT Fizik › İş, Güç ve Enerji (0.6)
+--    15 | Enerji | Enerji Kaynakları | TYT Fizik › Enerji (0.5)
+--    16 | Elektrik | Basit Elektrik Devreleri | TYT Fizik › Elektrik Akımı (0.8)
+--    17 | Elektrik | Elektrik Akımı  [eski ad: Temel Elektrik Kavramları ve Elektrik Akımı] | TYT Fizik › Elektrik Akımı (0.9)
+--    20 | Elektrik | Ohm Yasası | TYT Fizik › Elektrik Akımı (0.9)
+--    22 | Elektrik | Dirençlerin Bağlanması | TYT Fizik › Elektrik Akımı (0.9)
+--    24 | Elektrik | Üreteçlerin Bağlanması | TYT Fizik › Elektrik Akımı (0.8)
+--    26 | Elektrik | Elektrik Güvenliği ve Topraklama | TYT Fizik › Elektrik Akımı (0.4 ?)
+--    28 | Dalgalar | Periyodik Hareketler | TYT Fizik › Dalgalar (0.6); AYT Fizik › Basit Harmonik Hareket (0.4 ?)
+--    29 | Dalgalar | Dalgaların Temel Kavramları ve Sınıflandırılması  [eski ad: Dalga Türleri ve Dalgaların Temel Özellikleri] | TYT Fizik › Dalgalar (0.9)
+--    31 | Dalgalar | Dalgaların Yayılma Süratini Etkileyen Etmenler | TYT Fizik › Dalgalar (0.8)
+--    32 | Dalgalar | Su Dalgalarında Yansıma ve Kırılma | TYT Fizik › Dalgalar (0.9); AYT Fizik › Dalga Mekaniği (0.5)
+--    34 | Dalgalar | Rezonans ve Deprem | TYT Fizik › Dalgalar (0.5)
+--
+-- Pasife alınan eski konular → referanslarının taşındığı yeni konu:
+--   Bir Boyutta Sabit İvmeli Hareket (Serbest Düşme) → Bir Boyutta Sabit İvmeli Hareket
+--   İki Boyutta Sabit İvmeli Hareket (Serbest Düşme) → Bir Boyutta Sabit İvmeli Hareket
+
+select public.maarif_apply_curriculum('{"version":"tymm-2026","subjects":[{"name":"10. Sınıf Fizik","ders_key":"fizik","grade":10,"color":"#7C3AED","order":1002,"source":"https://tymm.meb.gov.tr/assets/file/fizik-dersi-taslak-yillik-planlar_20260827_083757_124.zip","topics":[{"name":"Sabit Hızlı Hareket","keep":"Sabit Hızlı Hareket","order":1,"week":1,"unit":"Kuvvet ve Hareket","yks":[{"subject":"TYT Fizik","topic":"Hareket","strength":0.9},{"subject":"AYT Fizik","topic":"Doğrusal Hareket","strength":0.6}]},{"name":"Bir Boyutta Sabit İvmeli Hareket","keep":"Sabit İvmeli Hareket","order":2,"week":3,"unit":"Kuvvet ve Hareket","yks":[{"subject":"AYT Fizik","topic":"Doğrusal Hareket","strength":0.9},{"subject":"TYT Fizik","topic":"Hareket","strength":0.7}]},{"name":"İş, Enerji ve Güç","keep":"İş, Enerji ve Güç","order":3,"week":8,"unit":"Enerji","yks":[{"subject":"TYT Fizik","topic":"Enerji","strength":0.9},{"subject":"AYT Fizik","topic":"İş, Güç ve Enerji","strength":0.7}]},{"name":"Enerji Biçimleri","keep":"Enerji Çeşitleri ve Mekanik Enerji","order":4,"week":11,"unit":"Enerji","yks":[{"subject":"TYT Fizik","topic":"Enerji","strength":0.8}]},{"name":"Mekanik Enerji","order":5,"week":13,"unit":"Enerji","yks":[{"subject":"TYT Fizik","topic":"Enerji","strength":0.9},{"subject":"AYT Fizik","topic":"İş, Güç ve Enerji","strength":0.6}]},{"name":"Enerji Kaynakları","order":6,"week":15,"unit":"Enerji","yks":[{"subject":"TYT Fizik","topic":"Enerji","strength":0.5}]},{"name":"Basit Elektrik Devreleri","order":7,"week":16,"unit":"Elektrik","yks":[{"subject":"TYT Fizik","topic":"Elektrik Akımı","strength":0.8}]},{"name":"Elektrik Akımı","keep":"Temel Elektrik Kavramları ve Elektrik Akımı","order":8,"week":17,"unit":"Elektrik","yks":[{"subject":"TYT Fizik","topic":"Elektrik Akımı","strength":0.9}]},{"name":"Ohm Yasası","order":9,"week":20,"unit":"Elektrik","yks":[{"subject":"TYT Fizik","topic":"Elektrik Akımı","strength":0.9}]},{"name":"Dirençlerin Bağlanması","order":10,"week":22,"unit":"Elektrik","yks":[{"subject":"TYT Fizik","topic":"Elektrik Akımı","strength":0.9}]},{"name":"Üreteçlerin Bağlanması","order":11,"week":24,"unit":"Elektrik","yks":[{"subject":"TYT Fizik","topic":"Elektrik Akımı","strength":0.8}]},{"name":"Elektrik Güvenliği ve Topraklama","order":12,"week":26,"unit":"Elektrik","yks":[{"subject":"TYT Fizik","topic":"Elektrik Akımı","strength":0.4}]},{"name":"Periyodik Hareketler","order":13,"week":28,"unit":"Dalgalar","yks":[{"subject":"TYT Fizik","topic":"Dalgalar","strength":0.6},{"subject":"AYT Fizik","topic":"Basit Harmonik Hareket","strength":0.4}]},{"name":"Dalgaların Temel Kavramları ve Sınıflandırılması","keep":"Dalga Türleri ve Dalgaların Temel Özellikleri","order":14,"week":29,"unit":"Dalgalar","yks":[{"subject":"TYT Fizik","topic":"Dalgalar","strength":0.9}]},{"name":"Dalgaların Yayılma Süratini Etkileyen Etmenler","order":15,"week":31,"unit":"Dalgalar","yks":[{"subject":"TYT Fizik","topic":"Dalgalar","strength":0.8}]},{"name":"Su Dalgalarında Yansıma ve Kırılma","order":16,"week":32,"unit":"Dalgalar","yks":[{"subject":"TYT Fizik","topic":"Dalgalar","strength":0.9},{"subject":"AYT Fizik","topic":"Dalga Mekaniği","strength":0.5}]},{"name":"Rezonans ve Deprem","order":17,"week":34,"unit":"Dalgalar","yks":[{"subject":"TYT Fizik","topic":"Dalgalar","strength":0.5}]}],"retire":[{"old":"Bir Boyutta Sabit İvmeli Hareket (Serbest Düşme)","new":"Bir Boyutta Sabit İvmeli Hareket"},{"old":"İki Boyutta Sabit İvmeli Hareket (Serbest Düşme)","new":"Bir Boyutta Sabit İvmeli Hareket"}]}]}'::jsonb);

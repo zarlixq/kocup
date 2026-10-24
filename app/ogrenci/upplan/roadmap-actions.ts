@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
-import { applyRoadmap, generateRoadmapDraft, redateQueue, syncRoadmapProgress } from "@/lib/upplan/roadmap-service"
-import { applyProgramDraft, countReplaceableItems, generateProgramDraft } from "@/lib/upplan/program-service"
+import type { Json } from "@/lib/database.types"
+import { applyRoadmap, generateRoadmapDraft, loadMinutesPerQuestion, parsePayload, redateQueue, syncRoadmapProgress } from "@/lib/upplan/roadmap-service"
+import { applyProgramDraft, countReplaceableItems, generateProgramDraft, parseDraftItems } from "@/lib/upplan/program-service"
+import { assessmentFor, isFeedbackReason, replacementBlock } from "@/lib/upplan/feedback"
 
 type ActionResult<T = undefined> = { success: boolean; error?: string; data?: T }
 
@@ -65,6 +67,31 @@ export async function approveMyRoadmap(): Promise<ActionResult> {
     await redateQueue(admin, auth.userId)
     revalidateRoadmap(auth.userId)
     return { success: true }
+  })
+}
+
+/**
+ * Feda listesinden "geri al": konu kapasiteye bakılmadan plana girer
+ * (student_upplan_profile.kept_topic_ids); yol haritası taslağı yeniden hesaplanır.
+ */
+export async function keepSacrificedTopic(topicId: unknown): Promise<ActionResult<{ coached: boolean }>> {
+  return guard("keepSacrificedTopic", async () => {
+    const parsed = uuid.safeParse(topicId)
+    if (!parsed.success) return { success: false, error: "Geçersiz konu." }
+    const auth = await requireStudent()
+    if (!auth.ok) return { success: false, error: auth.error }
+    const { data: profile } = await auth.supabase.from("student_upplan_profile").select("kept_topic_ids").eq("student_id", auth.userId).maybeSingle()
+    if (!profile) return { success: false, error: "Önce UpPlan kurulumunu tamamla." }
+    const kept = Array.from(new Set([...(profile.kept_topic_ids ?? []), parsed.data]))
+    const { error } = await auth.supabase.from("student_upplan_profile").update({ kept_topic_ids: kept }).eq("student_id", auth.userId)
+    if (error) {
+      console.error("keepSacrificedTopic", error)
+      return { success: false, error: "Kaydedilemedi, tekrar dene." }
+    }
+    const res = await generateRoadmapDraft(supabaseAdmin(), auth.userId)
+    if ("error" in res) return { success: false, error: res.error }
+    revalidateRoadmap(auth.userId)
+    return { success: true, data: { coached: res.coached } }
   })
 }
 
@@ -230,6 +257,113 @@ export async function decideMyProgramDraft(weekStart: string, approve: boolean):
     if (res.error) return { success: false, error: res.error }
     revalidateRoadmap(auth.userId)
     return { success: true, data: { count: res.count ?? 0, replaced: res.replaced ?? 0 } }
+  })
+}
+
+// ── Geri bildirim (Faz C3) ──────────────────────────────────────────────
+
+/**
+ * Taslaktaki bir bloğu "Değiştir": neden kodu kaydedilir, ustalık / öncelik anında
+ * güncellenir, blok yenisiyle değişir ("zamanım yok" → kaldırılır).
+ */
+export async function changeDraftBlock(weekStart: unknown, index: unknown, reason: unknown): Promise<ActionResult<{ replaced: boolean }>> {
+  return guard("changeDraftBlock", async () => {
+    const w = isoDate.safeParse(weekStart)
+    const i = z.number().int().min(0).max(500).safeParse(index)
+    if (!w.success || !i.success || !isFeedbackReason(reason)) return { success: false, error: "Geçersiz istek." }
+    const auth = await requireStudent()
+    if (!auth.ok) return { success: false, error: auth.error }
+    const admin = supabaseAdmin()
+    const [{ data: draft }, { data: rm }, { data: profile }, mpq] = await Promise.all([
+      admin.from("upplan_program_drafts").select("status, items").eq("student_id", auth.userId).eq("week_start", w.data).maybeSingle(),
+      admin.from("upplan_roadmaps").select("payload").eq("student_id", auth.userId).maybeSingle(),
+      admin.from("student_upplan_profile").select("track").eq("student_id", auth.userId).maybeSingle(),
+      loadMinutesPerQuestion(admin, auth.userId),
+    ])
+    if (!draft || draft.status !== "taslak") return { success: false, error: "Değiştirilebilecek taslak yok." }
+    const items = parseDraftItems(draft.items)
+    const removed = items[i.data]
+    if (!removed) return { success: false, error: "Blok bulunamadı." }
+
+    const { error: fe } = await auth.supabase.from("upplan_feedback").insert({
+      student_id: auth.userId,
+      week_start: w.data,
+      topic_id: removed.topic_id,
+      subject_id: removed.subject_id,
+      block_type: removed.block_type,
+      reason,
+      track: profile?.track ?? null,
+    })
+    if (fe) {
+      console.error("changeDraftBlock feedback", fe)
+      return { success: false, error: "Kaydedilemedi, tekrar dene." }
+    }
+    const status = assessmentFor(reason)
+    if (status && removed.topic_id) {
+      await auth.supabase.from("student_topic_self_assessment").upsert({ student_id: auth.userId, topic_id: removed.topic_id, status })
+    }
+
+    const payload = parsePayload(rm?.payload)
+    const candidates = (payload?.items ?? [])
+      .filter((it) => it.status === "aktif" && !it.practice)
+      .map((it) => ({
+        topic_id: it.topic_id,
+        topic_name: it.topic_name,
+        subject_id: it.subject_id,
+        subject_name: it.subject_name,
+        priority: it.priority ?? it.efficiency ?? 0,
+        assignment_id: it.existing?.assignment_id ?? null,
+        reason: it.reasons[0],
+      }))
+    const next = replacementBlock(removed, reason, candidates, items.filter((x) => x.day_of_week === removed.day_of_week), mpq)
+    const updated = items.flatMap((it, k) => (k === i.data ? (next ? [next] : []) : [it]))
+    const { error } = await admin
+      .from("upplan_program_drafts")
+      .update({ items: updated as unknown as Json })
+      .eq("student_id", auth.userId)
+      .eq("week_start", w.data)
+      .eq("status", "taslak")
+    if (error) {
+      console.error("changeDraftBlock update", error)
+      return { success: false, error: "Taslak güncellenemedi." }
+    }
+    revalidateRoadmap(auth.userId)
+    return { success: true, data: { replaced: !!next } }
+  })
+}
+
+const ratingSchema = z.object({
+  weekStart: isoDate,
+  rating: z.number().int().min(1).max(5),
+  comment: z
+    .string()
+    .trim()
+    .max(1000, "Not en fazla 1000 karakter olabilir.")
+    .nullable()
+    .transform((v) => v || null),
+})
+
+/** "Bu hafta nasıl?" — 1-5 puan + serbest metin (hafta başına bir kayıt, güncellenebilir). */
+export async function rateMyWeek(input: unknown): Promise<ActionResult> {
+  return guard("rateMyWeek", async () => {
+    const parsed = ratingSchema.safeParse(input)
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Geçersiz puan." }
+    const auth = await requireStudent()
+    if (!auth.ok) return { success: false, error: auth.error }
+    const { data: profile } = await auth.supabase.from("student_upplan_profile").select("track").eq("student_id", auth.userId).maybeSingle()
+    const { error } = await auth.supabase.from("upplan_week_ratings").upsert({
+      student_id: auth.userId,
+      week_start: parsed.data.weekStart,
+      rating: parsed.data.rating,
+      comment: parsed.data.comment,
+      track: profile?.track ?? null,
+    })
+    if (error) {
+      console.error("rateMyWeek", error)
+      return { success: false, error: "Kaydedilemedi, tekrar dene." }
+    }
+    revalidatePath("/ogrenci/program")
+    return { success: true }
   })
 }
 

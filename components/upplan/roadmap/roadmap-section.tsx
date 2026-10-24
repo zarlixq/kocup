@@ -1,8 +1,9 @@
 "use client"
 
+import Link from "next/link"
 import { useMemo, useState, useTransition } from "react"
 import { toast } from "sonner"
-import { ArrowDown, ArrowUp, CalendarRange, GripVertical, Loader2, Map as MapIcon, PlayCircle, RefreshCw, RotateCcw, Undo2, X } from "lucide-react"
+import { AlertTriangle, ArrowDown, ArrowUp, CalendarRange, GripVertical, Loader2, Map as MapIcon, PlayCircle, RefreshCw, RotateCcw, Undo2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,9 +12,11 @@ import { prereqViolations } from "@/lib/upplan/roadmap"
 import type { RoadmapRow, RoadmapView } from "@/lib/upplan/roadmap-view"
 import type { RoadmapItem } from "@/lib/upplan/roadmap"
 import { monthLabel } from "@/lib/upplan/roadmap-view-shared"
+import { isMaarifTrack, TRACK_LABEL } from "@/lib/upplan/track"
 import {
   approveMyRoadmap,
   generateMyRoadmap,
+  keepSacrificedTopic,
   setQueueOrder,
   setRoadmapItemRemoved,
   updateRoadmapTarget,
@@ -60,14 +63,21 @@ export function RoadmapSection({ view, coached }: { view: RoadmapView; coached: 
     })
   }
 
+  // Fail-loud: sınıf ya da müsaitlik eksikse yol haritası / program üretilmez.
+  if (view.blocker) return <BlockerCard blocker={view.blocker} />
+
   if (view.status === "yok") {
     return (
       <div className="flex flex-col gap-3 rounded-2xl border border-[#1B6B8A]/30 bg-[#1B6B8A]/5 p-4 sm:flex-row sm:items-center">
         <MapIcon className="h-6 w-6 shrink-0 text-[#1B6B8A]" />
         <div className="flex-1">
-          <div className="text-sm font-semibold text-zinc-900">Sınava kadar yol haritanı çıkaralım</div>
+          <div className="text-sm font-semibold text-zinc-900">
+            {isMaarifTrack(view.track) ? "Okul takvimine göre yol haritanı çıkaralım" : "Sınava kadar yol haritanı çıkaralım"}
+          </div>
           <p className="text-sm text-zinc-600">
-            Ustalık haritan, denemelerin ve haftalık müsaitliğine göre hangi konuyu ne zaman çalışacağını sıralar.
+            {isMaarifTrack(view.track)
+              ? "Okulda işlediğin ve yakında işleyeceğin konuları ustalık haritan ve müsaitliğine göre sıralar."
+              : "Ustalık haritan, denemelerin ve haftalık müsaitliğine göre hangi konuyu ne zaman çalışacağını sıralar."}
             {coached && " Koçun olduğu için öneri koçuna gider."}
           </p>
         </div>
@@ -114,19 +124,75 @@ function Summary({ view }: { view: RoadmapView }) {
         <Stat label="Haftalık çalışma" value={`${Math.round(p.weeklyMinutes / 60)} sa`} />
         <Stat label="Aynı anda konu" value={String(p.activeSlots)} />
         <Stat label="Planlanan konu" value={String(counts.aktif + counts.sirada)} />
-        <Stat label="Deneme dönemi" value={dd(p.examPeriodStart)} />
+        <Stat label={isMaarifTrack(view.track) ? "Ders yılı sonu" : "Deneme dönemi"} value={dd(p.examPeriodStart)} />
       </div>
+      {view.track && <p className="text-xs text-zinc-500">Program türü: {TRACK_LABEL[view.track]}</p>}
       {p.weeklyHours && <WeeklyHoursNote w={p.weeklyHours} />}
       {p.subjectHours && p.subjectHours.length > 0 && <SubjectHoursBar rows={p.subjectHours} />}
       {p.overflow && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">{p.overflow.message}</p>
       )}
+      {p.sacrificed && p.sacrificed.length > 0 && <SacrificeList items={p.sacrificed} />}
       {p.notes.map((n) => (
         <p key={n} className="text-xs text-zinc-500">
           {n}
         </p>
       ))}
     </div>
+  )
+}
+
+/** Sınıf / müsaitlik eksik: ne eksik ve nereden tamamlanır. */
+function BlockerCard({ blocker }: { blocker: NonNullable<RoadmapView["blocker"]> }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center">
+      <AlertTriangle className="h-6 w-6 shrink-0 text-amber-600" />
+      <div className="flex-1">
+        <div className="text-sm font-semibold text-zinc-900">{blocker.code === "no_track" ? "Sınıfını seç" : "Haftalık müsaitliğini gir"}</div>
+        <p className="text-sm text-zinc-700">{blocker.error}</p>
+      </div>
+      <Button asChild variant="accent" size="sm">
+        <Link href="/ogrenci/upplan/kurulum?adim=profil">{blocker.code === "no_track" ? "Sınıfımı seç" : "Müsaitliğimi gir"}</Link>
+      </Button>
+    </div>
+  )
+}
+
+/** Feda listesi: süre yetmediği için sona bırakılan konular; tek tıkla plana geri alınır. */
+const SACRIFICE_SHOWN = 8
+function SacrificeList({ items }: { items: NonNullable<NonNullable<RoadmapView["payload"]>["sacrificed"]> }) {
+  const [all, setAll] = useState(false)
+  const [pending, start] = useTransition()
+  const shown = all ? items : items.slice(0, SACRIFICE_SHOWN)
+  function keep(id: string, name: string) {
+    start(async () => {
+      const res = await keepSacrificedTopic(id)
+      if (!res.success) return void toast.error(res.error ?? "Geri alınamadı.")
+      toast.success(`${name} plana geri alındı; yol haritan yeniden hesaplandı.`)
+    })
+  }
+  return (
+    <details className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm">
+      <summary className="cursor-pointer font-medium text-zinc-800">Sona bırakılan konular ({items.length})</summary>
+      <ul className="mt-2 divide-y divide-zinc-100">
+        {shown.map((t) => (
+          <li key={t.topic_id} className="flex items-center justify-between gap-2 py-1.5">
+            <span className="min-w-0 truncate">
+              <span className="text-zinc-500">{t.subject_name} › </span>
+              {t.topic_name}
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => keep(t.topic_id, t.topic_name)} disabled={pending}>
+              <Undo2 className="h-3.5 w-3.5" /> Geri al
+            </Button>
+          </li>
+        ))}
+      </ul>
+      {!all && items.length > SACRIFICE_SHOWN && (
+        <button type="button" className="mt-1 text-xs text-[#1B6B8A] hover:underline" onClick={() => setAll(true)}>
+          Tümünü göster
+        </button>
+      )}
+    </details>
   )
 }
 
@@ -328,7 +394,7 @@ function PlaylistTag({ label }: { label: string }) {
 }
 
 function ActiveList({ rows }: { rows: RoadmapRow[] }) {
-  if (rows.length === 0) return <Empty text="Aktif konu yok." />
+  if (rows.length === 0) return <Empty text="Aktif konu yok. Sırada sekmesinden bir konuyu öne al ya da yol haritanı yeniden hesapla." />
   return (
     <ul className="space-y-2">
       {rows.map((r) => {

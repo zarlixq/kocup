@@ -49,6 +49,96 @@ export const UPPLAN_SQL_CONFIG = {
 
 export type UpplanSqlKey = keyof typeof UPPLAN_SQL_CONFIG
 
+/**
+ * Track (sınıf bazlı segment) ve haftalık program kalitesi katsayıları —
+ * migration 227 upplan_config seed'iyle birebir (config.test.ts). SQL tarafı
+ * yalnız takvim anahtarlarını okur (upplan_track_for); gerisi uygulamada.
+ * Track'e özgü değerler `<önek>_<track>_<ad>` biçiminde; okumak için
+ * lib/upplan/track.ts → trackHours / trackLimits.
+ */
+export const UPPLAN_TRACK_SQL_CONFIG = {
+  edu_year_rollover_month: 7,
+  first_maarif_graduation_year: 2028,
+  track_maarif_9_hours_min: 6,
+  track_maarif_9_hours_max: 10,
+  track_maarif_10_hours_min: 8,
+  track_maarif_10_hours_max: 12,
+  track_maarif_11_hours_min: 12,
+  track_maarif_11_hours_max: 18,
+  track_eski_12_hours_min: 20,
+  track_eski_12_hours_max: 30,
+  track_mezun_hours_min: 35,
+  track_mezun_hours_max: 45,
+  limit_maarif_9_daily_max_min: 180,
+  limit_maarif_10_daily_max_min: 210,
+  limit_maarif_11_daily_max_min: 300,
+  limit_eski_12_daily_max_min: 360,
+  limit_mezun_daily_max_min: 540,
+  limit_maarif_9_school_day_max_min: 120,
+  limit_maarif_10_school_day_max_min: 120,
+  limit_maarif_11_school_day_max_min: 180,
+  limit_eski_12_school_day_max_min: 240,
+  limit_mezun_school_day_max_min: 540,
+  limit_maarif_9_free_half_days: 2,
+  limit_maarif_10_free_half_days: 2,
+  limit_maarif_11_free_half_days: 2,
+  limit_eski_12_free_half_days: 1,
+  limit_mezun_free_half_days: 1,
+  /** Yarıyıl / ara tatil haftasında yük çarpanı. */
+  holiday_load_multiplier: 1.35,
+  /** Yazılı haftasında okul konusu öncelik çarpanı. */
+  exam_week_school_weight: 1.5,
+  /** Okul takibi: bugünkü okul haftasından kaç hafta önden gidilir. */
+  school_ahead_weeks: 2,
+  /** Okul haftası yakınlığı: |fark| bu kadar haftada öncelik yarıya iner. */
+  school_proximity_decay_weeks: 4,
+  maarif_w_school: 1,
+  maarif_w_gap: 1,
+  maarif_w_yks: 1,
+  /** 11. sınıfta AYT eşlemeleri bu okul haftasından (2. dönem) itibaren sayılır. */
+  maarif_11_ayt_from_week: 19,
+  /** 10. sınıfta TYT temel alışkanlık bloğu bu okul haftasından itibaren. */
+  maarif_10_tyt_habit_from_week: 19,
+  maarif_habit_minutes: 15,
+  maarif_habit_days: 5,
+  context_block_minutes: 30,
+  context_blocks_per_week: 1,
+  /** Alan dışı (düşük getirili) dersler haftalık sürenin en fazla bu oranı. */
+  lowvalue_cap_ratio: 0.08,
+  lowvalue_block_min: 25,
+  lowvalue_block_max: 40,
+  skeleton_problem_minutes: 20,
+  skeleton_paragraf_minutes: 20,
+  /** Alanın ana AYT dersi haftada en az bu kadar gün. */
+  ayt_core_min_days: 4,
+  /** Konu/video bloğundan sonra aynı konunun soru bloğu en geç (gün). */
+  konu_soru_max_gap_days: 2,
+  ratio_konu_max: 0.4,
+  ratio_soru_min: 0.45,
+  ratio_tekrar_min: 0.15,
+  short_review_minutes: 30,
+  /** Kısa tekrar en kısa (dk): 30 dk boşluk yoksa. */
+  short_review_min_minutes: 25,
+  soru_block_min_minutes: 30,
+  video_min_chunk_minutes: 20,
+  exam_analysis_minutes: 50,
+  exam_analysis_bonus: 1.25,
+  /** Öğrenci/koç hedefi önceliğe çarpan (override değil). */
+  user_goal_bonus: 1.3,
+  rank_pressure_boost: 0.5,
+  rank_reference_max: 200000,
+  rank_reference_min: 1000,
+  subject_gap_floor: 0.15,
+  feedback_penalty: 0.85,
+  feedback_penalty_days: 14,
+  /** Alt sınıftan eksik konunun okul yakınlığı yerine geçen çarpan (× ustalık açığı). */
+  maarif_lower_grade_proximity: 0.5,
+  /** 11: YKS değeri bu (0..1) ve üstündeyse gerekçede belirtilir. */
+  yks_value_reason_min: 0.5,
+  /** 10. sınıf alan eğilimi dersine öncelik çarpanı. */
+  alan_egilimi_bonus: 1.1,
+} as const
+
 // ── Profil ──────────────────────────────────────────────────────────────
 export const FOCUS_OPTIONS = [25, 45, 60, 90] as const
 export type FocusMinutes = (typeof FOCUS_OPTIONS)[number]
@@ -78,6 +168,45 @@ export const ALAN_AYT_SUBJECTS = {
   sozel: ["AYT Edebiyat", "AYT Tarih", "AYT Coğrafya", "AYT Felsefe", "AYT Sosyoloji", "AYT Din Kültürü"],
   dil: [],
 } as const satisfies Record<string, readonly string[]>
+
+/**
+ * Maarif 11. sınıf ders kapsamı (subjects.ders_key): ortak dersler + alanın
+ * seçmeli dersleri. 9-10'da bütün dersler kapsamdadır.
+ */
+export const MAARIF_11_DERS = {
+  ortak: ["edebiyat", "tarih", "din", "ingilizce", "felsefe"],
+  sayisal: ["matematik", "fizik", "kimya", "biyoloji"],
+  ea: ["matematik", "cografya"],
+  sozel: ["cografya", "sosyoloji", "mantik", "psikoloji"],
+  dil: [],
+} as const satisfies Record<string, readonly string[]>
+
+/**
+ * Alan dışı (puan türüne az katkılı) dersler: haftalık sürenin en fazla
+ * lowvalue_cap_ratio'su, kısa bloklarla (lowvalue_block_min..max). TYT
+ * dersleri adıyla; Maarif dersleri ders_key ile (11. sınıf alan dışı).
+ */
+export const LOW_VALUE_SUBJECTS: Record<string, readonly string[]> = {
+  sayisal: ["TYT Din Kültürü", "TYT Felsefe", "TYT Tarih", "TYT Coğrafya", "din", "felsefe", "tarih", "cografya", "sosyoloji", "mantik", "psikoloji"],
+  ea: ["TYT Din Kültürü", "TYT Felsefe", "TYT Fizik", "TYT Kimya", "TYT Biyoloji", "din", "fizik", "kimya", "biyoloji"],
+  sozel: ["TYT Fizik", "TYT Kimya", "TYT Biyoloji", "fizik", "kimya", "biyoloji"],
+  dil: ["TYT Fizik", "TYT Kimya", "TYT Biyoloji", "TYT Din Kültürü", "TYT Felsefe", "fizik", "kimya", "biyoloji", "din", "felsefe"],
+}
+
+/**
+ * Alanın ana AYT dersi: haftada en az ayt_core_min_days gün blok alır (sayısalda
+ * AYT Matematik). Ağır sayısal dersler (HEAVY_SUBJECTS) günün ilk yarısına konur.
+ */
+export const ALAN_CORE_SUBJECT: Record<string, string | null> = {
+  sayisal: "AYT Matematik",
+  ea: "AYT Matematik",
+  sozel: "AYT Edebiyat",
+  dil: null,
+}
+export const HEAVY_SUBJECTS: readonly string[] = [
+  "TYT Matematik", "TYT Geometri", "TYT Fizik", "TYT Kimya", "AYT Matematik", "AYT Geometri", "AYT Fizik", "AYT Kimya",
+  "matematik", "fizik", "kimya",
+]
 
 // ── Konu taraması ───────────────────────────────────────────────────────
 export const SCAN_AUTOSAVE_MS = 800

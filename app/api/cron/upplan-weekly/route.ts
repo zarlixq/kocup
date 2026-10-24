@@ -18,7 +18,12 @@ export async function GET(req: NextRequest) {
   // ?student=<id> (tekrarlanabilir): yalnız bu öğrencileri işle — lokal uçtan uca
   // test gerçek öğrencilere dokunmasın diye. Vercel Cron parametresiz çağırır.
   const only = req.nextUrl.searchParams.getAll("student")
-  let q = admin.from("student_upplan_profile").select("student_id").not("completed_at", "is", null)
+  // Eğitim yılı döndüyse track önbelleğini yenile (sınıf atlama, 12 → mezun). Tam çalıştırmada.
+  if (!only.length) {
+    const { error: re } = await admin.rpc("upplan_refresh_tracks")
+    if (re) console.error("upplan-weekly track yenileme", re)
+  }
+  let q =admin.from("student_upplan_profile").select("student_id").not("completed_at", "is", null)
   if (only.length) q = q.in("student_id", only)
   const { data: profiles, error } = await q
   if (error) {

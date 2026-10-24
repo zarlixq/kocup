@@ -12,6 +12,9 @@ import { loadSessionFormData } from "@/lib/soru-cozum/form-data"
 import { getStudentContext } from "@/lib/ogrenci/context"
 import { loadUpplanProfile } from "@/lib/upplan/load"
 import { loadRoadmapView } from "@/lib/upplan/roadmap-view"
+import { getUiPreference } from "@/lib/analytics/ui-preferences-actions"
+import { mergeOnboardingPrefs } from "@/lib/onboarding/tours"
+import { MarkKonularimVisited } from "@/components/onboarding/mark-konularim-visited"
 import { RoadmapSection } from "@/components/upplan/roadmap/roadmap-section"
 import { loadMasteryInfo } from "@/lib/upplan/roadmap-service"
 import { goalCoaching, type GoalCoaching } from "@/lib/upplan/goal-stage"
@@ -24,7 +27,7 @@ export default async function KonularimPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const userId = user!.id
 
-  const [{ data: topics }, assignments, ctx, formData, upplanProfile, roadmap, mastery, topicVideos] = await Promise.all([
+  const [{ data: topics }, assignments, ctx, formData, upplanProfile, roadmap, mastery, topicVideos, onboarding] = await Promise.all([
     supabase
       .from("student_topics")
       .select(
@@ -39,6 +42,7 @@ export default async function KonularimPage() {
     loadRoadmapView(supabase, userId),
     loadMasteryInfo(supabase, userId),
     loadTopicVideos(supabase, userId),
+    getUiPreference("onboarding").then(mergeOnboardingPrefs),
   ])
 
   // Her açık hedef: aşama (öğren/soru/tekrar), "Şimdi ne yapmalısın?", ustalık.
@@ -109,6 +113,7 @@ export default async function KonularimPage() {
 
   return (
     <div className="space-y-8">
+      <MarkKonularimVisited already={onboarding.visitedKonularim} />
       <div>
         <h1 className="text-2xl font-bold text-zinc-900">Konularım</h1>
         <p className="text-sm text-zinc-500 mt-1">

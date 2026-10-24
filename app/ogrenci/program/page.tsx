@@ -36,7 +36,7 @@ export default async function ProgramPage({
   } = await supabase.auth.getUser()
   const userId = user!.id
 
-  const [{ data: program }, { data: subjects }, ctx, history, upplanProfile, { data: draftRow }, { data: roadmapRow }, topicVideos] = await Promise.all([
+  const [{ data: program }, { data: subjects }, ctx, history, upplanProfile, { data: draftRow }, { data: roadmapRow }, topicVideos, { data: ratingRow }] = await Promise.all([
     supabase
       .from("weekly_programs")
       .select(`id, weekly_program_items(${PROGRAM_ITEM_COLUMNS})`)
@@ -60,6 +60,7 @@ export default async function ProgramPage({
       .maybeSingle(),
     supabase.from("upplan_roadmaps").select("status").eq("student_id", userId).maybeSingle(),
     loadTopicVideos(supabase, userId),
+    supabase.from("upplan_week_ratings").select("rating, comment").eq("student_id", userId).eq("week_start", weekStart).maybeSingle(),
   ])
   // Program yalnız onaylı yol haritasından türetilir.
   const roadmapApproved = roadmapRow?.status === "onaylandi"
@@ -71,7 +72,8 @@ export default async function ProgramPage({
     videoOverflowMinutes?: number
     replaceItemIds?: string[]
   }
-  const draft: ProgramDraftView | null = draftRow
+  // Track geçişinde arşivlenen (superseded) taslak gösterilmez.
+  const draft: ProgramDraftView | null = draftRow && draftRow.status !== "superseded"
     ? {
         status: draftRow.status as ProgramDraftView["status"],
         items: parseDraftItems(draftRow.items),
@@ -128,6 +130,7 @@ export default async function ProgramPage({
           weekLabel={`${formatDate(weekStart, "dd.MM")}–${formatDate(addDaysIso(weekStart, 6), "dd.MM.yyyy")}`}
           draft={draft}
           coached={ctx.coachId != null}
+          rating={ratingRow}
         />
       )}
 

@@ -1,0 +1,26 @@
+-- seed_maarif_11_biyoloji.sql — ÜRETİLDİ (scripts/maarif/build-seed.mjs), elle düzenleme:
+-- supabase/seed/maarif/curriculum-2026.mjs'i değiştirip yeniden üret.
+--
+-- Ders     : 11. Sınıf Biyoloji  (müfredat tymm-2026, Anadolu lisesi)
+-- Kaynak   : https://tymm.meb.gov.tr/assets/file/biyoloji-dersi-taslak-yillik-planlar_20260831_190639_106.zip
+-- Konu     : 16
+--
+-- Hafta | Ünite / Tema | Konu | TYT/AYT eşlemesi (güç; < 0.5 = emin değilim)
+--     1 | Tepki | Canlıların Uyaranlara Tepkileri ve Bitkisel Hormonlar | AYT Biyoloji › Bitki Biyolojisi (0.7)
+--     2 | Tepki | Bitkilerde Tepki Mekanizmaları (Tropizma, Nasti) | AYT Biyoloji › Bitki Biyolojisi (0.8)
+--     6 | Tepki | Uyartıların Alınması, Nöronlar ve Duyu Organları | AYT Biyoloji › Sinir Sistemi (0.8); AYT Biyoloji › Duyu Organları (0.8)
+--     8 | Tepki | İnsan Sinir Sisteminin Yapısı | AYT Biyoloji › Sinir Sistemi (0.9)
+--    11 | Tepki | Refleksler | AYT Biyoloji › Sinir Sistemi (0.7)
+--    12 | Tepki | Kemik, Eklem ve Kasların Hareketteki Rolü | AYT Biyoloji › Destek ve Hareket Sistemi (0.9)
+--    14 | Tepki | Kasların Kasılma Mekanizması | AYT Biyoloji › Destek ve Hareket Sistemi (0.9)
+--    16 | Tepki | Bağışıklık ve Alerji | AYT Biyoloji › Bağışıklık Sistemi (0.9)
+--    20 | Homeostazi | Homeostatik Yapılar ve Süreçler | AYT Biyoloji › Endokrin (Hormonal) Sistem (0.4 ?)
+--    23 | Homeostazi | Pozitif ve Negatif Geri Bildirim | AYT Biyoloji › Endokrin (Hormonal) Sistem (0.6)
+--    25 | Homeostazi | Sinir Sistemi ve Homeostazi | AYT Biyoloji › Sinir Sistemi (0.6)
+--    26 | Homeostazi | Endokrin Sistem ve Homeostazi | AYT Biyoloji › Endokrin (Hormonal) Sistem (0.9)
+--    28 | Homeostazi | Dolaşım Sistemi ve Homeostazi | AYT Biyoloji › Dolaşım Sistemi (0.9)
+--    29 | Homeostazi | Solunum Sistemi ve Homeostazi | AYT Biyoloji › Solunum Sistemi (0.9)
+--    31 | Homeostazi | Boşaltım Sistemi ve Homeostazi | AYT Biyoloji › Boşaltım Sistemi (0.9)
+--    32 | Homeostazi | Sistemlerin Eş Güdümlü Çalışması ve Homeostazinin Bozulması | AYT Biyoloji › Endokrin (Hormonal) Sistem (0.4 ?)
+
+select public.maarif_apply_curriculum('{"version":"tymm-2026","subjects":[{"name":"11. Sınıf Biyoloji","ders_key":"biyoloji","grade":11,"color":"#16A34A","order":1104,"source":"https://tymm.meb.gov.tr/assets/file/biyoloji-dersi-taslak-yillik-planlar_20260831_190639_106.zip","topics":[{"name":"Canlıların Uyaranlara Tepkileri ve Bitkisel Hormonlar","order":1,"week":1,"unit":"Tepki","yks":[{"subject":"AYT Biyoloji","topic":"Bitki Biyolojisi","strength":0.7}]},{"name":"Bitkilerde Tepki Mekanizmaları (Tropizma, Nasti)","order":2,"week":2,"unit":"Tepki","yks":[{"subject":"AYT Biyoloji","topic":"Bitki Biyolojisi","strength":0.8}]},{"name":"Uyartıların Alınması, Nöronlar ve Duyu Organları","order":3,"week":6,"unit":"Tepki","yks":[{"subject":"AYT Biyoloji","topic":"Sinir Sistemi","strength":0.8},{"subject":"AYT Biyoloji","topic":"Duyu Organları","strength":0.8}]},{"name":"İnsan Sinir Sisteminin Yapısı","order":4,"week":8,"unit":"Tepki","yks":[{"subject":"AYT Biyoloji","topic":"Sinir Sistemi","strength":0.9}]},{"name":"Refleksler","order":5,"week":11,"unit":"Tepki","yks":[{"subject":"AYT Biyoloji","topic":"Sinir Sistemi","strength":0.7}]},{"name":"Kemik, Eklem ve Kasların Hareketteki Rolü","order":6,"week":12,"unit":"Tepki","yks":[{"subject":"AYT Biyoloji","topic":"Destek ve Hareket Sistemi","strength":0.9}]},{"name":"Kasların Kasılma Mekanizması","order":7,"week":14,"unit":"Tepki","yks":[{"subject":"AYT Biyoloji","topic":"Destek ve Hareket Sistemi","strength":0.9}]},{"name":"Bağışıklık ve Alerji","order":8,"week":16,"unit":"Tepki","yks":[{"subject":"AYT Biyoloji","topic":"Bağışıklık Sistemi","strength":0.9}]},{"name":"Homeostatik Yapılar ve Süreçler","order":9,"week":20,"unit":"Homeostazi","yks":[{"subject":"AYT Biyoloji","topic":"Endokrin (Hormonal) Sistem","strength":0.4}]},{"name":"Pozitif ve Negatif Geri Bildirim","order":10,"week":23,"unit":"Homeostazi","yks":[{"subject":"AYT Biyoloji","topic":"Endokrin (Hormonal) Sistem","strength":0.6}]},{"name":"Sinir Sistemi ve Homeostazi","order":11,"week":25,"unit":"Homeostazi","yks":[{"subject":"AYT Biyoloji","topic":"Sinir Sistemi","strength":0.6}]},{"name":"Endokrin Sistem ve Homeostazi","order":12,"week":26,"unit":"Homeostazi","yks":[{"subject":"AYT Biyoloji","topic":"Endokrin (Hormonal) Sistem","strength":0.9}]},{"name":"Dolaşım Sistemi ve Homeostazi","order":13,"week":28,"unit":"Homeostazi","yks":[{"subject":"AYT Biyoloji","topic":"Dolaşım Sistemi","strength":0.9}]},{"name":"Solunum Sistemi ve Homeostazi","order":14,"week":29,"unit":"Homeostazi","yks":[{"subject":"AYT Biyoloji","topic":"Solunum Sistemi","strength":0.9}]},{"name":"Boşaltım Sistemi ve Homeostazi","order":15,"week":31,"unit":"Homeostazi","yks":[{"subject":"AYT Biyoloji","topic":"Boşaltım Sistemi","strength":0.9}]},{"name":"Sistemlerin Eş Güdümlü Çalışması ve Homeostazinin Bozulması","order":16,"week":32,"unit":"Homeostazi","yks":[{"subject":"AYT Biyoloji","topic":"Endokrin (Hormonal) Sistem","strength":0.4}]}],"retire":[]}]}'::jsonb);

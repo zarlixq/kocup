@@ -12,7 +12,9 @@ import {
   LECTURE_MINUTES,
   MAX_ACTIVE_PER_SUBJECT,
   MAX_LEARNING_ACTIVE,
-  EXAM_DATES,
+  CAPACITY_UTILIZATION,
+  MAARIF_11_DERS,
+  UPPLAN_TRACK_SQL_CONFIG,
   GAP_CONFIDENT_LEVELS,
   GOAL_TEMPLATES,
   NET_GAP_EXAMS,
@@ -24,6 +26,16 @@ import {
 import { isSelfAssessment, parseBreakdown } from "@/lib/upplan/mastery"
 import { loadUpplanProfile } from "@/lib/upplan/load"
 import { scopeSubjects, type UpplanProfile } from "@/lib/upplan/profile"
+import { examFor, loadExamCalendar, loadSchoolCalendar, schoolPosition, type ExamStyle } from "@/lib/upplan/calendar"
+import { examYearFor, isMaarifTrack, trackFor, trackHours, type Track } from "@/lib/upplan/track"
+import {
+  buildMaarifRoadmap,
+  schoolYearEnd,
+  weekStartsMap,
+  type MaarifRoadmapInput,
+  type MaarifTopicInput,
+  type MaarifTrack,
+} from "@/lib/upplan/roadmap-maarif"
 import { loadPlaylistScope } from "@/lib/upplan/playlist-scope"
 import { coveredNotBefore, playlistGoalDates } from "@/lib/upplan/playlist-order"
 import {
@@ -46,6 +58,7 @@ import {
   type Edge,
   type ExistingGoal,
   type Roadmap,
+  type RoadmapInput,
   type RoadmapTopicInput,
 } from "@/lib/upplan/roadmap"
 
@@ -118,12 +131,47 @@ export async function loadMasteryInfo(db: Client, studentId: string): Promise<Ma
   return out
 }
 
-export type RoadmapContext = {
-  profile: UpplanProfile
-  coachId: string | null
-  today: string
-  examDate: string
-  input: Parameters<typeof buildRoadmap>[0]
+/** Üretim engeli (fail-loud): program/yol haritası üretilmez, öğrenciye eksik söylenir. */
+export type ContextError = { error: string; code: "no_profile" | "no_track" | "no_availability" | "no_exam_date" }
+
+type BaseContext = { profile: UpplanProfile; track: Track; coachId: string | null; today: string }
+export type YksRoadmapContext = BaseContext & { kind: "yks"; examDate: string; examYear: number; examStyle: ExamStyle; input: RoadmapInput }
+export type MaarifRoadmapContext = BaseContext & { kind: "maarif"; examDate: string; input: MaarifRoadmapInput }
+export type RoadmapContext = YksRoadmapContext | MaarifRoadmapContext
+
+export const NO_TRACK_ERROR = "Sınıfını seç: programın sınıfına göre (okul takibi ya da YKS hazırlığı) kurulur."
+export const NO_AVAILABILITY_ERROR = "Haftalık müsaitliğin boş: çalışabileceğin saatleri işaretlemeden program üretilmez."
+
+/** Track (bugünün eğitim yılına göre) ve müsaitlik kontrolü. */
+export function readiness(profile: UpplanProfile, today: string): { track: Track } | ContextError {
+  const track = trackFor(profile.graduation_year, today) ?? profile.track
+  if (!track) return { code: "no_track", error: NO_TRACK_ERROR }
+  if (availableMinutes(profile) === 0) return { code: "no_availability", error: NO_AVAILABILITY_ERROR }
+  return { track }
+}
+
+/** Müsaitlik, track'in güvenlik üst sınırıyla kırpılır (varsayılan haftalık ek çalışma). */
+export function effectiveAvailableMinutes(profile: UpplanProfile, track: Track): number {
+  const h = trackHours(track)
+  return h ? Math.min(availableMinutes(profile), h.max * 60) : availableMinutes(profile)
+}
+
+/**
+ * Öncelik çarpanları (konu → çarpan): öğrencinin "sıkıcı" dediği konu
+ * (feedback_penalty, feedback_penalty_days gün) ve son haftanın denemesinde yanlışı
+ * olan konu (exam_analysis_bonus — deneme analizi sonraki haftanın önceliğine girer).
+ */
+export async function loadPriorityFactors(db: Client, studentId: string, today: string): Promise<Map<string, number>> {
+  const since = addDaysIso(today, -UPPLAN_TRACK_SQL_CONFIG.feedback_penalty_days)
+  const weekAgo = addDaysIso(today, -7)
+  const [{ data: fb }, { data: wrongs }] = await Promise.all([
+    db.from("upplan_feedback").select("topic_id").eq("student_id", studentId).eq("reason", "sikici").gte("created_at", since),
+    db.from("wrong_answers").select("topic_id, exams!inner(date)").eq("student_id", studentId).not("exam_id", "is", null).gte("exams.date", weekAgo),
+  ])
+  const out = new Map<string, number>()
+  for (const w of wrongs ?? []) if (w.topic_id) out.set(w.topic_id, UPPLAN_TRACK_SQL_CONFIG.exam_analysis_bonus)
+  for (const f of fb ?? []) if (f.topic_id) out.set(f.topic_id, (out.get(f.topic_id) ?? 1) * UPPLAN_TRACK_SQL_CONFIG.feedback_penalty)
+  return out
 }
 
 export async function gatherRoadmapContext(
@@ -132,15 +180,24 @@ export async function gatherRoadmapContext(
   today = istanbulDateStr(),
   /** Önizleme/kuru çalıştırma: kayıtlı profil yerine bunu kullan (yazma yok). */
   profileOverride?: UpplanProfile,
-): Promise<RoadmapContext | null> {
+): Promise<RoadmapContext | ContextError> {
   const profile = profileOverride ?? (await loadUpplanProfile(db, studentId))
-  if (!profile) return null
-  const examDate = EXAM_DATES[profile.segment].date
+  if (!profile) return { code: "no_profile", error: "Önce UpPlan kurulumunu tamamla." }
+  const ready = readiness(profile, today)
+  if ("error" in ready) return ready
+  const track = ready.track
+  if (isMaarifTrack(track)) return gatherMaarifContext(db, studentId, today, profile, track)
 
-  const [{ data: student }, { data: subjects }, topics, mastery, { data: assess }, { data: gap }, { data: exams }, edges, mpq, goals, playlist] =
+  const examYear = examYearFor({ track, graduation_year: profile.graduation_year, target_exam_year: profile.target_exam_year }, today)
+  const exam = examFor(await loadExamCalendar(db), profile.segment, examYear)
+  if (!exam || examYear === null) return { code: "no_exam_date", error: "Sınav tarihin takvimde bulunamadı; profilinde sınav yılını kontrol et." }
+  const examDate = exam.exam_date
+  const available = effectiveAvailableMinutes(profile, track)
+
+  const [{ data: student }, { data: subjects }, topics, mastery, { data: assess }, { data: gap }, { data: exams }, edges, mpq, goals, playlist, factors] =
     await Promise.all([
       db.from("students").select("coach_id").eq("id", studentId).maybeSingle(),
-      db.from("subjects").select("id, name, exam_type, curriculum, order").order("order"),
+      db.from("subjects").select("id, name, exam_type, curriculum, order, grade, ders_key").order("order"),
       fetchActiveTopics(db),
       loadMasteryInfo(db, studentId),
       db.from("student_topic_self_assessment").select("topic_id, status").eq("student_id", studentId),
@@ -155,9 +212,10 @@ export async function gatherRoadmapContext(
       loadMinutesPerQuestion(db, studentId),
       loadAssignmentsWithProgress(db, { studentId }),
       loadPlaylistScope(db, studentId),
+      loadPriorityFactors(db, studentId, today),
     ])
 
-  const scoped = scopeSubjects(profile, subjects ?? [])
+  const scoped = scopeSubjects({ ...profile, track }, subjects ?? [])
   const scopedIds = new Set(scoped.map((s) => s.id))
   const subjectById = new Map(scoped.map((s) => [s.id, s]))
   const scopeTopics = topics.filter((t) => scopedIds.has(t.subject_id))
@@ -259,6 +317,7 @@ export async function gatherRoadmapContext(
       examWrongs: m?.examWrongs ?? 0,
       netGap: netGapFactor(resultsBySubject.get(t.subject_id) ?? []),
       gapAtom: gapAtomByTopic.get(t.id)?.name ?? null,
+      ...(factors.has(t.id) ? { priorityFactor: factors.get(t.id) } : {}),
     }
   })
 
@@ -285,15 +344,19 @@ export async function gatherRoadmapContext(
 
   const weeksLeft = weeksUntil(today, examDate)
   return {
+    kind: "yks",
     profile,
+    track,
     coachId: student?.coach_id ?? null,
     today,
     examDate,
+    examYear,
+    examStyle: exam.question_style,
     input: {
       today,
       examDate,
       weeklyMinutes: weeklyCapacityMinutes({
-        availableMinutes: availableMinutes(profile),
+        availableMinutes: available,
         segment: profile.segment,
         weeksLeft,
         loadFactor: profile.load_factor,
@@ -304,9 +367,151 @@ export async function gatherRoadmapContext(
       completedTopicIds,
       edges,
       puanTuru,
-      availableWeeklyMinutes: availableMinutes(profile),
+      availableWeeklyMinutes: available,
       playlistTopics: playlist.topics,
       playlistSubjects: playlist.subjects,
+      // 12 ve mezunda AYT ilk günden açık: yalnız konu ön koşulları bekletir (LGS'de kapı yok zaten).
+      gateMode: "topic",
+      targetRanking: profile.target_ranking,
+      keptTopicIds: profile.kept_topic_ids,
+      track,
+    },
+  }
+}
+
+/**
+ * Maarif konularının YKS değeri (11): Σ eşleme gücü × YKS konusunun soru sayısı ×
+ * puan türü katsayısı, en büyüğe göre 0..1. AYT eşlemeleri 2. dönemden
+ * (maarif_11_ayt_from_week) itibaren sayılır.
+ */
+async function loadYksValues(
+  db: Client,
+  maarifIds: string[],
+  puanTuru: ReturnType<typeof puanTuruOf>,
+  schoolWeek: number,
+): Promise<Map<string, number>> {
+  const maps: { maarif_topic_id: string; yks_topic_id: string; strength: number }[] = []
+  for (let i = 0; i < maarifIds.length; i += 300) {
+    const { data } = await db.from("topic_yks_map").select("maarif_topic_id, yks_topic_id, strength").in("maarif_topic_id", maarifIds.slice(i, i + 300))
+    maps.push(...(data ?? []).map((r) => ({ ...r, strength: Number(r.strength) })))
+  }
+  const yksIds = Array.from(new Set(maps.map((m) => m.yks_topic_id)))
+  if (!yksIds.length) return new Map()
+  const [{ data: yt }, { data: w }, active] = await Promise.all([
+    db.from("topics").select("id, subject_id, subjects(name, exam_type)").in("id", yksIds),
+    db.from("topic_exam_weights").select("topic_id, exam, avg_questions").in("topic_id", yksIds),
+    fetchActiveTopics(db),
+  ])
+  const perSubject = new Map<string, number>()
+  for (const t of active) perSubject.set(t.subject_id, (perSubject.get(t.subject_id) ?? 0) + 1)
+  const info = new Map((yt ?? []).map((t) => [t.id, { subject_id: t.subject_id, name: t.subjects?.name ?? "", exam: t.subjects?.exam_type ?? "" }]))
+  const weightOf = new Map((w ?? []).filter((r) => info.get(r.topic_id)?.exam === r.exam).map((r) => [r.topic_id, Number(r.avg_questions)]))
+  const raw = new Map<string, number>()
+  for (const m of maps) {
+    const t = info.get(m.yks_topic_id)
+    if (!t) continue
+    if (t.exam === "ayt" && schoolWeek < UPPLAN_TRACK_SQL_CONFIG.maarif_11_ayt_from_week) continue
+    const q = weightOf.get(m.yks_topic_id) ?? (SUBJECT_EXAM_QUESTIONS[t.name] ?? DEFAULT_SUBJECT_EXAM_QUESTIONS) / Math.max(perSubject.get(t.subject_id) ?? 1, 1)
+    raw.set(m.maarif_topic_id, (raw.get(m.maarif_topic_id) ?? 0) + m.strength * q * subjectCoefficient(puanTuru, t.name))
+  }
+  const max = Math.max(0, ...raw.values())
+  return new Map(Array.from(raw, ([id, v]) => [id, max > 0 ? Math.round((v / max) * 1000) / 1000 : 0]))
+}
+
+function puanTuruOf(profile: UpplanProfile) {
+  return profile.segment === "lgs" ? "LGS" : profile.alan ? (ALAN_PUAN_TURU[profile.alan] ?? null) : null
+}
+
+async function gatherMaarifContext(
+  db: Client,
+  studentId: string,
+  today: string,
+  profile: UpplanProfile,
+  track: MaarifTrack,
+): Promise<MaarifRoadmapContext | ContextError> {
+  const [{ data: student }, { data: subjects }, school, examCal, mastery, { data: assess }, edges, mpq, goals, factors] = await Promise.all([
+    db.from("students").select("coach_id").eq("id", studentId).maybeSingle(),
+    db.from("subjects").select("id, name, exam_type, curriculum, order, grade, ders_key").order("order"),
+    loadSchoolCalendar(db, today),
+    loadExamCalendar(db),
+    loadMasteryInfo(db, studentId),
+    db.from("student_topic_self_assessment").select("topic_id, status").eq("student_id", studentId),
+    loadTopicEdges(db),
+    loadMinutesPerQuestion(db, studentId),
+    loadAssignmentsWithProgress(db, { studentId }),
+    loadPriorityFactors(db, studentId, today),
+  ])
+  const scoped = scopeSubjects({ ...profile, track }, subjects ?? [])
+  const subjectById = new Map(scoped.map((s) => [s.id, s]))
+  const { data: rows } = await db
+    .from("topics")
+    .select("id, name, subject_id, grade, school_week")
+    .in("subject_id", Array.from(subjectById.keys()))
+    .eq("is_active", true)
+    .not("school_week", "is", null)
+  const pos = schoolPosition(school, today)
+  const yksValue = track === "maarif_11" ? await loadYksValues(db, (rows ?? []).map((r) => r.id), puanTuruOf(profile), pos.week) : new Map<string, number>()
+  const assessment = new Map<string, RoadmapTopicInput["assessment"]>()
+  for (const a of assess ?? []) if (isSelfAssessment(a.status)) assessment.set(a.topic_id, a.status)
+  const egilim = new Set<string>(track === "maarif_10" && profile.alan_egilimi ? MAARIF_11_DERS[profile.alan_egilimi] : [])
+  const kept = new Set(profile.kept_topic_ids)
+  const topics: MaarifTopicInput[] = (rows ?? []).map((t) => {
+    const subj = subjectById.get(t.subject_id)!
+    return {
+      topic_id: t.id,
+      topic_name: t.name,
+      subject_id: t.subject_id,
+      subject_name: subj.name,
+      ders_key: subj.ders_key ?? null,
+      grade: t.grade ?? subj.grade ?? 9,
+      school_week: t.school_week ?? 1,
+      effective: mastery.get(t.id)?.effective ?? NO_DATA_MASTERY,
+      assessment: assessment.get(t.id) ?? null,
+      yksValue: yksValue.get(t.id) ?? 0,
+      userGoal: kept.has(t.id),
+      egilimBonus: egilim.has(subj.ders_key ?? "") ? UPPLAN_TRACK_SQL_CONFIG.alan_egilimi_bonus : 1,
+      feedbackFactor: factors.get(t.id) ?? 1,
+    }
+  })
+
+  const existing: ExistingGoal[] = goals
+    .filter((g) => g.status === "aktif")
+    .map((g) => {
+      const effective = mastery.get(g.topic_id)?.effective ?? NO_DATA_MASTERY
+      const bt = blockTypeFor(effective)
+      return {
+        assignment_id: g.id,
+        topic_id: g.topic_id,
+        source: g.created_by_role,
+        remainingMinutes: needMinutes(bt, Math.max((g.hedef_soru ?? 0) - g.cozulen_soru, 0), mpq),
+        son_tarih: g.son_tarih,
+        progressed: g.cozulen_soru > 0 || !!g.learned_at,
+      }
+    })
+  const seen = new Set<string>()
+  const available = effectiveAvailableMinutes(profile, track)
+  const yks = examFor(examCal, "yks", profile.graduation_year)
+  return {
+    kind: "maarif",
+    profile,
+    track,
+    coachId: student?.coach_id ?? null,
+    today,
+    examDate: yks?.exam_date ?? schoolYearEnd(school.weeks, today),
+    input: {
+      track,
+      today,
+      schoolWeek: pos.week,
+      isExamWeek: pos.isExamWeek,
+      weekStarts: weekStartsMap(school.weeks),
+      horizon: schoolYearEnd(school.weeks, today),
+      weeklyMinutes: Math.round(available * CAPACITY_UTILIZATION * profile.load_factor),
+      availableWeeklyMinutes: available,
+      minutesPerQuestion: mpq,
+      topics,
+      existing: existing.filter((e) => (seen.has(e.topic_id) ? false : (seen.add(e.topic_id), true))),
+      completedTopicIds: goals.filter((g) => g.status === "tamamlandi").map((g) => g.topic_id),
+      edges,
     },
   }
 }
@@ -315,14 +520,45 @@ export async function gatherRoadmapContext(
 // Taslak üretimi ve onay
 // ─────────────────────────────────────────────────────────────────────────
 
-/** Taslak üretir ve kaydeder. Koçlu öğrencide durum koca_onerildi. (admin client) */
-export async function generateRoadmapDraft(admin: Client, studentId: string): Promise<{ payload: RoadmapPayload; coached: boolean } | { error: string }> {
-  const ctx = await gatherRoadmapContext(admin, studentId)
-  if (!ctx) return { error: "Önce UpPlan kurulumunu tamamla." }
-  if (ctx.input.topics.length === 0) return { error: "Kapsamında aktif konu bulunamadı." }
+/** Bağlamdan yol haritası (track'e göre dal). Yazma yok — önizleme / debug da kullanır. */
+export function roadmapFromContext(ctx: RoadmapContext): RoadmapPayload {
+  if (ctx.kind === "maarif") {
+    const roadmap = buildMaarifRoadmap(ctx.input)
+    return { ...roadmap, edges: ctx.input.edges, segment: "yks" }
+  }
   const roadmap = buildRoadmap(ctx.input)
-  if (roadmap.brokenCycles.length) console.warn("UpPlan ön koşul döngüsü kırıldı", studentId, roadmap.brokenCycles)
-  const payload: RoadmapPayload = { ...roadmap, edges: ctx.input.edges, segment: ctx.profile.segment }
+  if (ctx.examStyle === "baglam_temelli") {
+    roadmap.notes.push(`YKS ${ctx.examYear}: TYT/AYT yapısı aynı, sorular beceri ve bağlam temelli olacak; haftalık programa bağlam temelli soru bloğu eklenir.`)
+  }
+  return { ...roadmap, track: ctx.track, edges: ctx.input.edges, segment: ctx.profile.segment }
+}
+
+/** Mevcut taslağı/onaylı yol haritasını arşive (status='superseded') kopyalar. */
+export async function archiveRoadmap(admin: Client, studentId: string, reason: string): Promise<boolean> {
+  const { data: row } = await admin.from("upplan_roadmaps").select("status, payload, generated_at").eq("student_id", studentId).maybeSingle()
+  if (!row) return false
+  const { error } = await admin.from("upplan_archive").insert({
+    student_id: studentId,
+    kind: "roadmap",
+    previous_status: row.status,
+    payload: row.payload,
+    generated_at: row.generated_at,
+    reason,
+  })
+  if (error) console.error("archiveRoadmap", error)
+  return !error
+}
+
+/** Taslak üretir ve kaydeder. Koçlu öğrencide durum koca_onerildi. (admin client) */
+export async function generateRoadmapDraft(
+  admin: Client,
+  studentId: string,
+): Promise<{ payload: RoadmapPayload; coached: boolean } | { error: string; code?: ContextError["code"] }> {
+  const ctx = await gatherRoadmapContext(admin, studentId)
+  if ("error" in ctx) return ctx
+  if (ctx.input.topics.length === 0) return { error: "Kapsamında aktif konu bulunamadı." }
+  const payload = roadmapFromContext(ctx)
+  if (payload.brokenCycles.length) console.warn("UpPlan ön koşul döngüsü kırıldı", studentId, payload.brokenCycles)
   const coached = !!ctx.coachId
   const { error } = await admin.from("upplan_roadmaps").upsert({
     student_id: studentId,

@@ -34,17 +34,27 @@ type Client = SupabaseClient<Database>
 export async function loadUpplanProfile(supabase: Client, studentId: string): Promise<UpplanProfile | null> {
   const { data, error } = await supabase
     .from("student_upplan_profile")
-    .select("status, grade, segment, alan, availability, focus_minutes, target_department, target_ranking, setup_step, completed_at, load_factor")
+    .select(
+      "status, grade, segment, alan, availability, focus_minutes, target_department, target_ranking, setup_step, completed_at, load_factor, graduation_year, track, target_exam_year, alan_egilimi, kept_topic_ids",
+    )
     .eq("student_id", studentId)
     .maybeSingle()
   if (error) console.error("loadUpplanProfile", error)
   return data ? toUpplanProfile(data) : null
 }
 
-type SubjectRow = { id: string; name: string; exam_type: string | null; curriculum: string | null; order: number | null }
+type SubjectRow = {
+  id: string
+  name: string
+  exam_type: string | null
+  curriculum: string | null
+  order: number | null
+  grade: number | null
+  ders_key: string | null
+}
 
 async function loadSubjects(supabase: Client): Promise<SubjectRow[]> {
-  const { data } = await supabase.from("subjects").select("id, name, exam_type, curriculum, order").order("order")
+  const { data } = await supabase.from("subjects").select("id, name, exam_type, curriculum, order, grade, ders_key").order("order")
   return data ?? []
 }
 

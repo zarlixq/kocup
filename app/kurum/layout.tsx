@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Toaster } from "@/components/ui/sonner"
 import { Sidebar } from "@/components/kurum/sidebar"
 import { getCurrentProfile } from "@/lib/auth/current-user"
+import { TourMount } from "@/components/onboarding/tour-mount"
 
 export default async function KurumLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile()
@@ -43,6 +44,7 @@ export default async function KurumLayout({ children }: { children: React.ReactN
           {children}
         </div>
       </main>
+      <TourMount role="org_admin" userId={profile.id} />
       <Toaster />
     </div>
   )

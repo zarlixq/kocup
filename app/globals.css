@@ -102,3 +102,38 @@
 html[data-cerez] .cookie-banner {
   display: none;
 }
+
+/* Panel turu (driver.js) — marka renkleri, shadcn kart görünümü, mobilde dar ekran. */
+.driver-popover.kocup-tour {
+  border-radius: 0.875rem;
+  border: 1px solid #e4e4e7;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.12);
+  max-width: min(340px, calc(100vw - 32px));
+  color: #18181b;
+}
+.driver-popover.kocup-tour .driver-popover-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1b6b8a;
+}
+.driver-popover.kocup-tour .driver-popover-description {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #3f3f46;
+}
+.driver-popover.kocup-tour .driver-popover-progress-text {
+  color: #71717a;
+}
+.driver-popover.kocup-tour .driver-popover-footer button {
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  text-shadow: none;
+  border: 1px solid #e4e4e7;
+  background: #fff;
+}
+.driver-popover.kocup-tour .driver-popover-next-btn {
+  background: #f97316;
+  border-color: #f97316;
+  color: #fff;
+}

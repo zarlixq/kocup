@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { Sidebar } from "@/components/koc/sidebar"
 import { PomodoroProvider } from "@/components/pomodoro/pomodoro-provider"
 import { getCurrentProfile } from "@/lib/auth/current-user"
+import { TourMount } from "@/components/onboarding/tour-mount"
 
 export default async function KocLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile()
@@ -17,6 +18,7 @@ export default async function KocLayout({ children }: { children: React.ReactNod
         </div>
       </main>
       <PomodoroProvider />
+      <TourMount role="coach" userId={profile.id} />
       <Toaster />
     </div>
   )

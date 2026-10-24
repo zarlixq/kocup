@@ -1,0 +1,28 @@
+-- seed_maarif_10_biyoloji.sql — ÜRETİLDİ (scripts/maarif/build-seed.mjs), elle düzenleme:
+-- supabase/seed/maarif/curriculum-2026.mjs'i değiştirip yeniden üret.
+--
+-- Ders     : 10. Sınıf Biyoloji  (müfredat tymm-2026, Anadolu lisesi)
+-- Kaynak   : https://tymm.meb.gov.tr/assets/file/biyoloji-dersi-taslak-yillik-planlar_20260831_190639_106.zip
+-- Konu     : 18
+--
+-- Hafta | Ünite / Tema | Konu | TYT/AYT eşlemesi (güç; < 0.5 = emin değilim)
+--     1 | Enerji | Canlılık İçin Enerjinin Önemi ve ATP | AYT Biyoloji › Canlılarda Enerji Dönüşümleri (0.8)
+--     2 | Enerji | Fotosentez | AYT Biyoloji › Canlılarda Enerji Dönüşümleri (0.9)
+--     5 | Enerji | Fotosentez Hızını Etkileyen Faktörler | AYT Biyoloji › Canlılarda Enerji Dönüşümleri (0.8)
+--     6 | Enerji | Kemosentez | AYT Biyoloji › Canlılarda Enerji Dönüşümleri (0.8)
+--     7 | Enerji | Sindirim ve Canlılarda Sindirim Yapıları | AYT Biyoloji › Sindirim Sistemi (0.7)
+--     9 | Enerji | İnsanda Sindirim | AYT Biyoloji › Sindirim Sistemi (0.9)
+--    10 | Enerji | Emilim ve Taşınma | AYT Biyoloji › Sindirim Sistemi (0.7)
+--    11 | Enerji | Hücresel Solunum | AYT Biyoloji › Canlılarda Enerji Dönüşümleri (0.9)
+--    13 | Enerji | Besinlerin Solunuma Katılma Yolları | AYT Biyoloji › Canlılarda Enerji Dönüşümleri (0.7)
+--    14 | Enerji | Fermantasyon | AYT Biyoloji › Canlılarda Enerji Dönüşümleri (0.9)
+--    16 | Enerji | Enerji-Metabolizma İlişkisi | AYT Biyoloji › Canlılarda Enerji Dönüşümleri (0.5)
+--    19 | Ekoloji | Ekosistemin Bileşenleri | TYT Biyoloji › Ekosistem ve Ekoloji (0.9)
+--    20 | Ekoloji | Tür İçi ve Türler Arası Etkileşimler, Süksesyon, Popülasyon Dinamikleri | AYT Biyoloji › Komünite ve Popülasyon Ekolojisi (0.9)
+--    23 | Ekoloji | Ekosistemde Madde ve Enerji Akışı | TYT Biyoloji › Ekosistem ve Ekoloji (0.9)
+--    27 | Ekoloji | Madde Döngüleri | TYT Biyoloji › Ekosistem ve Ekoloji (0.8)
+--    28 | Ekoloji | Ekolojik Sürdürülebilirlik | TYT Biyoloji › Güncel Çevre Sorunları (0.8)
+--    29 | Ekoloji | Ekolojik Sürdürülebilirliği Engelleyen Durumlar | TYT Biyoloji › Güncel Çevre Sorunları (0.9)
+--    32 | Ekoloji | Ekolojik Sürdürülebilirliğin Sağlanması | TYT Biyoloji › Güncel Çevre Sorunları (0.7)
+
+select public.maarif_apply_curriculum('{"version":"tymm-2026","subjects":[{"name":"10. Sınıf Biyoloji","ders_key":"biyoloji","grade":10,"color":"#16A34A","order":1004,"source":"https://tymm.meb.gov.tr/assets/file/biyoloji-dersi-taslak-yillik-planlar_20260831_190639_106.zip","topics":[{"name":"Canlılık İçin Enerjinin Önemi ve ATP","keep":"Canlılık İçin Enerjinin Önemi ve ATP","order":1,"week":1,"unit":"Enerji","yks":[{"subject":"AYT Biyoloji","topic":"Canlılarda Enerji Dönüşümleri","strength":0.8}]},{"name":"Fotosentez","keep":"Fotosentez","order":2,"week":2,"unit":"Enerji","yks":[{"subject":"AYT Biyoloji","topic":"Canlılarda Enerji Dönüşümleri","strength":0.9}]},{"name":"Fotosentez Hızını Etkileyen Faktörler","keep":"Fotosentez Hızını Etkileyen Faktörler","order":3,"week":5,"unit":"Enerji","yks":[{"subject":"AYT Biyoloji","topic":"Canlılarda Enerji Dönüşümleri","strength":0.8}]},{"name":"Kemosentez","keep":"Kemosentez","order":4,"week":6,"unit":"Enerji","yks":[{"subject":"AYT Biyoloji","topic":"Canlılarda Enerji Dönüşümleri","strength":0.8}]},{"name":"Sindirim ve Canlılarda Sindirim Yapıları","order":5,"week":7,"unit":"Enerji","yks":[{"subject":"AYT Biyoloji","topic":"Sindirim Sistemi","strength":0.7}]},{"name":"İnsanda Sindirim","order":6,"week":9,"unit":"Enerji","yks":[{"subject":"AYT Biyoloji","topic":"Sindirim Sistemi","strength":0.9}]},{"name":"Emilim ve Taşınma","order":7,"week":10,"unit":"Enerji","yks":[{"subject":"AYT Biyoloji","topic":"Sindirim Sistemi","strength":0.7}]},{"name":"Hücresel Solunum","order":8,"week":11,"unit":"Enerji","yks":[{"subject":"AYT Biyoloji","topic":"Canlılarda Enerji Dönüşümleri","strength":0.9}]},{"name":"Besinlerin Solunuma Katılma Yolları","order":9,"week":13,"unit":"Enerji","yks":[{"subject":"AYT Biyoloji","topic":"Canlılarda Enerji Dönüşümleri","strength":0.7}]},{"name":"Fermantasyon","order":10,"week":14,"unit":"Enerji","yks":[{"subject":"AYT Biyoloji","topic":"Canlılarda Enerji Dönüşümleri","strength":0.9}]},{"name":"Enerji-Metabolizma İlişkisi","order":11,"week":16,"unit":"Enerji","yks":[{"subject":"AYT Biyoloji","topic":"Canlılarda Enerji Dönüşümleri","strength":0.5}]},{"name":"Ekosistemin Bileşenleri","order":12,"week":19,"unit":"Ekoloji","yks":[{"subject":"TYT Biyoloji","topic":"Ekosistem ve Ekoloji","strength":0.9}]},{"name":"Tür İçi ve Türler Arası Etkileşimler, Süksesyon, Popülasyon Dinamikleri","order":13,"week":20,"unit":"Ekoloji","yks":[{"subject":"AYT Biyoloji","topic":"Komünite ve Popülasyon Ekolojisi","strength":0.9}]},{"name":"Ekosistemde Madde ve Enerji Akışı","order":14,"week":23,"unit":"Ekoloji","yks":[{"subject":"TYT Biyoloji","topic":"Ekosistem ve Ekoloji","strength":0.9}]},{"name":"Madde Döngüleri","order":15,"week":27,"unit":"Ekoloji","yks":[{"subject":"TYT Biyoloji","topic":"Ekosistem ve Ekoloji","strength":0.8}]},{"name":"Ekolojik Sürdürülebilirlik","order":16,"week":28,"unit":"Ekoloji","yks":[{"subject":"TYT Biyoloji","topic":"Güncel Çevre Sorunları","strength":0.8}]},{"name":"Ekolojik Sürdürülebilirliği Engelleyen Durumlar","order":17,"week":29,"unit":"Ekoloji","yks":[{"subject":"TYT Biyoloji","topic":"Güncel Çevre Sorunları","strength":0.9}]},{"name":"Ekolojik Sürdürülebilirliğin Sağlanması","order":18,"week":32,"unit":"Ekoloji","yks":[{"subject":"TYT Biyoloji","topic":"Güncel Çevre Sorunları","strength":0.7}]}],"retire":[]}]}'::jsonb);

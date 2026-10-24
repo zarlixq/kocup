@@ -1,0 +1,24 @@
+-- seed_maarif_11_edebiyat.sql — ÜRETİLDİ (scripts/maarif/build-seed.mjs), elle düzenleme:
+-- supabase/seed/maarif/curriculum-2026.mjs'i değiştirip yeniden üret.
+--
+-- Ders     : 11. Sınıf Edebiyat  (müfredat tymm-2026, Anadolu lisesi)
+-- Kaynak   : https://tymm.meb.gov.tr/assets/file/turk-dili-ve-edebiyati-dersi-taslak-yillik-planlar_20260827_142401_066.zip
+-- Konu     : 14
+--
+-- Hafta | Ünite / Tema | Konu | TYT/AYT eşlemesi (güç; < 0.5 = emin değilim)
+--     1 | Bir Diyeceğim Var! | Karagöz Oyunu | AYT Edebiyat › Tiyatro Türleri (0.6); AYT Edebiyat › Halk Edebiyatı (0.4 ?)
+--     1 | Bir Diyeceğim Var! | Mektup ve Dilekçe | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.5)
+--     4 | Bir Diyeceğim Var! | Sözlü İletişim Engelleri ve Drama | —
+--     7 | Bir Diyeceğim Var! | E-posta Yazma | TYT Türkçe › Yazım Kuralları (0.3 ?)
+--    10 | Kültür Yolculuğu | Türk Dünyası Hikâyesi ve Anı | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.4 ?)
+--    10 | Kültür Yolculuğu | Orhun Abideleri ve Dîvânu Lugâti't-Türk | AYT Edebiyat › İslamiyet Öncesi Türk Edebiyatı (0.8); AYT Edebiyat › İslamiyet'e Geçiş Dönemi Türk Edebiyatı (0.8); AYT Edebiyat › Türkçenin Tarihi Gelişimi (0.6)
+--    15 | Kültür Yolculuğu | Âşık Atışması | AYT Edebiyat › Halk Edebiyatı (0.8)
+--    17 | Kültür Yolculuğu | Müze Gezisi İzlenimi Yazma | —
+--    19 | Yaşamın İzinde | Roman | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.5)
+--    19 | Yaşamın İzinde | Biyografi ve Tezkire | AYT Edebiyat › Divan Edebiyatı (0.5); AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.5)
+--    24 | Yaşamın İzinde | Radyo Tiyatrosu | AYT Edebiyat › Tiyatro Türleri (0.4 ?)
+--    28 | Hayatın Aynası | Tiyatro | AYT Edebiyat › Tiyatro Türleri (0.8)
+--    28 | Hayatın Aynası | Küçürek Hikâye | AYT Edebiyat › Düz Yazı (Nesir) Türleri (0.4 ?)
+--    33 | Hayatın Aynası | Belgesel ve Afiş | —
+
+select public.maarif_apply_curriculum('{"version":"tymm-2026","subjects":[{"name":"11. Sınıf Edebiyat","ders_key":"edebiyat","grade":11,"color":"#DC2626","order":1105,"source":"https://tymm.meb.gov.tr/assets/file/turk-dili-ve-edebiyati-dersi-taslak-yillik-planlar_20260827_142401_066.zip","topics":[{"name":"Karagöz Oyunu","order":1,"week":1,"unit":"Bir Diyeceğim Var!","yks":[{"subject":"AYT Edebiyat","topic":"Tiyatro Türleri","strength":0.6},{"subject":"AYT Edebiyat","topic":"Halk Edebiyatı","strength":0.4}]},{"name":"Mektup ve Dilekçe","order":2,"week":1,"unit":"Bir Diyeceğim Var!","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.5}]},{"name":"Sözlü İletişim Engelleri ve Drama","order":3,"week":4,"unit":"Bir Diyeceğim Var!","yks":[]},{"name":"E-posta Yazma","order":4,"week":7,"unit":"Bir Diyeceğim Var!","yks":[{"subject":"TYT Türkçe","topic":"Yazım Kuralları","strength":0.3}]},{"name":"Türk Dünyası Hikâyesi ve Anı","order":5,"week":10,"unit":"Kültür Yolculuğu","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.4}]},{"name":"Orhun Abideleri ve Dîvânu Lugâti''t-Türk","order":6,"week":10,"unit":"Kültür Yolculuğu","yks":[{"subject":"AYT Edebiyat","topic":"İslamiyet Öncesi Türk Edebiyatı","strength":0.8},{"subject":"AYT Edebiyat","topic":"İslamiyet''e Geçiş Dönemi Türk Edebiyatı","strength":0.8},{"subject":"AYT Edebiyat","topic":"Türkçenin Tarihi Gelişimi","strength":0.6}]},{"name":"Âşık Atışması","order":7,"week":15,"unit":"Kültür Yolculuğu","yks":[{"subject":"AYT Edebiyat","topic":"Halk Edebiyatı","strength":0.8}]},{"name":"Müze Gezisi İzlenimi Yazma","order":8,"week":17,"unit":"Kültür Yolculuğu","yks":[]},{"name":"Roman","order":9,"week":19,"unit":"Yaşamın İzinde","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.5}]},{"name":"Biyografi ve Tezkire","order":10,"week":19,"unit":"Yaşamın İzinde","yks":[{"subject":"AYT Edebiyat","topic":"Divan Edebiyatı","strength":0.5},{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.5}]},{"name":"Radyo Tiyatrosu","order":11,"week":24,"unit":"Yaşamın İzinde","yks":[{"subject":"AYT Edebiyat","topic":"Tiyatro Türleri","strength":0.4}]},{"name":"Tiyatro","order":12,"week":28,"unit":"Hayatın Aynası","yks":[{"subject":"AYT Edebiyat","topic":"Tiyatro Türleri","strength":0.8}]},{"name":"Küçürek Hikâye","order":13,"week":28,"unit":"Hayatın Aynası","yks":[{"subject":"AYT Edebiyat","topic":"Düz Yazı (Nesir) Türleri","strength":0.4}]},{"name":"Belgesel ve Afiş","order":14,"week":33,"unit":"Hayatın Aynası","yks":[]}],"retire":[]}]}'::jsonb);

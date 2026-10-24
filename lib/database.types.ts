@@ -537,6 +537,36 @@ export type Database = {
           },
         ]
       }
+      exam_calendar: {
+        Row: {
+          exam_date: string
+          exam_type: string
+          exam_year: number
+          note: string | null
+          question_style: string
+          source_url: string | null
+          tahmini: boolean
+        }
+        Insert: {
+          exam_date: string
+          exam_type: string
+          exam_year: number
+          note?: string | null
+          question_style: string
+          source_url?: string | null
+          tahmini?: boolean
+        }
+        Update: {
+          exam_date?: string
+          exam_type?: string
+          exam_year?: number
+          note?: string | null
+          question_style?: string
+          source_url?: string | null
+          tahmini?: boolean
+        }
+        Relationships: []
+      }
       exam_results: {
         Row: {
           correct: number
@@ -1506,6 +1536,48 @@ export type Database = {
           },
         ]
       }
+      school_calendar_breaks: {
+        Row: {
+          edu_year: string
+          ends_on: string
+          kind: string
+          starts_on: string
+        }
+        Insert: {
+          edu_year: string
+          ends_on: string
+          kind: string
+          starts_on: string
+        }
+        Update: {
+          edu_year?: string
+          ends_on?: string
+          kind?: string
+          starts_on?: string
+        }
+        Relationships: []
+      }
+      school_calendar_weeks: {
+        Row: {
+          edu_year: string
+          is_exam_week: boolean
+          starts_on: string
+          week_no: number
+        }
+        Insert: {
+          edu_year: string
+          is_exam_week?: boolean
+          starts_on: string
+          week_no: number
+        }
+        Update: {
+          edu_year?: string
+          is_exam_week?: boolean
+          starts_on?: string
+          week_no?: number
+        }
+        Relationships: []
+      }
       student_acquisition: {
         Row: {
           alan: string | null
@@ -2038,11 +2110,14 @@ export type Database = {
       student_upplan_profile: {
         Row: {
           alan: string | null
+          alan_egilimi: string | null
           availability: Json
           completed_at: string | null
           created_at: string
           focus_minutes: number
           grade: number | null
+          graduation_year: number | null
+          kept_topic_ids: string[]
           last_weekly_run_at: string | null
           load_factor: number
           segment: string
@@ -2050,16 +2125,21 @@ export type Database = {
           status: string
           student_id: string
           target_department: string | null
+          target_exam_year: number | null
           target_ranking: number | null
+          track: string | null
           updated_at: string
         }
         Insert: {
           alan?: string | null
+          alan_egilimi?: string | null
           availability?: Json
           completed_at?: string | null
           created_at?: string
           focus_minutes?: number
           grade?: number | null
+          graduation_year?: number | null
+          kept_topic_ids?: string[]
           last_weekly_run_at?: string | null
           load_factor?: number
           segment: string
@@ -2067,16 +2147,21 @@ export type Database = {
           status: string
           student_id: string
           target_department?: string | null
+          target_exam_year?: number | null
           target_ranking?: number | null
+          track?: string | null
           updated_at?: string
         }
         Update: {
           alan?: string | null
+          alan_egilimi?: string | null
           availability?: Json
           completed_at?: string | null
           created_at?: string
           focus_minutes?: number
           grade?: number | null
+          graduation_year?: number | null
+          kept_topic_ids?: string[]
           last_weekly_run_at?: string | null
           load_factor?: number
           segment?: string
@@ -2084,7 +2169,9 @@ export type Database = {
           status?: string
           student_id?: string
           target_department?: string | null
+          target_exam_year?: number | null
           target_ranking?: number | null
+          track?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2305,6 +2392,7 @@ export type Database = {
           color: string
           created_at: string | null
           curriculum: string
+          ders_key: string | null
           exam_type: string | null
           grade: number | null
           id: string
@@ -2315,6 +2403,7 @@ export type Database = {
           color: string
           created_at?: string | null
           curriculum?: string
+          ders_key?: string | null
           exam_type?: string | null
           grade?: number | null
           id?: string
@@ -2325,6 +2414,7 @@ export type Database = {
           color?: string
           created_at?: string | null
           curriculum?: string
+          ders_key?: string | null
           exam_type?: string | null
           grade?: number | null
           id?: string
@@ -2491,33 +2581,114 @@ export type Database = {
           },
         ]
       }
+      topic_replacements: {
+        Row: {
+          created_at: string
+          new_topic_id: string
+          old_topic_id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          new_topic_id: string
+          old_topic_id: string
+          reason?: string
+        }
+        Update: {
+          created_at?: string
+          new_topic_id?: string
+          old_topic_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_replacements_new_topic_id_fkey"
+            columns: ["new_topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_replacements_old_topic_id_fkey"
+            columns: ["old_topic_id"]
+            isOneToOne: true
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_yks_map: {
+        Row: {
+          maarif_topic_id: string
+          strength: number
+          yks_topic_id: string
+        }
+        Insert: {
+          maarif_topic_id: string
+          strength: number
+          yks_topic_id: string
+        }
+        Update: {
+          maarif_topic_id?: string
+          strength?: number
+          yks_topic_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_yks_map_maarif_topic_id_fkey"
+            columns: ["maarif_topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_yks_map_yks_topic_id_fkey"
+            columns: ["yks_topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       topics: {
         Row: {
           created_at: string | null
+          curriculum_version: string | null
           grade: number | null
           id: string
           is_active: boolean
           name: string
           order: number
+          school_week: number | null
+          source_url: string | null
           subject_id: string
+          unit: string | null
         }
         Insert: {
           created_at?: string | null
+          curriculum_version?: string | null
           grade?: number | null
           id?: string
           is_active?: boolean
           name: string
           order: number
+          school_week?: number | null
+          source_url?: string | null
           subject_id: string
+          unit?: string | null
         }
         Update: {
           created_at?: string | null
+          curriculum_version?: string | null
           grade?: number | null
           id?: string
           is_active?: boolean
           name?: string
           order?: number
+          school_week?: number | null
+          source_url?: string | null
           subject_id?: string
+          unit?: string | null
         }
         Relationships: [
           {
@@ -2525,6 +2696,53 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      upplan_archive: {
+        Row: {
+          archived_at: string
+          generated_at: string | null
+          id: string
+          kind: string
+          payload: Json
+          previous_status: string
+          reason: string
+          status: string
+          student_id: string
+          week_start: string | null
+        }
+        Insert: {
+          archived_at?: string
+          generated_at?: string | null
+          id?: string
+          kind: string
+          payload: Json
+          previous_status: string
+          reason: string
+          status?: string
+          student_id: string
+          week_start?: string | null
+        }
+        Update: {
+          archived_at?: string
+          generated_at?: string | null
+          id?: string
+          kind?: string
+          payload?: Json
+          previous_status?: string
+          reason?: string
+          status?: string
+          student_id?: string
+          week_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upplan_archive_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2546,6 +2764,64 @@ export type Database = {
           value?: number
         }
         Relationships: []
+      }
+      upplan_feedback: {
+        Row: {
+          block_type: string | null
+          created_at: string
+          id: string
+          reason: string
+          student_id: string
+          subject_id: string | null
+          topic_id: string | null
+          track: string | null
+          week_start: string
+        }
+        Insert: {
+          block_type?: string | null
+          created_at?: string
+          id?: string
+          reason: string
+          student_id: string
+          subject_id?: string | null
+          topic_id?: string | null
+          track?: string | null
+          week_start: string
+        }
+        Update: {
+          block_type?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          student_id?: string
+          subject_id?: string | null
+          topic_id?: string | null
+          track?: string | null
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upplan_feedback_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upplan_feedback_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upplan_feedback_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       upplan_notifications: {
         Row: {
@@ -2667,6 +2943,41 @@ export type Database = {
             foreignKeyName: "upplan_roadmaps_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      upplan_week_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          rating: number
+          student_id: string
+          track: string | null
+          week_start: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          rating: number
+          student_id: string
+          track?: string | null
+          week_start: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          rating?: number
+          student_id?: string
+          track?: string | null
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upplan_week_ratings_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -3266,6 +3577,11 @@ export type Database = {
       is_coach_of: { Args: { student_id: string }; Returns: boolean }
       is_coach_of_same_org: { Args: { p_student_id: string }; Returns: boolean }
       is_org_admin_of: { Args: { target_org_id: string }; Returns: boolean }
+      maarif_apply_curriculum: { Args: { p: Json }; Returns: Json }
+      move_topic_refs: {
+        Args: { p_new: string; p_old: string }
+        Returns: number
+      }
       my_coach_id: { Args: never; Returns: string }
       org_coach_last_login: {
         Args: never
@@ -3402,14 +3718,29 @@ export type Database = {
       }
       upplan_cfg: { Args: { p_key: string }; Returns: number }
       upplan_confidence: { Args: { p_evidence_w: number }; Returns: string }
+      upplan_edu_end_year: { Args: { p_on?: string }; Returns: number }
+      upplan_grade_for: {
+        Args: { p_graduation_year: number; p_on?: string }
+        Returns: number
+      }
+      upplan_graduation_year_for: {
+        Args: { p_grade: string; p_on?: string }
+        Returns: number
+      }
       upplan_penalty: { Args: { p_error_type: string }; Returns: number }
       upplan_recompute_student: {
         Args: { p_student_id: string }
         Returns: number
       }
+      upplan_refresh_tracks: { Args: never; Returns: number }
       upplan_set_plan_orders: {
         Args: { p_ids: string[]; p_orders: number[]; p_student_id: string }
         Returns: number
+      }
+      upplan_today: { Args: never; Returns: string }
+      upplan_track_for: {
+        Args: { p_graduation_year: number; p_on?: string }
+        Returns: string
       }
       weekly_program_compliance: {
         Args: { p_student_id?: string; p_week_start: string }

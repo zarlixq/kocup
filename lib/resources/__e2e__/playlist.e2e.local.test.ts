@@ -19,7 +19,7 @@ import { applyPlan, loadVideoAgenda, shiftPlans } from "@/lib/resources/playlist
 import { loadPlaylists } from "@/lib/resources/videos"
 import { linkPlaylistToYoutube } from "@/lib/resources/video-sync"
 import { loadVideoDays } from "@/lib/upplan/program-service"
-import { scheduleWeek } from "@/lib/upplan/scheduler"
+import { scheduleWeek, weekRulesFor } from "@/lib/upplan/scheduler"
 
 loadEnv()
 type C = SupabaseClient<Database>
@@ -219,6 +219,7 @@ describe.sequential("playlist takip e2e", () => {
     const r = scheduleWeek({
       weekStart, today: TODAY, availability: AVAIL, focusMinutes: 45, loadFactor: 1, segment: "yks", weeksLeft: 30,
       minutesPerQuestion: 1.5, goals: [], reviews: [], fixed: [], videoDays: days,
+      rules: weekRulesFor({ track: null, schoolDays: [], holiday: false, skeleton: [] }),
     })
     const videoBlocks = r.items.filter((i) => i.baslik.startsWith("Video:"))
     expect(videoBlocks.length).toBeGreaterThan(0)
